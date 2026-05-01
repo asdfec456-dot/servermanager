@@ -2,9 +2,9 @@
 # Server Manager — 安装 / 升级 / 卸载
 # © CATNETWORK  https://github.com/asdfec456-dot/servermanager
 #
-# 安装:  bash <(curl -fsSL https://raw.githubusercontent.com/asdfec456-dot/servermanager/main/get.sh)
-# 升级:  bash <(curl -fsSL https://raw.githubusercontent.com/asdfec456-dot/servermanager/main/get.sh) upgrade
-# 卸载:  bash <(curl -fsSL https://raw.githubusercontent.com/asdfec456-dot/servermanager/main/get.sh) uninstall
+# 安装:  curl -fsSL https://asdfec456-dot.github.io/servermanager/get.sh | bash
+# 升级:  curl -fsSL https://asdfec456-dot.github.io/servermanager/get.sh | bash -s upgrade
+# 卸载:  curl -fsSL https://asdfec456-dot.github.io/servermanager/get.sh | bash -s uninstall
 
 set -euo pipefail
 

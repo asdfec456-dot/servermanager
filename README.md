@@ -3,31 +3,29 @@
 数据中心 BMC 硬件监控工具，支持 **Redfish** 和 **IPMI** 双协议。  
 通过 Web 界面直观查看所有服务器的温度、风扇、电源、处理器等硬件状态。
 
-## 快速开始
-
-### 安装
+## 安装
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/asdfec456-dot/servermanager/main/get.sh)
+curl -fsSL https://asdfec456-dot.github.io/servermanager/get.sh | bash
 ```
 
-### 升级
+## 升级
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/asdfec456-dot/servermanager/main/get.sh) upgrade
+curl -fsSL https://asdfec456-dot.github.io/servermanager/get.sh | bash -s upgrade
 ```
 
-### 卸载
+## 卸载
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/asdfec456-dot/servermanager/main/get.sh) uninstall
+curl -fsSL https://asdfec456-dot.github.io/servermanager/get.sh | bash -s uninstall
 ```
 
 ---
 
 安装完成后访问 `http://<服务器IP>:8080`，在右上角「设置」中填写 BMC IP 范围和登录凭据即可开始监控。
 
-**支持格式：**
+**支持 IP 格式：**
 
 | 输入 | 说明 |
 |---|---|
