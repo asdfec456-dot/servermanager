@@ -1,0 +1,35 @@
+# 服务器BMC配置文件
+# 每台服务器填写bmc_ip, username, password，name为显示名称（可选）
+# protocol: redfish (默认) | ipmi
+
+servers:
+  - name: "Web Server 01"
+    bmc_ip: "192.168.1.101"
+    username: "admin"
+    password: "password"
+    protocol: redfish
+
+  - name: "DB Server 01"
+    bmc_ip: "192.168.1.102"
+    username: "admin"
+    password: "password"
+    protocol: redfish
+
+  - name: "Storage Server 01"
+    bmc_ip: "192.168.1.103"
+    username: "Administrator"
+    password: "password"
+    protocol: redfish
+
+  - name: "Compute Node 01"
+    bmc_ip: "192.168.1.104"
+    username: "ADMIN"
+    password: "ADMIN"
+    protocol: redfish
+
+# 全局设置
+settings:
+  refresh_interval: 60      # 自动刷新间隔（秒）
+  collection_timeout: 15    # 单台服务器采集超时（秒）
+  max_concurrent: 10        # 最大并发采集数
+  cache_ttl: 30             # 数据缓存有效期（秒）
