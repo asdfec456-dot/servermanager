@@ -1,51 +1,42 @@
 #!/usr/bin/env bash
+# Server Manager — 本地安装脚本（直接 clone 后使用）
+# 如果通过 get.sh 安装，系统包由 get.sh 统一管理
 set -euo pipefail
 
-echo "=== Server Manager 安装脚本 ==="
+echo "=== Server Manager 安装 ==="
 echo
 
-# Python 3.9+
-if ! command -v python3 &>/dev/null; then
-  echo "[错误] 未找到 python3，请先安装：sudo apt install python3 python3-pip python3-venv"
-  exit 1
-fi
-PY_VER=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
-echo "[✓] Python ${PY_VER}"
+# ── 系统包（直接运行 install.sh 时兜底安装）──────────────────────
+PKGS_NEEDED=()
+pkg_installed(){ dpkg-query -W -f='${Status}' "$1" 2>/dev/null | grep -q "install ok installed"; }
 
-# ipmitool（IPMI 协议必需）
-if command -v ipmitool &>/dev/null; then
-  echo "[✓] ipmitool 已安装"
-else
-  echo "[*] 安装 ipmitool..."
-  if sudo apt-get install -y ipmitool 2>/dev/null; then
-    echo "[✓] ipmitool 安装成功"
-  else
-    echo "[!] ipmitool 安装失败，如果仅使用 Redfish 协议可以忽略此警告"
-    echo "    手动安装：sudo apt-get install ipmitool"
-  fi
+for pkg in python3 python3-venv python3-pip ipmitool; do
+  pkg_installed "$pkg" || PKGS_NEEDED+=("$pkg")
+done
+
+if [ ${#PKGS_NEEDED[@]} -gt 0 ]; then
+  echo "[*] 安装缺失组件：${PKGS_NEEDED[*]}"
+  sudo apt-get update -q 2>&1 | tail -1
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q "${PKGS_NEEDED[@]}" 2>&1 | grep "Setting up" || true
+  echo "[✓] 组件安装完成"
 fi
 
-# 虚拟环境
+# ── Python 虚拟环境 ────────────────────────────────────────────────
 if [ ! -d "venv" ]; then
-  echo "[*] 创建虚拟环境..."
+  echo "[*] 创建 Python 虚拟环境..."
   python3 -m venv venv
 fi
-echo "[✓] 虚拟环境已就绪"
 
 source venv/bin/activate
 echo "[*] 安装 Python 依赖..."
 pip install --upgrade pip -q
 pip install -r requirements.txt -q
-echo "[✓] 依赖安装完成"
+echo "[✓] Python 环境就绪"
 
-# 创建数据目录
 mkdir -p data
 echo "[✓] 数据目录 data/ 已就绪"
 
 echo
 echo "=== 安装完成 ==="
-echo
 echo "  运行：  ./start.sh"
-echo "  访问：  http://<本机IP>:8080"
-echo
-echo "  首次启动后在浏览器点击右上角「设置」按钮配置 BMC 地址和凭据。"
+echo "  访问：  http://$(hostname -I 2>/dev/null | awk '{print $1}' || echo localhost):8080"
