@@ -98,6 +98,8 @@ service_active(){
 }
 
 write_service(){
+  # 解除可能存在的 mask 状态
+  sudo systemctl unmask "$SERVICE_NAME" 2>/dev/null || true
   sudo tee "$SERVICE_FILE" > /dev/null <<EOF
 [Unit]
 Description=Server Manager BMC Monitor — CATNETWORK
