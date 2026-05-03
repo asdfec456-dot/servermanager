@@ -225,6 +225,38 @@ th{text-align:left;padding:5px 7px;font-size:.62rem;text-transform:uppercase;let
 td{padding:6px 7px;border-bottom:1px solid var(--bd);vertical-align:middle}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:var(--sf2)}
+/* Alert modal */
+.alert-tab{background:none;border:none;padding:10px 14px;font-size:.78rem;color:var(--tx2);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;margin-bottom:-1px}
+.alert-tab:hover{color:var(--tx)}.alert-tab.act{color:var(--acc);border-bottom-color:var(--acc)}
+.alert-tab-pane{min-height:280px}
+.ch-card{background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:14px 16px;margin-bottom:12px}
+.ch-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.ch-name{font-size:.88rem;font-weight:600;display:flex;align-items:center;gap:8px}
+.ch-toggle{position:relative;display:inline-block;width:36px;height:20px;cursor:pointer}
+.ch-toggle input{opacity:0;width:0;height:0}
+.ch-slider{position:absolute;inset:0;background:var(--bd);border-radius:20px;transition:.2s}
+.ch-slider:before{content:'';position:absolute;height:14px;width:14px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s}
+.ch-toggle input:checked+.ch-slider{background:var(--acc)}
+.ch-toggle input:checked+.ch-slider:before{transform:translateX(16px)}
+.ch-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}
+.ch-fields.one-col{grid-template-columns:1fr}
+.ch-test-btn{font-size:.7rem;padding:3px 9px;border-radius:4px;border:1px solid var(--bd);background:var(--sf3);color:var(--tx2);cursor:pointer;transition:all .15s}
+.ch-test-btn:hover{border-color:var(--ok);color:var(--ok)}
+.alert-rule-item{display:flex;align-items:center;gap:8px;padding:8px 11px;background:var(--sf2);border:1px solid var(--bd);border-radius:6px;margin-bottom:6px}
+.ar-name{flex:1;font-size:.82rem;font-weight:500;min-width:0}
+.ar-trigger{font-size:.68rem;color:var(--tx2)}
+.ar-toggle{position:relative;display:inline-block;width:32px;height:18px;cursor:pointer;flex-shrink:0}
+.ar-toggle input{opacity:0;width:0;height:0}
+.ar-slider{position:absolute;inset:0;background:var(--bd);border-radius:18px;transition:.2s}
+.ar-slider:before{content:'';position:absolute;height:12px;width:12px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s}
+.ar-toggle input:checked+.ar-slider{background:var(--ok)}
+.ar-toggle input:checked+.ar-slider:before{transform:translateX(14px)}
+.hist-item{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--bd);font-size:.76rem}
+.hist-item:last-child{border-bottom:none}
+.hist-icon{font-size:1rem;flex-shrink:0}
+.hist-body{flex:1;min-width:0}
+.hist-title{font-weight:600}
+.hist-meta{color:var(--tx2);margin-top:2px}
 /* Footer */
 .footer{text-align:center;padding:13px 0 17px;font-size:.65rem;color:var(--tx3);letter-spacing:.06em;border-top:1px solid var(--bd);margin-top:4px}
 .footer a{color:var(--tx3);text-decoration:none}.footer a:hover{color:var(--tx2)}
@@ -317,6 +349,10 @@ tr:hover td{background:var(--sf2)}
     <button class="btn admin-only" onclick="openOverlay('ov-users')">
       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       <span id="lbl-users">用户</span>
+    </button>
+    <button class="btn admin-only" onclick="openOverlay('ov-alerts')">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span id="lbl-alerts">警报</span>
     </button>
     <button class="btn btn-danger" onclick="doLogout()"><span id="lbl-logout">登出</span></button>
   </div>
@@ -457,6 +493,78 @@ tr:hover td{background:var(--sf2)}
         <button class="btn" id="btn-sc-cancel" onclick="cancelScEdit()"><span id="lbl-sc-cancel">取消</span></button>
         <button class="btn btn-acc" id="btn-sc-save" onclick="saveSubcluster()"><span id="lbl-sc-save">创建</span></button>
       </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ALERTS MODAL -->
+<div class="overlay" id="ov-alerts" onclick="closeOvBg(event,'ov-alerts')">
+<div class="modal modal-wide">
+  <div class="modal-hdr">
+    <div><div class="modal-title">警报管理</div><div class="modal-sub">配置触发条件和通知渠道</div></div>
+    <button class="mclose" onclick="closeOverlay('ov-alerts')">✕</button>
+  </div>
+  <div class="modal-body" style="padding:0">
+    <!-- Tabs -->
+    <div style="display:flex;border-bottom:1px solid var(--bd);padding:0 18px">
+      <button class="alert-tab act" onclick="switchAlertTab('channels',this)">通知渠道</button>
+      <button class="alert-tab" onclick="switchAlertTab('rules',this)">触发规则</button>
+      <button class="alert-tab" onclick="switchAlertTab('history',this)">历史记录</button>
+    </div>
+    <!-- Channels Tab -->
+    <div id="alert-tab-channels" class="alert-tab-pane" style="padding:18px">
+      <div id="channels-content"></div>
+    </div>
+    <!-- Rules Tab -->
+    <div id="alert-tab-rules" class="alert-tab-pane" style="display:none;padding:18px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+        <div>
+          <div class="sec-title">已有规则</div>
+          <div id="alert-rules-list"></div>
+        </div>
+        <div>
+          <div class="sec-title" id="alert-rule-form-title">添加规则</div>
+          <div class="form-g2"><label>规则名称</label><input class="inp" id="ar-name" type="text" placeholder="例：服务器下线告警"></div>
+          <div class="form-g2"><label>触发条件</label>
+            <select class="inp" id="ar-trigger">
+              <option value="server_offline">服务器下线</option>
+              <option value="server_online">服务器恢复上线</option>
+              <option value="health_critical">健康状态：严重</option>
+              <option value="health_warning">健康状态：警告</option>
+              <option value="temp_critical">温度传感器：严重</option>
+              <option value="fan_failed">风扇故障</option>
+              <option value="psu_failed">电源模块故障</option>
+              <option value="power_off">服务器关机</option>
+              <option value="hardware_missing">硬件丢失</option>
+            </select>
+          </div>
+          <div class="form-g2"><label>冷却时间（秒，同一服务器重复报警间隔）</label>
+            <input class="inp" id="ar-cooldown" type="number" min="30" value="300">
+          </div>
+          <div class="form-g2"><label>通知渠道</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:3px" id="ar-channels">
+              <label style="display:flex;align-items:center;gap:5px;font-size:.75rem"><input type="checkbox" value="telegram" checked> Telegram</label>
+              <label style="display:flex;align-items:center;gap:5px;font-size:.75rem"><input type="checkbox" value="email"> 邮件</label>
+              <label style="display:flex;align-items:center;gap:5px;font-size:.75rem"><input type="checkbox" value="sms"> 短信</label>
+              <label style="display:flex;align-items:center;gap:5px;font-size:.75rem"><input type="checkbox" value="webhook"> Webhook</label>
+            </div>
+          </div>
+          <div class="err-msg" id="alert-rule-err"></div>
+          <div style="display:flex;gap:7px">
+            <button class="btn" id="btn-ar-cancel" onclick="cancelAlertRuleEdit()" style="display:none">取消</button>
+            <button class="btn btn-acc" onclick="submitAlertRule()"><span id="btn-ar-submit-lbl">添加规则</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- History Tab -->
+    <div id="alert-tab-history" class="alert-tab-pane" style="display:none;padding:18px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="sec-title" style="margin-bottom:0;flex:1">最近报警记录</div>
+        <button class="btn btn-danger" onclick="clearAlertHistory()" style="font-size:.7rem">清空记录</button>
+      </div>
+      <div id="alert-history-list"></div>
     </div>
   </div>
 </div>
@@ -1141,10 +1249,180 @@ function openOverlay(id){
   if(id==='ov-cfg')openSettingsModal();
   else if(id==='ov-users')openUsersModal();
   else if(id==='ov-sc')openScModal();
+  else if(id==='ov-alerts')openAlertsModal();
   else{$(id).classList.add('open');document.body.style.overflow='hidden';}
 }
 function closeOverlay(id){$(id).classList.remove('open');document.body.style.overflow='';}
 function closeOvBg(e,id){if(e.target===$(id))closeOverlay(id);}
+
+/* ── Alerts ────────────────────────────────────────────────────── */
+let _alertRuleEditId = null;
+
+const TRIGGER_LABELS = {
+  server_offline:'服务器下线', server_online:'服务器恢复上线',
+  health_critical:'健康状态：严重', health_warning:'健康状态：警告',
+  temp_critical:'温度传感器：严重', fan_failed:'风扇故障',
+  psu_failed:'电源模块故障', power_off:'服务器关机', hardware_missing:'硬件丢失',
+};
+const TRIGGER_ICONS = {
+  server_offline:'🔴', server_online:'🟢', health_critical:'🚨',
+  health_warning:'⚠️', temp_critical:'🌡️', fan_failed:'💨',
+  psu_failed:'⚡', power_off:'⏹️', hardware_missing:'🔧',
+};
+
+async function openAlertsModal(){
+  await loadChannelsTab();
+  await loadRulesTab();
+  $('ov-alerts').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+
+function switchAlertTab(tab,el){
+  document.querySelectorAll('.alert-tab').forEach(b=>b.classList.remove('act'));
+  el.classList.add('act');
+  ['channels','rules','history'].forEach(t=>{
+    $(`alert-tab-${t}`).style.display=t===tab?'':'none';
+  });
+  if(tab==='history') loadHistoryTab();
+}
+
+async function loadChannelsTab(){
+  const r=await api('GET','/api/alerts/channels'); if(!r) return;
+  const ch=await r.json();
+  const defs=[
+    {key:'telegram',label:'Telegram',icon:'✈️',fields:[
+      {k:'bot_token',label:'Bot Token（留空使用系统默认）',type:'password',ph:'留空则使用内置 token'},
+      {k:'chat_ids',label:'Chat ID（逗号分隔，留空使用默认）',type:'text',ph:''},
+    ]},
+    {key:'email',label:'邮件 Email',icon:'📧',fields:[
+      {k:'smtp_host',label:'SMTP 服务器',ph:'smtp.gmail.com'},
+      {k:'smtp_port',label:'端口',ph:'587'},
+      {k:'smtp_user',label:'用户名 / 发件邮箱',ph:'user@gmail.com'},
+      {k:'smtp_pass',label:'密码 / 应用专用密码',type:'password',ph:''},
+      {k:'to_addrs',label:'收件人（逗号分隔）',ph:'admin@example.com'},
+    ]},
+    {key:'sms',label:'短信 SMS (Twilio)',icon:'📱',fields:[
+      {k:'account_sid',label:'Account SID',ph:'ACxxxxxxxx'},
+      {k:'auth_token',label:'Auth Token',type:'password',ph:''},
+      {k:'from_number',label:'发送号码',ph:'+15551234567'},
+      {k:'to_numbers',label:'接收号码（逗号分隔）',ph:'+81901234567'},
+    ]},
+    {key:'webhook',label:'Webhook',icon:'🔗',fields:[
+      {k:'url',label:'URL',ph:'https://hooks.example.com/alert'},
+      {k:'method',label:'Method',ph:'POST'},
+      {k:'headers',label:'自定义 Headers（JSON）',ph:'{"X-Token":"xxx"}'},
+    ]},
+  ];
+  $('channels-content').innerHTML=defs.map(def=>{
+    const cfg=ch[def.key]||{};
+    const en=cfg.enabled||false;
+    const fields=def.fields.map(f=>{
+      let v=cfg[f.k]; if(Array.isArray(v)) v=v.join(', '); if(typeof v==='object'&&v!==null) v=JSON.stringify(v); v=v||'';
+      return `<div class="form-g2"><label>${f.label}</label><input class="inp ch-field" data-ch="${def.key}" data-field="${f.k}" type="${f.type||'text'}" value="${esc(v)}" placeholder="${esc(f.ph||'')}"></div>`;
+    }).join('');
+    return `<div class="ch-card">
+<div class="ch-card-head">
+  <div class="ch-name">${def.icon} ${def.label}</div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <button class="ch-test-btn" onclick="testChannel('${def.key}')">测试</button>
+    <label class="ch-toggle"><input type="checkbox" data-ch="${def.key}" onchange="saveChannels()"${en?' checked':''}><span class="ch-slider"></span></label>
+  </div>
+</div>
+<div class="ch-fields">${fields}</div>
+</div>`;
+  }).join('');
+}
+
+async function saveChannels(){
+  const payload={};
+  document.querySelectorAll('.ch-card').forEach(card=>{
+    const key=card.querySelector('[data-ch]')?.dataset.ch; if(!key) return;
+    payload[key]={enabled:card.querySelector(`input[type=checkbox][data-ch="${key}"]`)?.checked||false};
+    card.querySelectorAll('.ch-field').forEach(inp=>{
+      let v=inp.value.trim(),f=inp.dataset.field;
+      if(['to_addrs','to_numbers','chat_ids'].includes(f)){
+        payload[key][f]=v?v.split(',').map(s=>s.trim()).filter(Boolean):[];
+      } else { payload[key][f]=v; }
+    });
+  });
+  await api('POST','/api/alerts/channels',payload);
+}
+
+async function testChannel(ch){
+  await saveChannels();
+  const r=await api('POST',`/api/alerts/test/${ch}`,{}); if(!r) return;
+  const d=await r.json();
+  alert(r.ok?`✅ ${d.msg}`:`❌ ${d.detail||'失败'}`);
+}
+
+async function loadRulesTab(){
+  const r=await api('GET','/api/alerts/rules'); if(!r) return;
+  const rules=await r.json();
+  $('alert-rules-list').innerHTML=rules.length===0
+    ?'<div style="color:var(--tx3);font-size:.75rem">暂无规则</div>'
+    :rules.map(rule=>`<div class="alert-rule-item">
+<div style="flex:1;min-width:0">
+  <div class="ar-name">${TRIGGER_ICONS[rule.trigger]||'📢'} ${esc(rule.name)}</div>
+  <div class="ar-trigger">${TRIGGER_LABELS[rule.trigger]||rule.trigger} · ${rule.cooldown}s · ${(rule.channels||[]).join('/')}</div>
+</div>
+<button class="btn-sm" onclick="editAlertRule('${rule.id}')">编辑</button>
+<button class="btn-sm btn-sm-del" onclick="deleteAlertRule('${rule.id}')">删除</button>
+<label class="ar-toggle"><input type="checkbox"${rule.enabled?' checked':''} onchange="toggleAlertRule('${rule.id}',this.checked)"><span class="ar-slider"></span></label>
+</div>`).join('');
+}
+
+async function toggleAlertRule(id,en){ await api('PUT',`/api/alerts/rules/${id}`,{enabled:en}); }
+
+async function editAlertRule(id){
+  const r=await api('GET','/api/alerts/rules'); if(!r) return;
+  const rule=(await r.json()).find(x=>x.id===id); if(!rule) return;
+  _alertRuleEditId=id;
+  $('ar-name').value=rule.name; $('ar-trigger').value=rule.trigger; $('ar-cooldown').value=rule.cooldown;
+  document.querySelectorAll('#ar-channels input').forEach(cb=>cb.checked=(rule.channels||[]).includes(cb.value));
+  $('alert-rule-form-title').textContent='编辑规则';
+  $('btn-ar-submit-lbl').textContent='保存修改';
+  $('btn-ar-cancel').style.display='';
+}
+
+function cancelAlertRuleEdit(){
+  _alertRuleEditId=null;
+  $('ar-name').value=''; $('ar-cooldown').value='300';
+  $('alert-rule-form-title').textContent='添加规则';
+  $('btn-ar-submit-lbl').textContent='添加规则';
+  $('btn-ar-cancel').style.display='none';
+  $('alert-rule-err').textContent='';
+  document.querySelectorAll('#ar-channels input').forEach((cb,i)=>cb.checked=i===0);
+}
+
+async function submitAlertRule(){
+  const name=$('ar-name').value.trim(),err=$('alert-rule-err');
+  err.textContent='';
+  if(!name){err.textContent='请输入规则名称';return;}
+  const channels=[...document.querySelectorAll('#ar-channels input:checked')].map(cb=>cb.value);
+  const body={name,trigger:$('ar-trigger').value,cooldown:parseInt($('ar-cooldown').value)||300,channels,enabled:true};
+  const r=_alertRuleEditId?await api('PUT',`/api/alerts/rules/${_alertRuleEditId}`,body):await api('POST','/api/alerts/rules',body);
+  if(!r) return;
+  if(!r.ok){const d=await r.json();err.textContent=d.detail||'失败';return;}
+  cancelAlertRuleEdit(); await loadRulesTab();
+}
+
+async function deleteAlertRule(id){
+  if(!confirm('确认删除此规则？')) return;
+  await api('DELETE',`/api/alerts/rules/${id}`); await loadRulesTab();
+}
+
+async function loadHistoryTab(){
+  const r=await api('GET','/api/alerts/history'); if(!r) return;
+  const h=await r.json();
+  $('alert-history-list').innerHTML=h.length===0
+    ?'<div style="color:var(--tx3);font-size:.75rem;padding:8px 0">暂无报警记录</div>'
+    :h.map(e=>`<div class="hist-item"><div class="hist-icon">${TRIGGER_ICONS[e.trigger]||'📢'}</div><div class="hist-body"><div class="hist-title">${esc(e.rule)} — ${esc(e.server)}</div><div class="hist-meta">${esc(e.time)}${e.detail?' · '+esc(e.detail):''} · ${(e.channels||[]).join('/')}</div></div></div>`).join('');
+}
+
+async function clearAlertHistory(){
+  if(!confirm('确认清空所有报警记录？')) return;
+  await api('DELETE','/api/alerts/history'); await loadHistoryTab();
+}
 
 /* ── Init ──────────────────────────────────────────────────── */
 applyTheme(localStorage.getItem('sm_theme')||'dark');

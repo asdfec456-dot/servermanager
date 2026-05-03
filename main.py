@@ -15,9 +15,13 @@ import ipaddress
 import uuid
 import hashlib
 import secrets
+import smtplib
+import email.mime.text
+import email.mime.multipart
 from pathlib import Path
 from typing import Optional, List, Dict
 from contextlib import asynccontextmanager
+from datetime import datetime
 
 from fastapi import FastAPI, BackgroundTasks, Request, Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -31,9 +35,23 @@ BASE_DIR   = Path(__file__).parent
 STATIC_DIR = BASE_DIR / "static"
 DATA_DIR   = BASE_DIR / "data"
 
-SETTINGS_FILE    = DATA_DIR / "settings.json"
-AUTH_FILE        = DATA_DIR / "auth.json"
-SUBCLUSTERS_FILE = DATA_DIR / "subclusters.json"
+SETTINGS_FILE      = DATA_DIR / "settings.json"
+AUTH_FILE          = DATA_DIR / "auth.json"
+SUBCLUSTERS_FILE   = DATA_DIR / "subclusters.json"
+ALERT_RULES_FILE   = DATA_DIR / "alert_rules.json"
+ALERT_CHANNELS_FILE= DATA_DIR / "alert_channels.json"
+ALERT_STATE_FILE   = DATA_DIR / "alert_state.json"
+ALERT_HISTORY_FILE = DATA_DIR / "alert_history.json"
+
+# Telegram bot token (from channel config or env file)
+_TG_ENV = Path.home() / ".claude" / "channels" / "telegram" / ".env"
+
+def _read_tg_token() -> str:
+    if _TG_ENV.exists():
+        for line in _TG_ENV.read_text().splitlines():
+            if line.startswith("TELEGRAM_BOT_TOKEN="):
+                return line.split("=", 1)[1].strip()
+    return ""
 
 DEFAULT_SETTINGS: dict = {
     "ip_ranges": "", "username": "admin", "password": "",
@@ -85,6 +103,389 @@ def load_settings() -> dict:
 def save_settings(data: dict) -> None:
     DATA_DIR.mkdir(exist_ok=True)
     SETTINGS_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+
+# ════════════════════════════════════════════════════════════════════
+# 报警引擎
+# ════════════════════════════════════════════════════════════════════
+
+# 默认报警规则
+DEFAULT_ALERT_RULES = [
+    {"id": "rule-offline",   "name": "服务器下线",   "trigger": "server_offline",  "enabled": True,  "cooldown": 300,  "channels": ["telegram"]},
+    {"id": "rule-online",    "name": "服务器恢复",   "trigger": "server_online",   "enabled": True,  "cooldown": 60,   "channels": ["telegram"]},
+    {"id": "rule-crit",      "name": "严重健康故障", "trigger": "health_critical", "enabled": True,  "cooldown": 600,  "channels": ["telegram"]},
+    {"id": "rule-warn",      "name": "健康警告",     "trigger": "health_warning",  "enabled": False, "cooldown": 600,  "channels": ["telegram"]},
+    {"id": "rule-temp-crit", "name": "温度严重",     "trigger": "temp_critical",   "enabled": True,  "cooldown": 600,  "channels": ["telegram"]},
+    {"id": "rule-fan",       "name": "风扇故障",     "trigger": "fan_failed",      "enabled": True,  "cooldown": 600,  "channels": ["telegram"]},
+    {"id": "rule-psu",       "name": "电源模块故障", "trigger": "psu_failed",      "enabled": True,  "cooldown": 600,  "channels": ["telegram"]},
+    {"id": "rule-poweroff",  "name": "服务器关机",   "trigger": "power_off",       "enabled": True,  "cooldown": 300,  "channels": ["telegram"]},
+    {"id": "rule-hw-miss",   "name": "硬件丢失",     "trigger": "hardware_missing","enabled": True,  "cooldown": 300,  "channels": ["telegram"]},
+]
+
+DEFAULT_ALERT_CHANNELS = {
+    "telegram": {
+        "enabled": True,
+        "bot_token": "",   # 留空则使用系统内置 token
+        "chat_ids": [],    # 留空则使用系统默认 chat_id
+    },
+    "email": {
+        "enabled": False,
+        "smtp_host": "smtp.gmail.com",
+        "smtp_port": 587,
+        "smtp_user": "",
+        "smtp_pass": "",
+        "from_addr": "",
+        "to_addrs": [],
+        "use_tls": True,
+    },
+    "sms": {
+        "enabled": False,
+        "provider": "twilio",      # twilio | aws_sns
+        "account_sid": "",         # Twilio Account SID
+        "auth_token": "",          # Twilio Auth Token
+        "from_number": "",         # e.g. +15551234567
+        "to_numbers": [],          # e.g. ["+81901234567"]
+    },
+    "webhook": {
+        "enabled": False,
+        "url": "",
+        "method": "POST",
+        "headers": {},
+    },
+}
+
+# ─── 报警数据存取 ─────────────────────────────────────────────────
+
+def load_alert_rules() -> list:
+    DATA_DIR.mkdir(exist_ok=True)
+    if ALERT_RULES_FILE.exists():
+        try:
+            return json.loads(ALERT_RULES_FILE.read_text())
+        except Exception:
+            pass
+    rules = [dict(r) for r in DEFAULT_ALERT_RULES]
+    ALERT_RULES_FILE.write_text(json.dumps(rules, indent=2, ensure_ascii=False))
+    return rules
+
+def save_alert_rules(rules: list) -> None:
+    DATA_DIR.mkdir(exist_ok=True)
+    ALERT_RULES_FILE.write_text(json.dumps(rules, indent=2, ensure_ascii=False))
+
+def load_alert_channels() -> dict:
+    DATA_DIR.mkdir(exist_ok=True)
+    if ALERT_CHANNELS_FILE.exists():
+        try:
+            saved = json.loads(ALERT_CHANNELS_FILE.read_text())
+            merged = {**DEFAULT_ALERT_CHANNELS}
+            for k, v in saved.items():
+                merged[k] = {**DEFAULT_ALERT_CHANNELS.get(k, {}), **v}
+            return merged
+        except Exception:
+            pass
+    ALERT_CHANNELS_FILE.write_text(json.dumps(DEFAULT_ALERT_CHANNELS, indent=2, ensure_ascii=False))
+    return dict(DEFAULT_ALERT_CHANNELS)
+
+def save_alert_channels(data: dict) -> None:
+    DATA_DIR.mkdir(exist_ok=True)
+    ALERT_CHANNELS_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+
+def load_alert_state() -> dict:
+    if ALERT_STATE_FILE.exists():
+        try:
+            return json.loads(ALERT_STATE_FILE.read_text())
+        except Exception:
+            pass
+    return {"servers": {}, "cooldowns": {}}
+
+def save_alert_state(state: dict) -> None:
+    DATA_DIR.mkdir(exist_ok=True)
+    ALERT_STATE_FILE.write_text(json.dumps(state, ensure_ascii=False))
+
+def load_alert_history() -> list:
+    if ALERT_HISTORY_FILE.exists():
+        try:
+            return json.loads(ALERT_HISTORY_FILE.read_text())
+        except Exception:
+            pass
+    return []
+
+def append_alert_history(entry: dict) -> None:
+    history = load_alert_history()
+    history.insert(0, entry)
+    history = history[:200]   # 最多保留 200 条
+    DATA_DIR.mkdir(exist_ok=True)
+    ALERT_HISTORY_FILE.write_text(json.dumps(history, ensure_ascii=False))
+
+# ─── 冷却检查 ─────────────────────────────────────────────────────
+
+def is_cooled_down(state: dict, rule_id: str, bmc_ip: str, cooldown: int) -> bool:
+    key = f"{rule_id}::{bmc_ip}"
+    last = state.get("cooldowns", {}).get(key, 0)
+    return (time.time() - last) >= cooldown
+
+def set_cooldown(state: dict, rule_id: str, bmc_ip: str) -> None:
+    state.setdefault("cooldowns", {})[f"{rule_id}::{bmc_ip}"] = time.time()
+
+# ─── 报警消息格式化 ───────────────────────────────────────────────
+
+_TRIGGER_ICONS = {
+    "server_offline":  "🔴",
+    "server_online":   "🟢",
+    "health_critical": "🚨",
+    "health_warning":  "⚠️",
+    "temp_critical":   "🌡️",
+    "fan_failed":      "💨",
+    "psu_failed":      "⚡",
+    "power_off":       "⏹️",
+    "hardware_missing":"🔧",
+}
+
+def format_alert_message(trigger: str, server: dict, detail: str, rule_name: str, cluster_name: str) -> str:
+    icon = _TRIGGER_ICONS.get(trigger, "📢")
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    name = server.get("name") or server.get("bmc_ip", "")
+    ip = server.get("bmc_ip", "")
+    lines = [
+        f"{icon} *Server Manager Alert*",
+        f"",
+        f"*服务器*：{name} ({ip})",
+        f"*事件*：{rule_name}",
+        f"*时间*：{ts}",
+    ]
+    if cluster_name:
+        lines.append(f"*集群*：{cluster_name}")
+    if detail:
+        lines.append(f"*详情*：{detail}")
+    return "\n".join(lines)
+
+# ─── 报警发送 ─────────────────────────────────────────────────────
+
+async def dispatch_telegram(msg: str, chan: dict) -> None:
+    token = chan.get("bot_token") or _read_tg_token()
+    if not token:
+        logger.warning("Telegram: no bot token")
+        return
+    chat_ids = chan.get("chat_ids") or []
+    # 默认从 access.json 读取允许的用户列表
+    if not chat_ids:
+        access_file = Path.home() / ".claude" / "channels" / "telegram" / "access.json"
+        if access_file.exists():
+            try:
+                ac = json.loads(access_file.read_text())
+                chat_ids = ac.get("allowFrom", [])
+            except Exception:
+                pass
+    if not chat_ids:
+        logger.warning("Telegram: no chat_ids configured")
+        return
+    ssl_ctx = ssl.create_default_context()
+    async with aiohttp.ClientSession() as sess:
+        for cid in chat_ids:
+            try:
+                await sess.post(
+                    f"https://api.telegram.org/bot{token}/sendMessage",
+                    data={"chat_id": str(cid), "text": msg, "parse_mode": "Markdown"},
+                    timeout=aiohttp.ClientTimeout(total=10),
+                    ssl=ssl_ctx,
+                )
+            except Exception as e:
+                logger.error("Telegram send error: %s", e)
+
+async def dispatch_email(msg: str, rule_name: str, chan: dict) -> None:
+    if not chan.get("smtp_host") or not chan.get("smtp_user"):
+        logger.warning("Email: incomplete SMTP config")
+        return
+    to_list = chan.get("to_addrs") or []
+    if not to_list:
+        return
+    try:
+        mime = email.mime.multipart.MIMEMultipart("alternative")
+        mime["Subject"] = f"[Server Manager] {rule_name}"
+        mime["From"]    = chan.get("from_addr") or chan["smtp_user"]
+        mime["To"]      = ", ".join(to_list)
+        plain_text = msg.replace("*", "").replace("_", "")
+        mime.attach(email.mime.text.MIMEText(plain_text, "plain", "utf-8"))
+
+        def _send():
+            srv = smtplib.SMTP(chan["smtp_host"], int(chan.get("smtp_port", 587)))
+            if chan.get("use_tls", True):
+                srv.starttls()
+            srv.login(chan["smtp_user"], chan.get("smtp_pass", ""))
+            srv.sendmail(mime["From"], to_list, mime.as_string())
+            srv.quit()
+
+        await asyncio.get_event_loop().run_in_executor(None, _send)
+        logger.info("Email alert sent to %s", to_list)
+    except Exception as e:
+        logger.error("Email send error: %s", e)
+
+async def dispatch_sms(msg: str, chan: dict) -> None:
+    sid  = chan.get("account_sid", "")
+    tok  = chan.get("auth_token", "")
+    from_= chan.get("from_number", "")
+    tos  = chan.get("to_numbers") or []
+    if not (sid and tok and from_ and tos):
+        logger.warning("SMS: incomplete Twilio config")
+        return
+    body = msg.replace("*", "").replace("_", "")[:160]
+    ssl_ctx = ssl.create_default_context()
+    async with aiohttp.ClientSession() as sess:
+        for to in tos:
+            try:
+                await sess.post(
+                    f"https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json",
+                    data={"From": from_, "To": to, "Body": body},
+                    auth=aiohttp.BasicAuth(sid, tok),
+                    timeout=aiohttp.ClientTimeout(total=15),
+                    ssl=ssl_ctx,
+                )
+                logger.info("SMS alert sent to %s", to)
+            except Exception as e:
+                logger.error("SMS send error: %s", e)
+
+async def dispatch_webhook(payload: dict, chan: dict) -> None:
+    url = chan.get("url", "")
+    if not url:
+        return
+    method  = chan.get("method", "POST").upper()
+    headers = {"Content-Type": "application/json", **(chan.get("headers") or {})}
+    ssl_ctx = ssl.create_default_context()
+    try:
+        async with aiohttp.ClientSession() as sess:
+            await sess.request(
+                method, url,
+                json=payload,
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=10),
+                ssl=ssl_ctx,
+            )
+    except Exception as e:
+        logger.error("Webhook error: %s", e)
+
+async def send_alert(trigger: str, server: dict, detail: str, rule: dict,
+                     channels: dict, cluster_name: str) -> None:
+    msg     = format_alert_message(trigger, server, detail, rule["name"], cluster_name)
+    payload = {
+        "trigger": trigger, "rule": rule["name"],
+        "server": {"name": server.get("name"), "bmc_ip": server.get("bmc_ip"), "health": server.get("health")},
+        "detail": detail, "timestamp": datetime.now().isoformat(),
+    }
+    append_alert_history({
+        "trigger": trigger, "rule": rule["name"],
+        "server": server.get("name", server.get("bmc_ip")),
+        "bmc_ip": server.get("bmc_ip"),
+        "detail": detail,
+        "time":   datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "channels": rule.get("channels", []),
+    })
+    for ch_name in (rule.get("channels") or []):
+        chan = channels.get(ch_name, {})
+        if not chan.get("enabled"):
+            continue
+        if ch_name == "telegram":
+            await dispatch_telegram(msg, chan)
+        elif ch_name == "email":
+            await dispatch_email(msg, rule["name"], chan)
+        elif ch_name == "sms":
+            await dispatch_sms(msg, chan)
+        elif ch_name == "webhook":
+            await dispatch_webhook(payload, chan)
+
+# ─── 状态变化检测 ─────────────────────────────────────────────────
+
+async def check_alerts() -> None:
+    if not _cache:
+        return
+    rules    = load_alert_rules()
+    channels = load_alert_channels()
+    state    = load_alert_state()
+    auth     = load_auth()
+    cluster_name = auth.get("cluster_name", "")
+
+    enabled_rules = [r for r in rules if r.get("enabled")]
+    if not enabled_rules:
+        return
+
+    def rules_for(trigger: str):
+        return [r for r in enabled_rules if r.get("trigger") == trigger]
+
+    for bmc_ip, srv in list(_cache.items()):
+        prev = state.get("servers", {}).get(bmc_ip, {})
+
+        async def fire(trigger: str, detail: str = "") -> None:
+            for rule in rules_for(trigger):
+                if is_cooled_down(state, rule["id"], bmc_ip, rule.get("cooldown", 300)):
+                    await send_alert(trigger, srv, detail, rule, channels, cluster_name)
+                    set_cooldown(state, rule["id"], bmc_ip)
+
+        new_status = srv.get("status")
+        old_status = prev.get("status")
+
+        # 上线 / 下线
+        if new_status == "offline" and old_status == "online":
+            await fire("server_offline")
+        if new_status == "online" and old_status == "offline":
+            await fire("server_online", "服务器已恢复上线")
+
+        if new_status != "online":
+            # 离线时不重复检查其他指标
+            state.setdefault("servers", {})[bmc_ip] = {"status": new_status}
+            continue
+
+        # 健康状态
+        new_health = srv.get("health", "Unknown")
+        old_health = prev.get("health", "Unknown")
+        if new_health == "Critical" and old_health != "Critical":
+            await fire("health_critical", f"健康状态变为 Critical")
+        elif new_health == "Warning" and old_health not in ("Warning", "Critical"):
+            await fire("health_warning", f"健康状态变为 Warning")
+
+        # 电源关机
+        if srv.get("power_state") == "Off" and prev.get("power_state") not in ("Off", None, ""):
+            await fire("power_off")
+
+        # 温度严重
+        old_temps = {t["name"]: t for t in prev.get("temperatures", [])}
+        for temp in srv.get("temperatures", []):
+            ot = old_temps.get(temp["name"], {})
+            if temp.get("health") == "Critical" and ot.get("health") != "Critical":
+                await fire("temp_critical", f"{temp['name']}: {temp['reading_celsius']}°C")
+
+        # 风扇故障
+        old_fans = {f["name"]: f for f in prev.get("fans", [])}
+        for fan in srv.get("fans", []):
+            of = old_fans.get(fan["name"], {})
+            if fan.get("health") == "Critical" and of.get("health") != "Critical":
+                await fire("fan_failed", f"{fan['name']} 故障")
+
+        # 电源模块故障
+        old_psus = {p["name"]: p for p in prev.get("psus", [])}
+        for psu in srv.get("power_supplies", []):
+            op = old_psus.get(psu["name"], {})
+            if psu.get("health") == "Critical" and op.get("health") != "Critical":
+                await fire("psu_failed", f"{psu['name']} 故障")
+
+        # 硬件丢失（风扇/电源数量减少）
+        if prev:
+            old_fan_cnt = len(prev.get("fans", []))
+            new_fan_cnt = len(srv.get("fans", []))
+            old_psu_cnt = len(prev.get("psus", []))
+            new_psu_cnt = len(srv.get("power_supplies", []))
+            if old_fan_cnt > 0 and new_fan_cnt < old_fan_cnt:
+                await fire("hardware_missing", f"风扇数量从 {old_fan_cnt} 减少到 {new_fan_cnt}")
+            if old_psu_cnt > 0 and new_psu_cnt < old_psu_cnt:
+                await fire("hardware_missing", f"电源模块数量从 {old_psu_cnt} 减少到 {new_psu_cnt}")
+
+        # 更新状态快照
+        state.setdefault("servers", {})[bmc_ip] = {
+            "status":       new_status,
+            "health":       new_health,
+            "power_state":  srv.get("power_state"),
+            "temperatures": [{"name": t["name"], "health": t.get("health")} for t in srv.get("temperatures", [])],
+            "fans":         [{"name": f["name"], "health": f.get("health")} for f in srv.get("fans", [])],
+            "psus":         [{"name": p["name"], "health": p.get("health")} for p in srv.get("power_supplies", [])],
+        }
+
+    save_alert_state(state)
 
 # ─── 密码哈希 ─────────────────────────────────────────────────────
 
@@ -513,6 +914,11 @@ async def refresh_cache() -> None:
         _last_full_refresh = time.time()
         online = sum(1 for r in results if r["status"] == "online")
         logger.info("完成 %.1fs | 在线 %d/%d", time.time() - t0, online, len(ips))
+        # 采集完成后检查报警
+        try:
+            await check_alerts()
+        except Exception as e:
+            logger.error("报警检查失败: %s", e)
     finally:
         _collecting = False
 
@@ -907,6 +1313,122 @@ async def api_parse_ranges(req: Request, admin: dict = Depends(require_admin)):
     body = await req.json()
     return {"count": len(parse_ip_ranges(body.get("ip_ranges", ""))),
             "preview": parse_ip_ranges(body.get("ip_ranges", ""))[:5]}
+
+# ═══════════════════════════════════════════════════════════════════
+# 报警 API
+# ═══════════════════════════════════════════════════════════════════
+
+@app.get("/api/alerts/rules")
+async def get_alert_rules(admin: dict = Depends(require_admin)):
+    return load_alert_rules()
+
+@app.post("/api/alerts/rules")
+async def create_alert_rule(req: Request, admin: dict = Depends(require_admin)):
+    body = await req.json()
+    name = (body.get("name") or "").strip()
+    trigger = body.get("trigger", "")
+    if not name:
+        raise HTTPException(400, "规则名称不能为空")
+    if trigger not in (
+        "server_offline","server_online","health_critical","health_warning",
+        "temp_critical","fan_failed","psu_failed","power_off","hardware_missing"
+    ):
+        raise HTTPException(400, f"未知触发条件: {trigger}")
+    rule = {
+        "id":       str(uuid.uuid4()),
+        "name":     name,
+        "trigger":  trigger,
+        "enabled":  bool(body.get("enabled", True)),
+        "cooldown": int(body.get("cooldown", 300)),
+        "channels": body.get("channels") or ["telegram"],
+    }
+    rules = load_alert_rules()
+    rules.append(rule)
+    save_alert_rules(rules)
+    return rule
+
+@app.put("/api/alerts/rules/{rule_id}")
+async def update_alert_rule(rule_id: str, req: Request,
+                             admin: dict = Depends(require_admin)):
+    body  = await req.json()
+    rules = load_alert_rules()
+    rule  = next((r for r in rules if r["id"] == rule_id), None)
+    if not rule:
+        raise HTTPException(404, "规则不存在")
+    for field in ("name", "trigger", "enabled", "cooldown", "channels"):
+        if field in body:
+            rule[field] = body[field]
+    save_alert_rules(rules)
+    return rule
+
+@app.delete("/api/alerts/rules/{rule_id}")
+async def delete_alert_rule(rule_id: str, admin: dict = Depends(require_admin)):
+    rules = load_alert_rules()
+    rules = [r for r in rules if r["id"] != rule_id]
+    save_alert_rules(rules)
+    return {"ok": True}
+
+@app.get("/api/alerts/channels")
+async def get_alert_channels(admin: dict = Depends(require_admin)):
+    ch = load_alert_channels()
+    # 隐藏敏感字段（仅返回是否已配置）
+    safe = {}
+    for name, cfg in ch.items():
+        sc = dict(cfg)
+        for key in ("smtp_pass", "auth_token", "bot_token"):
+            if key in sc and sc[key]:
+                sc[key] = "••••••••"
+        safe[name] = sc
+    return safe
+
+@app.post("/api/alerts/channels")
+async def save_alert_channels_api(req: Request, admin: dict = Depends(require_admin)):
+    body = await req.json()
+    existing = load_alert_channels()
+    for ch_name, cfg in body.items():
+        if ch_name not in existing:
+            continue
+        for k, v in cfg.items():
+            # 不覆盖用占位符提交的密码字段
+            if v == "••••••••":
+                continue
+            existing[ch_name][k] = v
+    save_alert_channels(existing)
+    return {"ok": True}
+
+@app.post("/api/alerts/test/{channel}")
+async def test_alert_channel(channel: str, req: Request,
+                              admin: dict = Depends(require_admin)):
+    channels = load_alert_channels()
+    chan = channels.get(channel)
+    if not chan:
+        raise HTTPException(404, f"渠道 {channel} 不存在")
+    if not chan.get("enabled"):
+        raise HTTPException(400, f"渠道 {channel} 未启用")
+
+    test_msg = (
+        "🔔 *Server Manager — 测试通知*\n\n"
+        "报警渠道配置正常，此为测试消息。"
+    )
+    auth = load_auth()
+    test_rule = {"id": "test", "name": "测试", "channels": [channel]}
+    fake_server = {"name": "测试服务器", "bmc_ip": "0.0.0.0", "health": "OK"}
+    try:
+        await send_alert("server_online", fake_server, "测试消息", test_rule, channels,
+                         auth.get("cluster_name", ""))
+        return {"ok": True, "msg": f"{channel} 测试消息已发送"}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+@app.get("/api/alerts/history")
+async def get_alert_history(admin: dict = Depends(require_admin)):
+    return load_alert_history()
+
+@app.delete("/api/alerts/history")
+async def clear_alert_history(admin: dict = Depends(require_admin)):
+    DATA_DIR.mkdir(exist_ok=True)
+    ALERT_HISTORY_FILE.write_text("[]")
+    return {"ok": True}
 
 if __name__ == "__main__":
     import uvicorn
