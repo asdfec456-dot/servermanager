@@ -651,6 +651,9 @@ zh:{
   'al.rule_btn_add':'添加规则','al.rule_btn_save':'保存修改','al.rule_btn_cancel':'取消',
   'al.rule_btn_edit':'编辑','al.rule_btn_del':'删除','al.rule_confirm_del':'确认删除此规则？',
   'al.hist_empty':'暂无报警记录','al.hist_clear':'清空记录','al.hist_confirm_clear':'确认清空所有报警记录？',
+  'bmc.change_pw':'修改 BMC 密码','bmc.new_pw':'新密码（至少 6 位）','bmc.confirm_pw':'确认新密码',
+  'bmc.submit':'应用到此服务器','bmc.submitting':'修改中...','bmc.warn':'⚠️ 修改完成后，请立即在右上角「设置」中更新全局密码，否则采集将失败。',
+  'bmc.note_title':'操作说明','bmc.note':'此操作通过 Redfish / IPMI 将新密码直接写入 BMC 硬件。修改仅针对当前服务器，若所有服务器使用相同密码，则需要逐台修改，并最终更新全局设置。',
   'tr.server_offline':'服务器下线','tr.server_online':'服务器恢复上线',
   'tr.health_critical':'健康状态：严重','tr.health_warning':'健康状态：警告',
   'tr.temp_critical':'温度传感器：严重','tr.fan_failed':'风扇故障',
@@ -724,6 +727,9 @@ en:{
   'al.rule_btn_add':'Add Rule','al.rule_btn_save':'Save Changes','al.rule_btn_cancel':'Cancel',
   'al.rule_btn_edit':'Edit','al.rule_btn_del':'Delete','al.rule_confirm_del':'Confirm delete this rule?',
   'al.hist_empty':'No alert history','al.hist_clear':'Clear History','al.hist_confirm_clear':'Clear all alert history?',
+  'bmc.change_pw':'Change BMC Password','bmc.new_pw':'New Password (min 6 chars)','bmc.confirm_pw':'Confirm New Password',
+  'bmc.submit':'Apply to This Server','bmc.submitting':'Changing...','bmc.warn':'⚠️ After changing, update the global password in Settings immediately, or data collection will fail.',
+  'bmc.note_title':'How It Works','bmc.note':'This writes the new password directly to the BMC hardware via Redfish / IPMI. The change applies to this server only. If all servers share the same password, repeat for each and update global Settings when done.',
   'tr.server_offline':'Server Offline','tr.server_online':'Server Online',
   'tr.health_critical':'Health: Critical','tr.health_warning':'Health: Warning',
   'tr.temp_critical':'Temp Sensor: Critical','tr.fan_failed':'Fan Failed',
@@ -797,6 +803,9 @@ ja:{
   'al.rule_btn_add':'ルールを追加','al.rule_btn_save':'変更を保存','al.rule_btn_cancel':'キャンセル',
   'al.rule_btn_edit':'編集','al.rule_btn_del':'削除','al.rule_confirm_del':'このルールを削除しますか？',
   'al.hist_empty':'アラート履歴がありません','al.hist_clear':'履歴をクリア','al.hist_confirm_clear':'すべてのアラート履歴をクリアしますか？',
+  'bmc.change_pw':'BMC パスワード変更','bmc.new_pw':'新しいパスワード（6文字以上）','bmc.confirm_pw':'パスワード確認',
+  'bmc.submit':'このサーバーに適用','bmc.submitting':'変更中...','bmc.warn':'⚠️ 変更後は、すぐに「設定」でグローバルパスワードを更新してください。更新しないとデータ収集が失敗します。',
+  'bmc.note_title':'動作説明','bmc.note':'この操作は Redfish / IPMI を使用して BMC ハードウェアに直接パスワードを書き込みます。変更はこのサーバーのみに適用されます。',
   'tr.server_offline':'サーバーオフライン','tr.server_online':'サーバー復旧',
   'tr.health_critical':'健全性：重大','tr.health_warning':'健全性：警告',
   'tr.temp_critical':'温度センサー：重大','tr.fan_failed':'ファン障害',
@@ -1335,6 +1344,30 @@ ${ms.total_gib?`<div><div class="ik">${t('d.mem')}</div><div class="iv">${ms.tot
   if((s.storage||[]).length){const rows=s.storage.map(c=>`<tr><td>${esc(c.name)}</td><td>${c.drives_count??'—'}</td><td><span class="sdot ${sdot(c.health)}"></span>${c.health||'—'}</td></tr>`).join('');parts.push(sec(t('d.storage'),`<table><thead><tr><th>${t('d.name')}</th><th>${t('d.drives')}</th><th>${t('t.health')}</th></tr></thead><tbody>${rows}</tbody></table>`));}
   if((s.alerts||[]).length)parts.push(sec(t('d.alerts'),`<div style="color:var(--warn);font-size:.8rem">${s.alerts.map(esc).join('<br>')}</div>`));
   if(s.error)parts.push(sec(t('d.error'),`<div style="color:var(--crit);font-size:.77rem">${esc(s.error)}</div>`));
+
+  // BMC 密码修改区块（仅管理员 + 在线服务器）
+  if(currentUser?.role==='admin' && s.status==='online'){
+    const key=s.bmc_ip.replace(/\./g,'-');
+    parts.push(`<div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--bd)">
+<div class="sec-title">${t('bmc.change_pw')}</div>
+<details style="background:rgba(56,189,248,.05);border:1px solid rgba(56,189,248,.15);border-radius:6px;padding:0;margin-bottom:10px">
+<summary style="padding:7px 10px;font-size:.72rem;color:var(--acc);cursor:pointer">ℹ️ ${t('bmc.note_title')}</summary>
+<div style="padding:8px 12px 10px;font-size:.72rem;color:var(--tx2);line-height:1.7">${t('bmc.note')}</div>
+</details>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+<div class="form-g2"><label>${t('bmc.new_pw')}</label>
+  <input class="inp" id="bmc-pw-${key}" type="password" autocomplete="new-password"></div>
+<div class="form-g2"><label>${t('bmc.confirm_pw')}</label>
+  <input class="inp" id="bmc-pw2-${key}" type="password" autocomplete="new-password"></div>
+</div>
+<div style="font-size:.7rem;color:var(--warn);margin-bottom:8px">${t('bmc.warn')}</div>
+<div id="bmc-pw-result-${key}" style="font-size:.73rem;margin-bottom:8px;min-height:16px"></div>
+<button class="btn btn-acc" id="bmc-pw-btn-${key}" onclick="changeBmcPassword('${key}')" style="font-size:.76rem">
+  ${t('bmc.submit')}
+</button>
+</div>`);
+  }
+
   return parts.join('');
 }
 
@@ -1570,6 +1603,36 @@ async function submitAlertRule(){
 async function deleteAlertRule(id){
   if(!confirm(t('al.rule_confirm_del'))) return;
   await api('DELETE',`/api/alerts/rules/${id}`); await loadRulesTab();
+}
+
+/* ── BMC Password Change ───────────────────────────────────── */
+async function changeBmcPassword(key){
+  const ip = key.replace(/-/g,'.');
+  const pw  = $(`bmc-pw-${key}`)?.value || '';
+  const pw2 = $(`bmc-pw2-${key}`)?.value || '';
+  const res = $(`bmc-pw-result-${key}`);
+  const btn = $(`bmc-pw-btn-${key}`);
+
+  res.textContent=''; res.style.color='';
+  if(!pw){ res.textContent='请输入新密码'; res.style.color='var(--crit)'; return; }
+  if(pw.length<6){ res.textContent=t('u.err_short'); res.style.color='var(--crit)'; return; }
+  if(pw!==pw2){ res.textContent='两次密码不一致'; res.style.color='var(--crit)'; return; }
+
+  btn.disabled=true; btn.textContent=t('bmc.submitting');
+  const r=await api('POST',`/api/servers/${key}/change_password`,
+    {new_password:pw, confirm_password:pw2});
+  btn.disabled=false; btn.textContent=t('bmc.submit');
+
+  if(!r){ return; }
+  const d=await r.json();
+  if(r.ok){
+    res.style.color='var(--ok)';
+    res.textContent=`✓ ${d.msg}`;
+    $(`bmc-pw-${key}`).value=''; $(`bmc-pw2-${key}`).value='';
+  } else {
+    res.style.color='var(--crit)';
+    res.textContent=`✗ ${d.detail||'修改失败'}`;
+  }
 }
 
 async function loadHistoryTab(){

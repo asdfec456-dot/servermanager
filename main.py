@@ -172,6 +172,11 @@ def load_alert_channels() -> dict:
             merged = {**DEFAULT_ALERT_CHANNELS}
             for k, v in saved.items():
                 merged[k] = {**DEFAULT_ALERT_CHANNELS.get(k, {}), **v}
+            # 空字符串时回落到默认值（防止用户清空保存后丢失默认）
+            em = merged.get("email", {})
+            if not em.get("smtp_host"): em["smtp_host"] = "smtp.gmail.com"
+            if not em.get("smtp_port"): em["smtp_port"] = 587
+            merged["email"] = em
             return merged
         except Exception:
             pass
@@ -823,6 +828,73 @@ async def collect_redfish(bmc_ip: str, username: str, password: str, timeout: in
         logger.debug("Redfish %s fatal: %s", bmc_ip, e)
         return None
 
+# ─── BMC 密码修改 ────────────────────────────────────────────────
+
+async def _change_pw_redfish(bmc_ip: str, username: str, current_pw: str, new_pw: str) -> bool:
+    """通过 Redfish AccountService PATCH 修改 BMC 用户密码"""
+    connector = aiohttp.TCPConnector(ssl=_ssl_ctx(), limit=3)
+    auth = aiohttp.BasicAuth(username, current_pw)
+    try:
+        async with aiohttp.ClientSession(connector=connector) as sess:
+            # 枚举账户找到匹配用户名的 account
+            accounts = await _rf_get(sess, bmc_ip, "/redfish/v1/AccountService/Accounts", auth)
+            if not accounts:
+                return False
+            account_path = None
+            for m in accounts.get("Members", []):
+                path = m.get("@odata.id")
+                if not path:
+                    continue
+                acct = await _rf_get(sess, bmc_ip, path, auth)
+                if acct and acct.get("UserName", "").lower() == username.lower():
+                    account_path = path
+                    break
+            if not account_path:
+                return False
+            # PATCH 新密码
+            async with sess.patch(
+                f"https://{bmc_ip}{account_path}",
+                auth=auth,
+                json={"Password": new_pw},
+                timeout=aiohttp.ClientTimeout(total=15),
+                ssl=_ssl_ctx(),
+            ) as resp:
+                return resp.status in (200, 204)
+    except Exception as e:
+        logger.debug("Redfish change_pw %s: %s", bmc_ip, e)
+        return False
+
+
+async def _change_pw_ipmi(bmc_ip: str, username: str, current_pw: str, new_pw: str) -> bool:
+    """通过 ipmitool 修改 BMC 用户密码"""
+    base = ["ipmitool", "-I", "lanplus", "-H", bmc_ip, "-U", username, "-P", current_pw]
+    # 获取用户列表，找 user_id
+    user_list = await _run_ipmitool(base + ["user", "list", "1"], 15)
+    if not user_list:
+        return False
+    user_id = None
+    for line in user_list.splitlines():
+        parts = line.split()
+        if len(parts) >= 2 and parts[1].lower() == username.lower():
+            user_id = parts[0]
+            break
+    if not user_id:
+        return False
+    result = await _run_ipmitool(base + ["user", "set", "password", user_id, new_pw], 15)
+    return result is not None
+
+
+async def change_bmc_password(bmc_ip: str, username: str, current_pw: str,
+                               new_pw: str, protocol: str = "auto") -> dict:
+    if protocol in ("auto", "redfish"):
+        if await _change_pw_redfish(bmc_ip, username, current_pw, new_pw):
+            return {"ok": True, "method": "Redfish"}
+    if protocol in ("auto", "ipmi"):
+        if await _change_pw_ipmi(bmc_ip, username, current_pw, new_pw):
+            return {"ok": True, "method": "IPMI"}
+    return {"ok": False, "error": "密码修改失败（已尝试 Redfish/IPMI），请确认当前密码正确且账户有权限"}
+
+
 # ─── 统一采集入口 ─────────────────────────────────────────────────
 
 async def collect_server(bmc_ip: str, settings: dict) -> dict:
@@ -1286,6 +1358,45 @@ async def api_parse_ranges(req: Request, admin: dict = Depends(require_admin)):
     body = await req.json()
     return {"count": len(parse_ip_ranges(body.get("ip_ranges", ""))),
             "preview": parse_ip_ranges(body.get("ip_ranges", ""))[:5]}
+
+# ═══════════════════════════════════════════════════════════════════
+# BMC 密码修改 API
+# ═══════════════════════════════════════════════════════════════════
+
+@app.post("/api/servers/{bmc_ip_enc}/change_password")
+async def api_change_bmc_password(bmc_ip_enc: str, req: Request,
+                                   admin: dict = Depends(require_admin)):
+    bmc_ip = bmc_ip_enc.replace("-", ".")
+    body = await req.json()
+    new_pw  = (body.get("new_password")  or "").strip()
+    new_pw2 = (body.get("confirm_password") or "").strip()
+
+    if not new_pw:
+        raise HTTPException(400, "新密码不能为空")
+    if len(new_pw) < 6:
+        raise HTTPException(400, "新密码至少 6 位")
+    if new_pw != new_pw2:
+        raise HTTPException(400, "两次输入的新密码不一致")
+
+    settings = load_settings()
+    username    = settings.get("username", "")
+    current_pw  = settings.get("password", "")
+    protocol    = settings.get("protocol", "auto")
+
+    if not username or not current_pw:
+        raise HTTPException(400, "全局 BMC 凭据未配置，请先在设置中填写")
+
+    result = await change_bmc_password(bmc_ip, username, current_pw, new_pw, protocol)
+    if not result["ok"]:
+        raise HTTPException(500, result.get("error", "修改失败"))
+
+    return {
+        "ok":     True,
+        "method": result["method"],
+        "msg":    f"已通过 {result['method']} 成功修改 {bmc_ip} 的 BMC 密码",
+        "note":   "注意：BMC 上的密码已更改，请同步更新「设置」中的全局密码，否则下次采集将连接失败。",
+    }
+
 
 # ═══════════════════════════════════════════════════════════════════
 # 报警 API
