@@ -278,6 +278,41 @@ tr:hover td{background:var(--sf2)}
 .dd-item:hover{background:var(--sf2);color:var(--acc)}
 .dd-sep{height:1px;background:var(--bd);margin:4px 0}
 
+/* ── Subscription Badge ─────────────────────────────────────── */
+.sub-badge{
+  display:inline-flex;align-items:center;gap:5px;padding:4px 10px;
+  border-radius:20px;font-size:.72rem;font-weight:600;cursor:pointer;
+  white-space:nowrap;border:1px solid;transition:all .15s;
+}
+.sub-badge:hover{filter:brightness(1.1)}
+.sub-inactive{background:rgba(245,158,11,.12);color:var(--warn);border-color:rgba(245,158,11,.3)}
+.sub-active{background:rgba(34,197,94,.12);color:var(--ok);border-color:rgba(34,197,94,.3)}
+.sub-expiring{background:rgba(239,68,68,.12);color:var(--crit);border-color:rgba(239,68,68,.3);animation:pulse-border 1.5s ease-in-out infinite}
+.sub-past-due{background:rgba(239,68,68,.12);color:var(--crit);border-color:rgba(239,68,68,.3)}
+@keyframes pulse-border{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.4)}50%{box-shadow:0 0 0 4px rgba(239,68,68,0)}}
+
+/* Subscription modal */
+.plan-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0}
+.plan-card{
+  background:var(--sf2);border:2px solid var(--bd);border-radius:10px;
+  padding:16px;cursor:pointer;transition:all .15s;text-align:center;
+}
+.plan-card:hover{border-color:var(--acc)}
+.plan-card.selected{border-color:var(--acc);background:rgba(56,189,248,.08)}
+.plan-name{font-size:.82rem;color:var(--tx2);margin-bottom:4px}
+.plan-price{font-size:1.6rem;font-weight:700;color:var(--tx)}
+.plan-price span{font-size:.75rem;color:var(--tx2);font-weight:400}
+.plan-save{font-size:.7rem;color:var(--ok);margin-top:4px;font-weight:600}
+.pay-methods{display:flex;gap:8px;margin:14px 0;flex-wrap:wrap}
+.pay-method{display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:6px;background:var(--sf2);border:1px solid var(--bd);font-size:.75rem}
+.pay-method svg,.pay-method img{width:20px;height:20px;flex-shrink:0}
+.sub-feature-list{list-style:none;padding:0;margin:12px 0;display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.sub-feature-list li{display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--tx2)}
+.sub-feature-list li::before{content:'✓';color:var(--ok);font-weight:700;flex-shrink:0}
+@media(max-width:640px){
+  .plan-cards{grid-template-columns:1fr}
+  .sub-feature-list{grid-template-columns:1fr}
+}
 /* ── Mobile/Tablet ──────────────────────────────────────────── */
 /* Tablet ≥641px */
 @media(min-width:641px) and (max-width:1023px){
@@ -413,6 +448,9 @@ tr:hover td{background:var(--sf2)}
   </div>
   <div class="hdr-right">
     <div class="user-badge"><span id="hdr-uname"></span><span class="role-tag" id="hdr-role-tag"></span></div>
+    <button class="sub-badge sub-inactive" id="sub-badge" onclick="openOverlay('ov-sub')" style="display:none">
+      <span id="sub-badge-text">未订阅</span>
+    </button>
     <div class="lang-sw">
       <button class="lang-btn" data-lang="zh" onclick="setLang('zh')">中</button>
       <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
@@ -448,6 +486,11 @@ tr:hover td{background:var(--sf2)}
         <button class="dd-item" onclick="ddOpen('ov-alerts')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           <span id="dd-lbl-alerts">警报管理</span>
+        </button>
+        <div class="dd-sep"></div>
+        <button class="dd-item" onclick="ddOpen('ov-stripe')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+          <span id="dd-lbl-stripe">订阅设置</span>
         </button>
       </div>
     </div>
@@ -594,6 +637,129 @@ tr:hover td{background:var(--sf2)}
         <button class="btn btn-acc" id="btn-sc-save" onclick="saveSubcluster()"><span id="lbl-sc-save">创建</span></button>
       </div>
     </div>
+  </div>
+</div>
+</div>
+
+<!-- SUBSCRIPTION MODAL -->
+<div class="overlay" id="ov-sub" onclick="closeOvBg(event,'ov-sub')">
+<div class="modal">
+  <div class="modal-hdr">
+    <div><div class="modal-title" id="sub-modal-title">订阅 Server Manager Pro</div><div class="modal-sub" id="sub-modal-sub">解锁全部功能，无限服务器监控</div></div>
+    <button class="mclose" onclick="closeOverlay('ov-sub')">✕</button>
+  </div>
+  <div class="modal-body">
+    <!-- Active subscription view -->
+    <div id="sub-active-view" style="display:none">
+      <div style="text-align:center;padding:10px 0 18px">
+        <div style="font-size:2.5rem;margin-bottom:8px">✅</div>
+        <div style="font-size:1rem;font-weight:700;color:var(--ok)" id="sub-active-title">已订阅</div>
+        <div style="font-size:.82rem;color:var(--tx2);margin-top:6px" id="sub-active-detail"></div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+        <button class="btn" onclick="openPortal()">管理订阅 / 发票</button>
+        <button class="btn btn-danger" onclick="cancelSubscription()">取消订阅</button>
+      </div>
+    </div>
+    <!-- Checkout view -->
+    <div id="sub-checkout-view">
+      <ul class="sub-feature-list">
+        <li>无限服务器监控</li><li>多协议 Redfish / IPMI</li>
+        <li>报警通知</li><li>多用户权限管理</li>
+        <li>子集群分组</li><li>数据历史记录</li>
+      </ul>
+      <div class="plan-cards">
+        <div class="plan-card selected" id="plan-monthly" onclick="selectPlan('monthly')">
+          <div class="plan-name" id="lbl-plan-monthly">月付</div>
+          <div class="plan-price" id="plan-monthly-price">¥980<span>/月</span></div>
+        </div>
+        <div class="plan-card" id="plan-annual" onclick="selectPlan('annual')">
+          <div class="plan-name" id="lbl-plan-annual">年付</div>
+          <div class="plan-price" id="plan-annual-price">¥8,800<span>/年</span></div>
+          <div class="plan-save" id="lbl-plan-save">节省 25%</div>
+        </div>
+      </div>
+      <div style="font-size:.75rem;color:var(--tx2);margin-bottom:10px" id="lbl-pay-methods">支付方式</div>
+      <div class="pay-methods">
+        <div class="pay-method"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg> 信用卡 / 借记卡</div>
+        <div class="pay-method"><svg viewBox="0 0 48 48" fill="currentColor"><text y="38" font-size="38">支</text></svg> 支付宝 QR</div>
+        <div class="pay-method"><svg viewBox="0 0 48 48" fill="currentColor"><text y="38" font-size="38">微</text></svg> 微信支付 QR</div>
+      </div>
+      <div class="err-msg" id="sub-err"></div>
+      <button class="btn btn-acc" id="btn-checkout" onclick="startCheckout()" style="width:100%;padding:10px;font-size:.9rem;justify-content:center;border:none">
+        <span id="btn-checkout-lbl">前往支付</span>
+      </button>
+      <div style="font-size:.68rem;color:var(--tx3);text-align:center;margin-top:8px" id="lbl-stripe-note">通过 Stripe 安全支付 · SSL 加密 · 随时可取消</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- STRIPE CONFIG MODAL -->
+<div class="overlay" id="ov-stripe" onclick="closeOvBg(event,'ov-stripe')">
+<div class="modal">
+  <div class="modal-hdr">
+    <div><div class="modal-title">订阅设置（Stripe）</div><div class="modal-sub">配置 Stripe API 密钥和定价</div></div>
+    <button class="mclose" onclick="closeOverlay('ov-stripe')">✕</button>
+  </div>
+  <div class="modal-body">
+    <details style="margin-bottom:14px;background:rgba(56,189,248,.05);border:1px solid rgba(56,189,248,.15);border-radius:6px">
+      <summary style="padding:8px 12px;font-size:.75rem;color:var(--acc);cursor:pointer">ℹ️ 如何配置 Stripe</summary>
+      <div style="padding:10px 14px 12px;font-size:.72rem;color:var(--tx2);line-height:1.8">
+        <b>1. 注册账号：</b>stripe.com → 创建账户<br>
+        <b>2. 获取 API Keys：</b>Dashboard → Developers → API Keys → 复制 Publishable key 和 Secret key<br>
+        <b>3. 创建产品：</b>Dashboard → Products → Add product → 设置月付和年付价格 → 复制 Price ID（price_xxx）<br>
+        <b>4. 配置 Webhook：</b>Dashboard → Developers → Webhooks → Add endpoint<br>
+        &nbsp;&nbsp;&nbsp;URL：<code>https://sm.catnetwork.co.jp/api/subscription/webhook</code><br>
+        &nbsp;&nbsp;&nbsp;Events：checkout.session.completed, customer.subscription.*, invoice.*<br>
+        &nbsp;&nbsp;&nbsp;复制 Signing secret（whsec_xxx）填入下方<br>
+        <b>5. 测试：</b>先用 Test mode 的 key，用卡号 4242 4242 4242 4242 测试支付
+      </div>
+    </details>
+    <div class="form-row">
+      <div class="form-g2"><label>模式</label>
+        <select class="inp" id="stripe-mode">
+          <option value="test">测试模式 (test)</option>
+          <option value="live">生产模式 (live)</option>
+        </select>
+      </div>
+      <div class="form-g2"><label>货币</label>
+        <select class="inp" id="stripe-currency">
+          <option value="jpy">JPY 日元</option>
+          <option value="usd">USD 美元</option>
+          <option value="cny">CNY 人民币</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-g2"><label>Publishable Key</label>
+      <input class="inp" id="stripe-pk" type="text" placeholder="pk_test_... 或 pk_live_..."></div>
+    <div class="form-g2"><label>Secret Key</label>
+      <input class="inp" id="stripe-sk" type="password" placeholder="sk_test_... 或 sk_live_..."></div>
+    <div class="form-g2"><label>Webhook Signing Secret</label>
+      <input class="inp" id="stripe-ws" type="password" placeholder="whsec_..."></div>
+    <div style="font-size:.7rem;color:var(--tx2);margin:10px 0 8px;padding-top:8px;border-top:1px solid var(--bd)">
+      产品定价（填入 Stripe Price ID，留空则使用下方自定义金额）
+    </div>
+    <div class="form-row">
+      <div class="form-g2"><label>月付 Price ID</label>
+        <input class="inp" id="stripe-price-monthly" type="text" placeholder="price_xxx（可选）"></div>
+      <div class="form-g2"><label>年付 Price ID</label>
+        <input class="inp" id="stripe-price-annual" type="text" placeholder="price_xxx（可选）"></div>
+    </div>
+    <div style="font-size:.7rem;color:var(--tx2);margin-bottom:6px">未填 Price ID 时的备用金额（按最小货币单位，JPY=直接填整数）</div>
+    <div class="form-row">
+      <div class="form-g2"><label>月付金额</label>
+        <input class="inp" id="stripe-amt-monthly" type="number" value="980"></div>
+      <div class="form-g2"><label>年付金额</label>
+        <input class="inp" id="stripe-amt-annual" type="number" value="8800"></div>
+    </div>
+    <div class="form-g2"><label>产品名称</label>
+      <input class="inp" id="stripe-product" type="text" placeholder="Server Manager Pro"></div>
+    <div class="err-msg" id="stripe-cfg-err"></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn" onclick="closeOverlay('ov-stripe')">取消</button>
+    <button class="btn btn-acc" onclick="saveStripeConfig()">保存配置</button>
   </div>
 </div>
 </div>
@@ -1068,6 +1234,8 @@ function showApp(){
   $('hdr-role-tag').className='role-tag '+(currentUser.role==='admin'?'role-admin':'role-viewer');
   document.querySelectorAll('.admin-only').forEach(el=>el.style.display=currentUser.role==='admin'?'':'none');
   initViewBtn();applyI18n();startPolling();
+  loadSubscription();
+  checkSubRedirect();
 }
 async function doSetup(){
   const cl=$('s-cluster').value.trim(),un=$('s-user').value.trim(),pw=$('s-pass').value,pw2=$('s-pass2').value,err=$('setup-err');
@@ -1499,6 +1667,8 @@ function openOverlay(id){
   else if(id==='ov-users')openUsersModal();
   else if(id==='ov-sc')openScModal();
   else if(id==='ov-alerts')openAlertsModal();
+  else if(id==='ov-sub')openSubModal();
+  else if(id==='ov-stripe')openStripeModal();
   else{$(id).classList.add('open');document.body.style.overflow='hidden';}
 }
 function closeOverlay(id){$(id).classList.remove('open');document.body.style.overflow='';}

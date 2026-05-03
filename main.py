@@ -4,6 +4,12 @@ Server Manager — 数据中心硬件状态监控
 认证：管理员 / 查看者，子集群访问控制
 """
 
+try:
+    import stripe as _stripe
+    STRIPE_AVAILABLE = True
+except ImportError:
+    STRIPE_AVAILABLE = False
+
 import asyncio
 import aiohttp
 import ssl
@@ -38,6 +44,8 @@ DATA_DIR   = BASE_DIR / "data"
 SETTINGS_FILE      = DATA_DIR / "settings.json"
 AUTH_FILE          = DATA_DIR / "auth.json"
 SUBCLUSTERS_FILE   = DATA_DIR / "subclusters.json"
+STRIPE_CONFIG_FILE = DATA_DIR / "stripe_config.json"
+SUBSCRIPTION_FILE  = DATA_DIR / "subscription.json"
 ALERT_RULES_FILE   = DATA_DIR / "alert_rules.json"
 ALERT_CHANNELS_FILE= DATA_DIR / "alert_channels.json"
 ALERT_STATE_FILE   = DATA_DIR / "alert_state.json"
@@ -103,6 +111,91 @@ def load_settings() -> dict:
 def save_settings(data: dict) -> None:
     DATA_DIR.mkdir(exist_ok=True)
     SETTINGS_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+
+# ════════════════════════════════════════════════════════════════════
+# 订阅系统
+# ════════════════════════════════════════════════════════════════════
+
+DEFAULT_STRIPE_CONFIG = {
+    "mode": "test",                 # test | live
+    "publishable_key": "",          # pk_test_... or pk_live_...
+    "secret_key": "",               # sk_test_... or sk_live_...
+    "webhook_secret": "",           # whsec_...
+    "price_monthly_id": "",         # Stripe Price ID for monthly plan
+    "price_annual_id": "",          # Stripe Price ID for annual plan
+    "currency": "jpy",
+    "amount_monthly": 980,          # JPY
+    "amount_annual": 8800,          # JPY
+    "product_name": "Server Manager Pro",
+    "success_url": "",              # 支付成功跳转 URL（留空自动推断）
+    "cancel_url": "",               # 取消支付跳转 URL
+}
+
+def load_stripe_config() -> dict:
+    DATA_DIR.mkdir(exist_ok=True)
+    if STRIPE_CONFIG_FILE.exists():
+        try:
+            return {**DEFAULT_STRIPE_CONFIG, **json.loads(STRIPE_CONFIG_FILE.read_text())}
+        except Exception:
+            pass
+    return DEFAULT_STRIPE_CONFIG.copy()
+
+def save_stripe_config(data: dict) -> None:
+    DATA_DIR.mkdir(exist_ok=True)
+    STRIPE_CONFIG_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+
+def load_subscription() -> dict:
+    DATA_DIR.mkdir(exist_ok=True)
+    if SUBSCRIPTION_FILE.exists():
+        try:
+            return json.loads(SUBSCRIPTION_FILE.read_text())
+        except Exception:
+            pass
+    return {"status": "inactive", "plan": None, "expires_at": None,
+            "customer_id": None, "subscription_id": None}
+
+def save_subscription(data: dict) -> None:
+    DATA_DIR.mkdir(exist_ok=True)
+    SUBSCRIPTION_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+
+def get_subscription_info() -> dict:
+    """返回当前订阅状态，含到期天数"""
+    sub = load_subscription()
+    status = sub.get("status", "inactive")
+    expires_at = sub.get("expires_at")
+    days_remaining = None
+    if expires_at:
+        diff = expires_at - time.time()
+        days_remaining = max(0, int(diff / 86400))
+        if diff <= 0:
+            status = "expired"
+    return {
+        "status": status,           # active | inactive | expired | past_due
+        "plan": sub.get("plan"),
+        "expires_at": expires_at,
+        "days_remaining": days_remaining,
+        "customer_id": sub.get("customer_id"),
+        "subscription_id": sub.get("subscription_id"),
+        "stripe_available": STRIPE_AVAILABLE,
+    }
+
+def _get_stripe_client():
+    if not STRIPE_AVAILABLE:
+        raise HTTPException(503, "stripe 库未安装，请运行 pip install stripe")
+    cfg = load_stripe_config()
+    key = cfg.get("secret_key", "")
+    if not key:
+        raise HTTPException(400, "Stripe Secret Key 未配置")
+    _stripe.api_key = key
+    return cfg
+
+def _infer_base_url(req: Request) -> str:
+    """从请求推断 base URL"""
+    fwd_proto = req.headers.get("x-forwarded-proto", req.url.scheme)
+    fwd_host  = req.headers.get("x-forwarded-host", req.url.netloc)
+    return f"{fwd_proto}://{fwd_host}"
+
+# ─── 订阅 API ─────────────────────────────────────────────────────
 
 # ════════════════════════════════════════════════════════════════════
 # 报警引擎
@@ -1512,6 +1605,199 @@ async def clear_alert_history(admin: dict = Depends(require_admin)):
     DATA_DIR.mkdir(exist_ok=True)
     ALERT_HISTORY_FILE.write_text("[]")
     return {"ok": True}
+
+# ═══════════════════════════════════════════════════════════════════
+# 订阅 API
+# ═══════════════════════════════════════════════════════════════════
+
+@app.get("/api/subscription")
+async def api_get_subscription(user: dict = Depends(get_current_user)):
+    return get_subscription_info()
+
+@app.get("/api/stripe/config")
+async def api_get_stripe_config(admin: dict = Depends(require_admin)):
+    cfg = load_stripe_config()
+    # 不返回 secret_key 全文
+    safe = dict(cfg)
+    sk = safe.get("secret_key", "")
+    safe["secret_key_set"] = bool(sk)
+    safe["secret_key"] = ("••••" + sk[-4:]) if len(sk) > 8 else ("••••" if sk else "")
+    ws = safe.get("webhook_secret", "")
+    safe["webhook_secret_set"] = bool(ws)
+    safe["webhook_secret"] = ("••••" + ws[-4:]) if len(ws) > 8 else ("••••" if ws else "")
+    return safe
+
+@app.post("/api/stripe/config")
+async def api_save_stripe_config(req: Request, admin: dict = Depends(require_admin)):
+    body = await req.json()
+    existing = load_stripe_config()
+    for k, v in body.items():
+        if k in ("secret_key", "webhook_secret") and v.startswith("••••"):
+            continue   # 不覆盖占位符
+        existing[k] = v
+    save_stripe_config(existing)
+    return {"ok": True}
+
+@app.post("/api/subscription/checkout")
+async def api_create_checkout(req: Request, admin: dict = Depends(require_admin)):
+    """创建 Stripe Checkout Session 并返回支付 URL"""
+    body = await req.json()
+    plan = body.get("plan", "monthly")  # "monthly" | "annual"
+    cfg  = _get_stripe_client()
+
+    base = _infer_base_url(req)
+    success_url = cfg.get("success_url") or f"{base}/?sub=success"
+    cancel_url  = cfg.get("cancel_url")  or f"{base}/?sub=cancel"
+
+    price_id = cfg.get(f"price_{plan}_id", "")
+
+    # 如果没有配置 Price ID，使用 price_data 动态创建
+    if price_id:
+        line_items = [{"price": price_id, "quantity": 1}]
+        mode = "subscription"
+    else:
+        # 回退：一次性支付模式（Payment mode）
+        amount = cfg.get(f"amount_{plan}", 980 if plan == "monthly" else 8800)
+        currency = cfg.get("currency", "jpy")
+        product_name = cfg.get("product_name", "Server Manager Pro")
+        interval_label = "月" if plan == "monthly" else "年"
+        line_items = [{
+            "price_data": {
+                "currency": currency,
+                "unit_amount": int(amount),
+                "product_data": {"name": f"{product_name}（{interval_label}付）"},
+            },
+            "quantity": 1,
+        }]
+        mode = "payment"
+
+    sub = load_subscription()
+    params: dict = {
+        "mode":        mode,
+        "line_items":  line_items,
+        "success_url": success_url + ("&" if "?" in success_url else "?") + f"plan={plan}",
+        "cancel_url":  cancel_url,
+        "payment_method_types": ["card", "alipay", "wechat_pay"],
+    }
+    if sub.get("customer_id"):
+        params["customer"] = sub["customer_id"]
+    else:
+        auth_data = load_auth()
+        # 尝试从已有 user 邮箱预填（可选）
+        admins = [u for u in auth_data.get("users", []) if u["role"] == "admin"]
+        if admins:
+            params["customer_email"] = admins[0].get("email", "")
+
+    try:
+        session = _stripe.checkout.Session.create(**params)
+        return {"url": session.url, "session_id": session.id}
+    except Exception as e:
+        raise HTTPException(500, f"Stripe 错误：{e}")
+
+@app.post("/api/subscription/webhook")
+async def api_stripe_webhook(req: Request):
+    """接收 Stripe Webhook 事件"""
+    cfg = load_stripe_config()
+    if not STRIPE_AVAILABLE:
+        raise HTTPException(503, "stripe 未安装")
+    _stripe.api_key = cfg.get("secret_key", "")
+    webhook_secret = cfg.get("webhook_secret", "")
+
+    payload = await req.body()
+    sig     = req.headers.get("stripe-signature", "")
+
+    try:
+        if webhook_secret:
+            event = _stripe.Webhook.construct_event(payload, sig, webhook_secret)
+        else:
+            event = _stripe.Event.construct_from(json.loads(payload), _stripe.api_key)
+    except Exception as e:
+        raise HTTPException(400, f"Webhook 验证失败：{e}")
+
+    sub = load_subscription()
+    ev_type = event["type"]
+
+    if ev_type == "checkout.session.completed":
+        sess = event["data"]["object"]
+        sub["customer_id"] = sess.get("customer")
+        mode = sess.get("mode")
+        plan = sess.get("metadata", {}).get("plan") or (
+            sess.get("success_url", "").split("plan=")[-1].split("&")[0] or "monthly"
+        )
+        if mode == "subscription":
+            sub["subscription_id"] = sess.get("subscription")
+            sub["status"] = "active"
+            sub["plan"]   = plan
+            # 到期时间由 subscription 事件更新
+        else:
+            # 一次性支付
+            months = 1 if plan == "monthly" else 12
+            sub["status"]     = "active"
+            sub["plan"]       = plan
+            sub["expires_at"] = int(time.time()) + months * 30 * 86400
+
+    elif ev_type in ("customer.subscription.updated", "customer.subscription.created"):
+        stripe_sub = event["data"]["object"]
+        sub["subscription_id"] = stripe_sub["id"]
+        sub["customer_id"]     = stripe_sub.get("customer")
+        period_end = stripe_sub.get("current_period_end")
+        if period_end:
+            sub["expires_at"] = period_end
+        status_map = {"active": "active", "past_due": "past_due",
+                      "canceled": "inactive", "unpaid": "past_due"}
+        sub["status"] = status_map.get(stripe_sub.get("status", ""), "inactive")
+
+    elif ev_type == "customer.subscription.deleted":
+        sub["status"]          = "inactive"
+        sub["subscription_id"] = None
+        sub["expires_at"]      = None
+
+    elif ev_type == "invoice.payment_succeeded":
+        inv = event["data"]["object"]
+        if inv.get("subscription"):
+            sub["status"] = "active"
+            # period_end 通过 subscription.updated 事件更新
+
+    elif ev_type == "invoice.payment_failed":
+        sub["status"] = "past_due"
+
+    save_subscription(sub)
+    return {"received": True}
+
+@app.post("/api/subscription/portal")
+async def api_customer_portal(req: Request, admin: dict = Depends(require_admin)):
+    """创建 Stripe Customer Portal Session"""
+    cfg = _get_stripe_client()
+    sub = load_subscription()
+    customer_id = sub.get("customer_id")
+    if not customer_id:
+        raise HTTPException(400, "尚未关联 Stripe 客户，请先完成订阅")
+    base = _infer_base_url(req)
+    try:
+        session = _stripe.billing_portal.Session.create(
+            customer=customer_id,
+            return_url=f"{base}/",
+        )
+        return {"url": session.url}
+    except Exception as e:
+        raise HTTPException(500, f"Stripe 错误：{e}")
+
+@app.post("/api/subscription/cancel")
+async def api_cancel_subscription(admin: dict = Depends(require_admin)):
+    """取消订阅（立即生效）"""
+    cfg = _get_stripe_client()
+    sub = load_subscription()
+    sub_id = sub.get("subscription_id")
+    if not sub_id:
+        raise HTTPException(400, "未找到活跃订阅")
+    try:
+        _stripe.Subscription.cancel(sub_id)
+        sub["status"]          = "inactive"
+        sub["subscription_id"] = None
+        save_subscription(sub)
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(500, f"取消失败：{e}")
 
 if __name__ == "__main__":
     import uvicorn
