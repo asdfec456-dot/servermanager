@@ -145,12 +145,6 @@ DEFAULT_ALERT_CHANNELS = {
         "from_number": "",         # e.g. +15551234567
         "to_numbers": [],          # e.g. ["+81901234567"]
     },
-    "webhook": {
-        "enabled": False,
-        "url": "",
-        "method": "POST",
-        "headers": {},
-    },
 }
 
 # ─── 报警数据存取 ─────────────────────────────────────────────────
@@ -342,25 +336,6 @@ async def dispatch_sms(msg: str, chan: dict) -> None:
             except Exception as e:
                 logger.error("SMS send error: %s", e)
 
-async def dispatch_webhook(payload: dict, chan: dict) -> None:
-    url = chan.get("url", "")
-    if not url:
-        return
-    method  = chan.get("method", "POST").upper()
-    headers = {"Content-Type": "application/json", **(chan.get("headers") or {})}
-    ssl_ctx = ssl.create_default_context()
-    try:
-        async with aiohttp.ClientSession() as sess:
-            await sess.request(
-                method, url,
-                json=payload,
-                headers=headers,
-                timeout=aiohttp.ClientTimeout(total=10),
-                ssl=ssl_ctx,
-            )
-    except Exception as e:
-        logger.error("Webhook error: %s", e)
-
 async def send_alert(trigger: str, server: dict, detail: str, rule: dict,
                      channels: dict, cluster_name: str) -> None:
     msg     = format_alert_message(trigger, server, detail, rule["name"], cluster_name)
@@ -387,8 +362,6 @@ async def send_alert(trigger: str, server: dict, detail: str, rule: dict,
             await dispatch_email(msg, rule["name"], chan)
         elif ch_name == "sms":
             await dispatch_sms(msg, chan)
-        elif ch_name == "webhook":
-            await dispatch_webhook(payload, chan)
 
 # ─── 状态变化检测 ─────────────────────────────────────────────────
 

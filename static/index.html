@@ -502,15 +502,15 @@ tr:hover td{background:var(--sf2)}
 <div class="overlay" id="ov-alerts" onclick="closeOvBg(event,'ov-alerts')">
 <div class="modal modal-wide">
   <div class="modal-hdr">
-    <div><div class="modal-title">警报管理</div><div class="modal-sub">配置触发条件和通知渠道</div></div>
+    <div><div class="modal-title" id="al-modal-title">警报管理</div><div class="modal-sub" id="al-modal-sub">配置触发条件和通知渠道</div></div>
     <button class="mclose" onclick="closeOverlay('ov-alerts')">✕</button>
   </div>
   <div class="modal-body" style="padding:0">
     <!-- Tabs -->
     <div style="display:flex;border-bottom:1px solid var(--bd);padding:0 18px">
-      <button class="alert-tab act" onclick="switchAlertTab('channels',this)">通知渠道</button>
-      <button class="alert-tab" onclick="switchAlertTab('rules',this)">触发规则</button>
-      <button class="alert-tab" onclick="switchAlertTab('history',this)">历史记录</button>
+      <button class="alert-tab act" id="al-tab-ch" onclick="switchAlertTab('channels',this)">通知渠道</button>
+      <button class="alert-tab" id="al-tab-rules" onclick="switchAlertTab('rules',this)">触发规则</button>
+      <button class="alert-tab" id="al-tab-hist" onclick="switchAlertTab('history',this)">历史记录</button>
     </div>
     <!-- Channels Tab -->
     <div id="alert-tab-channels" class="alert-tab-pane" style="padding:18px">
@@ -525,34 +525,33 @@ tr:hover td{background:var(--sf2)}
         </div>
         <div>
           <div class="sec-title" id="alert-rule-form-title">添加规则</div>
-          <div class="form-g2"><label>规则名称</label><input class="inp" id="ar-name" type="text" placeholder="例：服务器下线告警"></div>
-          <div class="form-g2"><label>触发条件</label>
+          <div class="form-g2"><label id="lbl-ar-name">规则名称</label><input class="inp" id="ar-name" type="text"></div>
+          <div class="form-g2"><label id="lbl-ar-trigger">触发条件</label>
             <select class="inp" id="ar-trigger">
-              <option value="server_offline">服务器下线</option>
-              <option value="server_online">服务器恢复上线</option>
-              <option value="health_critical">健康状态：严重</option>
-              <option value="health_warning">健康状态：警告</option>
-              <option value="temp_critical">温度传感器：严重</option>
-              <option value="fan_failed">风扇故障</option>
-              <option value="psu_failed">电源模块故障</option>
-              <option value="power_off">服务器关机</option>
-              <option value="hardware_missing">硬件丢失</option>
+              <option value="server_offline" id="tr-opt-offline">服务器下线</option>
+              <option value="server_online" id="tr-opt-online">服务器恢复上线</option>
+              <option value="health_critical" id="tr-opt-hcrit">健康状态：严重</option>
+              <option value="health_warning" id="tr-opt-hwarn">健康状态：警告</option>
+              <option value="temp_critical" id="tr-opt-temp">温度传感器：严重</option>
+              <option value="fan_failed" id="tr-opt-fan">风扇故障</option>
+              <option value="psu_failed" id="tr-opt-psu">电源模块故障</option>
+              <option value="power_off" id="tr-opt-pwr">服务器关机</option>
+              <option value="hardware_missing" id="tr-opt-hw">硬件丢失</option>
             </select>
           </div>
-          <div class="form-g2"><label>冷却时间（秒，同一服务器重复报警间隔）</label>
+          <div class="form-g2"><label id="lbl-ar-cooldown">冷却时间（秒，同一服务器重复报警间隔）</label>
             <input class="inp" id="ar-cooldown" type="number" min="30" value="300">
           </div>
-          <div class="form-g2"><label>通知渠道</label>
+          <div class="form-g2"><label id="lbl-ar-channels">通知渠道</label>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:3px" id="ar-channels">
               <label style="display:flex;align-items:center;gap:5px;font-size:.75rem"><input type="checkbox" value="telegram" checked> Telegram</label>
-              <label style="display:flex;align-items:center;gap:5px;font-size:.75rem"><input type="checkbox" value="email"> 邮件</label>
-              <label style="display:flex;align-items:center;gap:5px;font-size:.75rem"><input type="checkbox" value="sms"> 短信</label>
-              <label style="display:flex;align-items:center;gap:5px;font-size:.75rem"><input type="checkbox" value="webhook"> Webhook</label>
+              <label style="display:flex;align-items:center;gap:5px;font-size:.75rem"><input type="checkbox" value="email" id="ar-ch-email-lbl"> <span id="ar-ch-email">邮件</span></label>
+              <label style="display:flex;align-items:center;gap:5px;font-size:.75rem"><input type="checkbox" value="sms" id="ar-ch-sms-lbl"> <span id="ar-ch-sms">短信</span></label>
             </div>
           </div>
           <div class="err-msg" id="alert-rule-err"></div>
           <div style="display:flex;gap:7px">
-            <button class="btn" id="btn-ar-cancel" onclick="cancelAlertRuleEdit()" style="display:none">取消</button>
+            <button class="btn" id="btn-ar-cancel" onclick="cancelAlertRuleEdit()" style="display:none"><span id="lbl-ar-cancel">取消</span></button>
             <button class="btn btn-acc" onclick="submitAlertRule()"><span id="btn-ar-submit-lbl">添加规则</span></button>
           </div>
         </div>
@@ -562,7 +561,7 @@ tr:hover td{background:var(--sf2)}
     <div id="alert-tab-history" class="alert-tab-pane" style="display:none;padding:18px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div class="sec-title" style="margin-bottom:0;flex:1">最近报警记录</div>
-        <button class="btn btn-danger" onclick="clearAlertHistory()" style="font-size:.7rem">清空记录</button>
+        <button class="btn btn-danger" onclick="clearAlertHistory()" style="font-size:.7rem" id="btn-hist-clear">清空记录</button>
       </div>
       <div id="alert-history-list"></div>
     </div>
@@ -626,6 +625,36 @@ zh:{
   'setup.cluster':'集群名称','setup.admin':'管理员用户名','setup.pass':'管理员密码（至少 6 位）',
   'setup.confirm':'确认密码','setup.submit':'完成初始化',
   'login.title':'登录','login.username':'用户名','login.password':'密码','login.submit':'登录','login.loading':'登录中...',
+  // Alerts
+  'al.title':'警报管理','al.sub':'配置触发条件和通知渠道',
+  'al.tab_ch':'通知渠道','al.tab_rules':'触发规则','al.tab_hist':'历史记录',
+  'al.test':'测试','al.save_ch':'保存渠道',
+  'al.ch_telegram':'Telegram','al.ch_email':'邮件 Email','al.ch_sms':'短信 SMS (Twilio)',
+  'al.tg_token_lbl':'Bot Token（留空使用系统默认）','al.tg_token_ph':'留空则使用内置 token',
+  'al.tg_chat_lbl':'Chat ID（逗号分隔，留空使用默认）','al.tg_chat_ph':'例：1475673701',
+  'al.tg_guide_title':'如何获取 Bot Token 和 Chat ID',
+  'al.tg_token_guide':'① 在 Telegram 搜索 @BotFather → 发送 /newbot → 按提示完成后会收到 Token（格式：数字:字母数字）',
+  'al.tg_chat_guide':'② 向 bot 发送任意消息，然后访问 https://api.telegram.org/bot{TOKEN}/getUpdates，在返回 JSON 的 "chat"→"id" 字段中找到 Chat ID',
+  'al.email_host':'SMTP 服务器','al.email_port':'端口','al.email_user':'用户名 / 发件邮箱',
+  'al.email_pass':'密码 / 应用专用密码','al.email_to':'收件人（逗号分隔）',
+  'al.email_guide_title':'Gmail 应用专用密码获取方式',
+  'al.email_guide':'Google 账号 → 安全性 → 两步验证（需开启）→ 应用专用密码 → 生成 16 位密码',
+  'al.sms_sid':'Account SID','al.sms_token':'Auth Token','al.sms_from':'发送号码（Twilio 号码）',
+  'al.sms_to':'接收号码（逗号分隔，含国家码）',
+  'al.sms_guide_title':'Twilio 配置说明',
+  'al.sms_guide':'① 注册 twilio.com（有免费试用额度）→ 购买日本号码（+81开头）\n② 在控制台找到 Account SID 和 Auth Token\n③ 验证目标手机号（试用账号需验证）',
+  'al.rules_empty':'暂无规则',
+  'al.rule_add':'添加规则','al.rule_edit':'编辑规则',
+  'al.rule_name':'规则名称','al.rule_trigger':'触发条件',
+  'al.rule_cooldown':'冷却时间（秒，同一服务器的重复报警间隔）',
+  'al.rule_channels':'通知渠道',
+  'al.rule_btn_add':'添加规则','al.rule_btn_save':'保存修改','al.rule_btn_cancel':'取消',
+  'al.rule_btn_edit':'编辑','al.rule_btn_del':'删除','al.rule_confirm_del':'确认删除此规则？',
+  'al.hist_empty':'暂无报警记录','al.hist_clear':'清空记录','al.hist_confirm_clear':'确认清空所有报警记录？',
+  'tr.server_offline':'服务器下线','tr.server_online':'服务器恢复上线',
+  'tr.health_critical':'健康状态：严重','tr.health_warning':'健康状态：警告',
+  'tr.temp_critical':'温度传感器：严重','tr.fan_failed':'风扇故障',
+  'tr.psu_failed':'电源模块故障','tr.power_off':'服务器关机','tr.hardware_missing':'硬件丢失',
 },
 en:{
   'servers':'servers','online':'online','offline':'offline','collecting':'Collecting','refreshed':'Updated:',
@@ -669,6 +698,36 @@ en:{
   'setup.cluster':'Cluster Name','setup.admin':'Admin Username','setup.pass':'Admin Password (min 6 chars)',
   'setup.confirm':'Confirm Password','setup.submit':'Complete Setup',
   'login.title':'Login','login.username':'Username','login.password':'Password','login.submit':'Login','login.loading':'Logging in...',
+  // Alerts
+  'al.title':'Alert Management','al.sub':'Configure triggers and notification channels',
+  'al.tab_ch':'Channels','al.tab_rules':'Rules','al.tab_hist':'History',
+  'al.test':'Test','al.save_ch':'Save',
+  'al.ch_telegram':'Telegram','al.ch_email':'Email','al.ch_sms':'SMS (Twilio)',
+  'al.tg_token_lbl':'Bot Token (leave blank to use system default)','al.tg_token_ph':'Leave blank to use built-in token',
+  'al.tg_chat_lbl':'Chat ID (comma-separated, leave blank for default)','al.tg_chat_ph':'e.g. 1475673701',
+  'al.tg_guide_title':'How to get Bot Token and Chat ID',
+  'al.tg_token_guide':'① Search @BotFather on Telegram → send /newbot → follow prompts → receive Token (format: digits:alphanumeric)',
+  'al.tg_chat_guide':'② Send any message to your bot, then open https://api.telegram.org/bot{TOKEN}/getUpdates and find "chat"→"id" in the JSON response',
+  'al.email_host':'SMTP Host','al.email_port':'Port','al.email_user':'Username / Sender Email',
+  'al.email_pass':'Password / App Password','al.email_to':'Recipients (comma-separated)',
+  'al.email_guide_title':'Gmail App Password Setup',
+  'al.email_guide':'Google Account → Security → 2-Step Verification (must be enabled) → App passwords → Generate 16-char password',
+  'al.sms_sid':'Account SID','al.sms_token':'Auth Token','al.sms_from':'From Number (Twilio number)',
+  'al.sms_to':'To Numbers (comma-separated, include country code)',
+  'al.sms_guide_title':'Twilio Setup',
+  'al.sms_guide':'① Register at twilio.com (free trial available) → buy a number\n② Find Account SID and Auth Token in the console\n③ Verify destination numbers (required for trial accounts)',
+  'al.rules_empty':'No rules yet',
+  'al.rule_add':'Add Rule','al.rule_edit':'Edit Rule',
+  'al.rule_name':'Rule Name','al.rule_trigger':'Trigger',
+  'al.rule_cooldown':'Cooldown (seconds between repeated alerts for same server)',
+  'al.rule_channels':'Notification Channels',
+  'al.rule_btn_add':'Add Rule','al.rule_btn_save':'Save Changes','al.rule_btn_cancel':'Cancel',
+  'al.rule_btn_edit':'Edit','al.rule_btn_del':'Delete','al.rule_confirm_del':'Confirm delete this rule?',
+  'al.hist_empty':'No alert history','al.hist_clear':'Clear History','al.hist_confirm_clear':'Clear all alert history?',
+  'tr.server_offline':'Server Offline','tr.server_online':'Server Online',
+  'tr.health_critical':'Health: Critical','tr.health_warning':'Health: Warning',
+  'tr.temp_critical':'Temp Sensor: Critical','tr.fan_failed':'Fan Failed',
+  'tr.psu_failed':'PSU Failed','tr.power_off':'Server Power Off','tr.hardware_missing':'Hardware Missing',
 },
 ja:{
   'servers':'台','online':'オンライン','offline':'オフライン','collecting':'収集中','refreshed':'更新:',
@@ -712,6 +771,36 @@ ja:{
   'setup.cluster':'クラスター名','setup.admin':'管理者ユーザー名','setup.pass':'管理者パスワード（6文字以上）',
   'setup.confirm':'パスワード確認','setup.submit':'設定完了',
   'login.title':'ログイン','login.username':'ユーザー名','login.password':'パスワード','login.submit':'ログイン','login.loading':'ログイン中...',
+  // Alerts
+  'al.title':'アラート管理','al.sub':'トリガー条件と通知チャンネルの設定',
+  'al.tab_ch':'通知チャンネル','al.tab_rules':'トリガールール','al.tab_hist':'履歴',
+  'al.test':'テスト','al.save_ch':'保存',
+  'al.ch_telegram':'Telegram','al.ch_email':'メール Email','al.ch_sms':'SMS (Twilio)',
+  'al.tg_token_lbl':'Bot Token（空白でシステムデフォルトを使用）','al.tg_token_ph':'空白のままで内蔵トークンを使用',
+  'al.tg_chat_lbl':'Chat ID（カンマ区切り、空白でデフォルトを使用）','al.tg_chat_ph':'例：1475673701',
+  'al.tg_guide_title':'Bot Token と Chat ID の取得方法',
+  'al.tg_token_guide':'① Telegram で @BotFather を検索 → /newbot を送信 → 指示に従って設定 → Token が届く（形式：数字:英数字）',
+  'al.tg_chat_guide':'② Bot に任意のメッセージを送信後、https://api.telegram.org/bot{TOKEN}/getUpdates を開き、JSON の "chat"→"id" フィールドで Chat ID を確認',
+  'al.email_host':'SMTP サーバー','al.email_port':'ポート','al.email_user':'ユーザー名 / 送信元メール',
+  'al.email_pass':'パスワード / アプリ専用パスワード','al.email_to':'宛先（カンマ区切り）',
+  'al.email_guide_title':'Gmail アプリ専用パスワードの取得',
+  'al.email_guide':'Google アカウント → セキュリティ → 2段階認証（要有効化）→ アプリ パスワード → 16文字のパスワードを生成',
+  'al.sms_sid':'Account SID','al.sms_token':'Auth Token','al.sms_from':'送信番号（Twilio 番号）',
+  'al.sms_to':'受信番号（カンマ区切り、国番号付き）',
+  'al.sms_guide_title':'Twilio 設定手順',
+  'al.sms_guide':'① twilio.com に登録（無料トライアルあり）→ 番号を購入\n② コンソールで Account SID と Auth Token を確認\n③ 宛先番号を認証（トライアルアカウントは必須）',
+  'al.rules_empty':'ルールがありません',
+  'al.rule_add':'ルール追加','al.rule_edit':'ルール編集',
+  'al.rule_name':'ルール名','al.rule_trigger':'トリガー条件',
+  'al.rule_cooldown':'クールダウン（秒、同一サーバーの再通知間隔）',
+  'al.rule_channels':'通知チャンネル',
+  'al.rule_btn_add':'ルールを追加','al.rule_btn_save':'変更を保存','al.rule_btn_cancel':'キャンセル',
+  'al.rule_btn_edit':'編集','al.rule_btn_del':'削除','al.rule_confirm_del':'このルールを削除しますか？',
+  'al.hist_empty':'アラート履歴がありません','al.hist_clear':'履歴をクリア','al.hist_confirm_clear':'すべてのアラート履歴をクリアしますか？',
+  'tr.server_offline':'サーバーオフライン','tr.server_online':'サーバー復旧',
+  'tr.health_critical':'健全性：重大','tr.health_warning':'健全性：警告',
+  'tr.temp_critical':'温度センサー：重大','tr.fan_failed':'ファン障害',
+  'tr.psu_failed':'電源ユニット障害','tr.power_off':'サーバー電源オフ','tr.hardware_missing':'ハードウェア欠損',
 }};
 let currentLang=localStorage.getItem('sm_lang')||'zh';
 const t=k=>(LANG[currentLang]||LANG.zh)[k]||k;
@@ -768,7 +857,12 @@ function applyI18n(){
   }
   updateProtoHint();
 }
-function setLang(l){currentLang=l;localStorage.setItem('sm_lang',l);applyI18n();renderGrid();}
+function setLang(l){
+  currentLang=l;localStorage.setItem('sm_lang',l);applyI18n();renderGrid();
+  if($('ov-alerts').classList.contains('open')){
+    applyAlertI18n();loadChannelsTab();loadRulesTab();
+  }
+}
 
 /* ── State ─────────────────────────────────────────────────── */
 let token=localStorage.getItem('sm_token')||'';
@@ -1258,19 +1352,40 @@ function closeOvBg(e,id){if(e.target===$(id))closeOverlay(id);}
 /* ── Alerts ────────────────────────────────────────────────────── */
 let _alertRuleEditId = null;
 
-const TRIGGER_LABELS = {
-  server_offline:'服务器下线', server_online:'服务器恢复上线',
-  health_critical:'健康状态：严重', health_warning:'健康状态：警告',
-  temp_critical:'温度传感器：严重', fan_failed:'风扇故障',
-  psu_failed:'电源模块故障', power_off:'服务器关机', hardware_missing:'硬件丢失',
-};
 const TRIGGER_ICONS = {
   server_offline:'🔴', server_online:'🟢', health_critical:'🚨',
   health_warning:'⚠️', temp_critical:'🌡️', fan_failed:'💨',
   psu_failed:'⚡', power_off:'⏹️', hardware_missing:'🔧',
 };
+const TRIGGER_KEYS = {
+  server_offline:'tr.server_offline', server_online:'tr.server_online',
+  health_critical:'tr.health_critical', health_warning:'tr.health_warning',
+  temp_critical:'tr.temp_critical', fan_failed:'tr.fan_failed',
+  psu_failed:'tr.psu_failed', power_off:'tr.power_off', hardware_missing:'tr.hardware_missing',
+};
+
+// Apply i18n to alert-specific static labels
+function applyAlertI18n(){
+  const M={
+    'al-modal-title':'al.title','al-modal-sub':'al.sub',
+    'al-tab-ch':'al.tab_ch','al-tab-rules':'al.tab_rules','al-tab-hist':'al.tab_hist',
+    'btn-hist-clear':'al.hist_clear',
+    'alert-rule-form-title': _alertRuleEditId?'al.rule_edit':'al.rule_add',
+    'lbl-ar-name':'al.rule_name','lbl-ar-trigger':'al.rule_trigger',
+    'lbl-ar-cooldown':'al.rule_cooldown','lbl-ar-channels':'al.rule_channels',
+    'btn-ar-submit-lbl': _alertRuleEditId?'al.rule_btn_save':'al.rule_btn_add',
+    'lbl-ar-cancel':'al.rule_btn_cancel',
+    'ar-ch-email':'al.ch_email','ar-ch-sms':'al.ch_sms',
+    'tr-opt-offline':'tr.server_offline','tr-opt-online':'tr.server_online',
+    'tr-opt-hcrit':'tr.health_critical','tr-opt-hwarn':'tr.health_warning',
+    'tr-opt-temp':'tr.temp_critical','tr-opt-fan':'tr.fan_failed',
+    'tr-opt-psu':'tr.psu_failed','tr-opt-pwr':'tr.power_off','tr-opt-hw':'tr.hardware_missing',
+  };
+  for(const[id,key] of Object.entries(M)){const el=$(id);if(el&&t(key)!==key)el.textContent=t(key);}
+}
 
 async function openAlertsModal(){
+  applyAlertI18n();
   await loadChannelsTab();
   await loadRulesTab();
   $('ov-alerts').classList.add('open');
@@ -1280,57 +1395,103 @@ async function openAlertsModal(){
 function switchAlertTab(tab,el){
   document.querySelectorAll('.alert-tab').forEach(b=>b.classList.remove('act'));
   el.classList.add('act');
-  ['channels','rules','history'].forEach(t=>{
-    $(`alert-tab-${t}`).style.display=t===tab?'':'none';
+  ['channels','rules','history'].forEach(n=>{
+    $(`alert-tab-${n}`).style.display=n===tab?'':'none';
   });
   if(tab==='history') loadHistoryTab();
+}
+
+// Collapsible guide box
+function guideBox(title, content){
+  const id='guide-'+Math.random().toString(36).slice(2,7);
+  return `<details style="margin-top:8px;background:rgba(56,189,248,.06);border:1px solid rgba(56,189,248,.2);border-radius:6px;padding:0">
+<summary style="padding:7px 10px;font-size:.72rem;font-weight:600;color:var(--acc);cursor:pointer;user-select:none">
+  ℹ️ ${esc(title)}
+</summary>
+<div style="padding:8px 12px 10px;font-size:.72rem;color:var(--tx2);line-height:1.7;white-space:pre-wrap">${esc(content)}</div>
+</details>`;
 }
 
 async function loadChannelsTab(){
   const r=await api('GET','/api/alerts/channels'); if(!r) return;
   const ch=await r.json();
-  const defs=[
-    {key:'telegram',label:'Telegram',icon:'✈️',fields:[
-      {k:'bot_token',label:'Bot Token（留空使用系统默认）',type:'password',ph:'留空则使用内置 token'},
-      {k:'chat_ids',label:'Chat ID（逗号分隔，留空使用默认）',type:'text',ph:''},
-    ]},
-    {key:'email',label:'邮件 Email',icon:'📧',fields:[
-      {k:'smtp_host',label:'SMTP 服务器',ph:'smtp.gmail.com'},
-      {k:'smtp_port',label:'端口',ph:'587'},
-      {k:'smtp_user',label:'用户名 / 发件邮箱',ph:'user@gmail.com'},
-      {k:'smtp_pass',label:'密码 / 应用专用密码',type:'password',ph:''},
-      {k:'to_addrs',label:'收件人（逗号分隔）',ph:'admin@example.com'},
-    ]},
-    {key:'sms',label:'短信 SMS (Twilio)',icon:'📱',fields:[
-      {k:'account_sid',label:'Account SID',ph:'ACxxxxxxxx'},
-      {k:'auth_token',label:'Auth Token',type:'password',ph:''},
-      {k:'from_number',label:'发送号码',ph:'+15551234567'},
-      {k:'to_numbers',label:'接收号码（逗号分隔）',ph:'+81901234567'},
-    ]},
-    {key:'webhook',label:'Webhook',icon:'🔗',fields:[
-      {k:'url',label:'URL',ph:'https://hooks.example.com/alert'},
-      {k:'method',label:'Method',ph:'POST'},
-      {k:'headers',label:'自定义 Headers（JSON）',ph:'{"X-Token":"xxx"}'},
-    ]},
-  ];
-  $('channels-content').innerHTML=defs.map(def=>{
-    const cfg=ch[def.key]||{};
-    const en=cfg.enabled||false;
-    const fields=def.fields.map(f=>{
-      let v=cfg[f.k]; if(Array.isArray(v)) v=v.join(', '); if(typeof v==='object'&&v!==null) v=JSON.stringify(v); v=v||'';
-      return `<div class="form-g2"><label>${f.label}</label><input class="inp ch-field" data-ch="${def.key}" data-field="${f.k}" type="${f.type||'text'}" value="${esc(v)}" placeholder="${esc(f.ph||'')}"></div>`;
-    }).join('');
-    return `<div class="ch-card">
+
+  // Telegram card
+  const tgCfg=ch.telegram||{};
+  const tgEn=tgCfg.enabled||false;
+  const tgToken=(tgCfg.bot_token||'');
+  const tgChats=Array.isArray(tgCfg.chat_ids)?tgCfg.chat_ids.join(', '):(tgCfg.chat_ids||'');
+  const tgCard=`<div class="ch-card">
 <div class="ch-card-head">
-  <div class="ch-name">${def.icon} ${def.label}</div>
+  <div class="ch-name">✈️ ${t('al.ch_telegram')}</div>
   <div style="display:flex;align-items:center;gap:10px">
-    <button class="ch-test-btn" onclick="testChannel('${def.key}')">测试</button>
-    <label class="ch-toggle"><input type="checkbox" data-ch="${def.key}" onchange="saveChannels()"${en?' checked':''}><span class="ch-slider"></span></label>
+    <button class="ch-test-btn" onclick="testChannel('telegram')">${t('al.test')}</button>
+    <label class="ch-toggle"><input type="checkbox" data-ch="telegram" onchange="saveChannels()"${tgEn?' checked':''}><span class="ch-slider"></span></label>
   </div>
 </div>
-<div class="ch-fields">${fields}</div>
+<div class="ch-fields one-col">
+  <div class="form-g2"><label>${t('al.tg_token_lbl')}</label>
+    <input class="inp ch-field" data-ch="telegram" data-field="bot_token" type="password" value="${esc(tgToken)}" placeholder="${t('al.tg_token_ph')}">
+  </div>
+  <div class="form-g2"><label>${t('al.tg_chat_lbl')}</label>
+    <input class="inp ch-field" data-ch="telegram" data-field="chat_ids" type="text" value="${esc(tgChats)}" placeholder="${t('al.tg_chat_ph')}">
+  </div>
+</div>
+${guideBox(t('al.tg_guide_title'), t('al.tg_token_guide')+'\n\n'+t('al.tg_chat_guide'))}
 </div>`;
+
+  // Email card
+  const emCfg=ch.email||{};
+  const emEn=emCfg.enabled||false;
+  const emFields=[
+    {k:'smtp_host',lbl:t('al.email_host'),ph:'smtp.gmail.com'},
+    {k:'smtp_port',lbl:t('al.email_port'),ph:'587'},
+    {k:'smtp_user',lbl:t('al.email_user'),ph:'user@gmail.com'},
+    {k:'smtp_pass',lbl:t('al.email_pass'),type:'password',ph:''},
+    {k:'to_addrs', lbl:t('al.email_to'), ph:'admin@example.com'},
+  ];
+  const emFieldsHtml=emFields.map(f=>{
+    let v=emCfg[f.k]||''; if(Array.isArray(v))v=v.join(', ');
+    return `<div class="form-g2"><label>${f.lbl}</label><input class="inp ch-field" data-ch="email" data-field="${f.k}" type="${f.type||'text'}" value="${esc(v)}" placeholder="${esc(f.ph)}"></div>`;
   }).join('');
+  const emCard=`<div class="ch-card">
+<div class="ch-card-head">
+  <div class="ch-name">📧 ${t('al.ch_email')}</div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <button class="ch-test-btn" onclick="testChannel('email')">${t('al.test')}</button>
+    <label class="ch-toggle"><input type="checkbox" data-ch="email" onchange="saveChannels()"${emEn?' checked':''}><span class="ch-slider"></span></label>
+  </div>
+</div>
+<div class="ch-fields">${emFieldsHtml}</div>
+${guideBox(t('al.email_guide_title'), t('al.email_guide'))}
+</div>`;
+
+  // SMS card
+  const smsCfg=ch.sms||{};
+  const smsEn=smsCfg.enabled||false;
+  const smsFields=[
+    {k:'account_sid',lbl:t('al.sms_sid'),ph:'ACxxxxxxxx'},
+    {k:'auth_token', lbl:t('al.sms_token'),type:'password',ph:''},
+    {k:'from_number',lbl:t('al.sms_from'),ph:'+15551234567'},
+    {k:'to_numbers', lbl:t('al.sms_to'),ph:'+81901234567'},
+  ];
+  const smsFieldsHtml=smsFields.map(f=>{
+    let v=smsCfg[f.k]||''; if(Array.isArray(v))v=v.join(', ');
+    return `<div class="form-g2"><label>${f.lbl}</label><input class="inp ch-field" data-ch="sms" data-field="${f.k}" type="${f.type||'text'}" value="${esc(v)}" placeholder="${esc(f.ph)}"></div>`;
+  }).join('');
+  const smsCard=`<div class="ch-card">
+<div class="ch-card-head">
+  <div class="ch-name">📱 ${t('al.ch_sms')}</div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <button class="ch-test-btn" onclick="testChannel('sms')">${t('al.test')}</button>
+    <label class="ch-toggle"><input type="checkbox" data-ch="sms" onchange="saveChannels()"${smsEn?' checked':''}><span class="ch-slider"></span></label>
+  </div>
+</div>
+<div class="ch-fields">${smsFieldsHtml}</div>
+${guideBox(t('al.sms_guide_title'), t('al.sms_guide'))}
+</div>`;
+
+  $('channels-content').innerHTML = tgCard + emCard + smsCard;
 }
 
 async function saveChannels(){
@@ -1359,14 +1520,14 @@ async function loadRulesTab(){
   const r=await api('GET','/api/alerts/rules'); if(!r) return;
   const rules=await r.json();
   $('alert-rules-list').innerHTML=rules.length===0
-    ?'<div style="color:var(--tx3);font-size:.75rem">暂无规则</div>'
+    ?`<div style="color:var(--tx3);font-size:.75rem">${t('al.rules_empty')}</div>`
     :rules.map(rule=>`<div class="alert-rule-item">
 <div style="flex:1;min-width:0">
   <div class="ar-name">${TRIGGER_ICONS[rule.trigger]||'📢'} ${esc(rule.name)}</div>
-  <div class="ar-trigger">${TRIGGER_LABELS[rule.trigger]||rule.trigger} · ${rule.cooldown}s · ${(rule.channels||[]).join('/')}</div>
+  <div class="ar-trigger">${t(TRIGGER_KEYS[rule.trigger]||rule.trigger)} · ${rule.cooldown}s · ${(rule.channels||[]).join('/')}</div>
 </div>
-<button class="btn-sm" onclick="editAlertRule('${rule.id}')">编辑</button>
-<button class="btn-sm btn-sm-del" onclick="deleteAlertRule('${rule.id}')">删除</button>
+<button class="btn-sm" onclick="editAlertRule('${rule.id}')">${t('al.rule_btn_edit')}</button>
+<button class="btn-sm btn-sm-del" onclick="deleteAlertRule('${rule.id}')">${t('al.rule_btn_del')}</button>
 <label class="ar-toggle"><input type="checkbox"${rule.enabled?' checked':''} onchange="toggleAlertRule('${rule.id}',this.checked)"><span class="ar-slider"></span></label>
 </div>`).join('');
 }
@@ -1379,16 +1540,16 @@ async function editAlertRule(id){
   _alertRuleEditId=id;
   $('ar-name').value=rule.name; $('ar-trigger').value=rule.trigger; $('ar-cooldown').value=rule.cooldown;
   document.querySelectorAll('#ar-channels input').forEach(cb=>cb.checked=(rule.channels||[]).includes(cb.value));
-  $('alert-rule-form-title').textContent='编辑规则';
-  $('btn-ar-submit-lbl').textContent='保存修改';
+  $('alert-rule-form-title').textContent=t('al.rule_edit');
+  $('btn-ar-submit-lbl').textContent=t('al.rule_btn_save');
   $('btn-ar-cancel').style.display='';
 }
 
 function cancelAlertRuleEdit(){
   _alertRuleEditId=null;
   $('ar-name').value=''; $('ar-cooldown').value='300';
-  $('alert-rule-form-title').textContent='添加规则';
-  $('btn-ar-submit-lbl').textContent='添加规则';
+  $('alert-rule-form-title').textContent=t('al.rule_add');
+  $('btn-ar-submit-lbl').textContent=t('al.rule_btn_add');
   $('btn-ar-cancel').style.display='none';
   $('alert-rule-err').textContent='';
   document.querySelectorAll('#ar-channels input').forEach((cb,i)=>cb.checked=i===0);
@@ -1397,7 +1558,7 @@ function cancelAlertRuleEdit(){
 async function submitAlertRule(){
   const name=$('ar-name').value.trim(),err=$('alert-rule-err');
   err.textContent='';
-  if(!name){err.textContent='请输入规则名称';return;}
+  if(!name){err.textContent=t('al.rule_name')+' ?';return;}
   const channels=[...document.querySelectorAll('#ar-channels input:checked')].map(cb=>cb.value);
   const body={name,trigger:$('ar-trigger').value,cooldown:parseInt($('ar-cooldown').value)||300,channels,enabled:true};
   const r=_alertRuleEditId?await api('PUT',`/api/alerts/rules/${_alertRuleEditId}`,body):await api('POST','/api/alerts/rules',body);
@@ -1407,7 +1568,7 @@ async function submitAlertRule(){
 }
 
 async function deleteAlertRule(id){
-  if(!confirm('确认删除此规则？')) return;
+  if(!confirm(t('al.rule_confirm_del'))) return;
   await api('DELETE',`/api/alerts/rules/${id}`); await loadRulesTab();
 }
 
@@ -1415,12 +1576,12 @@ async function loadHistoryTab(){
   const r=await api('GET','/api/alerts/history'); if(!r) return;
   const h=await r.json();
   $('alert-history-list').innerHTML=h.length===0
-    ?'<div style="color:var(--tx3);font-size:.75rem;padding:8px 0">暂无报警记录</div>'
+    ?`<div style="color:var(--tx3);font-size:.75rem;padding:8px 0">${t('al.hist_empty')}</div>`
     :h.map(e=>`<div class="hist-item"><div class="hist-icon">${TRIGGER_ICONS[e.trigger]||'📢'}</div><div class="hist-body"><div class="hist-title">${esc(e.rule)} — ${esc(e.server)}</div><div class="hist-meta">${esc(e.time)}${e.detail?' · '+esc(e.detail):''} · ${(e.channels||[]).join('/')}</div></div></div>`).join('');
 }
 
 async function clearAlertHistory(){
-  if(!confirm('确认清空所有报警记录？')) return;
+  if(!confirm(t('al.hist_confirm_clear'))) return;
   await api('DELETE','/api/alerts/history'); await loadHistoryTab();
 }
 
