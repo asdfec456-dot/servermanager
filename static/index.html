@@ -260,7 +260,94 @@ tr:hover td{background:var(--sf2)}
 /* Footer */
 .footer{text-align:center;padding:13px 0 17px;font-size:.65rem;color:var(--tx3);letter-spacing:.06em;border-top:1px solid var(--bd);margin-top:4px}
 .footer a{color:var(--tx3);text-decoration:none}.footer a:hover{color:var(--tx2)}
-@media(max-width:520px){.hdr-stats{display:none}main{padding:10px}.grid,.grid-wide{grid-template-columns:1fr}}
+/* ── Settings Dropdown ─────────────────────────────────────── */
+.settings-dd{position:relative}
+.dd-menu{
+  display:none;position:absolute;top:calc(100% + 6px);right:0;
+  background:var(--sf);border:1px solid var(--bd);border-radius:9px;
+  min-width:190px;padding:5px;z-index:300;
+  box-shadow:0 6px 24px var(--shadow);animation:su .15s ease;
+}
+.dd-menu.open{display:block}
+.dd-item{
+  display:flex;align-items:center;gap:9px;width:100%;
+  padding:9px 12px;border:none;background:none;color:var(--tx);
+  font-size:.8rem;cursor:pointer;border-radius:6px;text-align:left;
+  transition:background .1s;
+}
+.dd-item:hover{background:var(--sf2);color:var(--acc)}
+.dd-sep{height:1px;background:var(--bd);margin:4px 0}
+
+/* ── Mobile/Tablet ──────────────────────────────────────────── */
+/* Tablet ≥641px */
+@media(min-width:641px) and (max-width:1023px){
+  .grid{grid-template-columns:repeat(auto-fill,minmax(270px,1fr))}
+  .grid-wide{grid-template-columns:repeat(2,1fr)}
+  .modal-wide{max-width:96vw}
+  .cluster-name{max-width:120px}
+}
+
+/* Mobile <641px */
+@media(max-width:640px){
+  /* Header */
+  header{padding:0 10px;height:52px;gap:6px}
+  .logo-text{display:none}
+  .cluster-name{display:none}
+  .hdr-stats{gap:8px}
+  .stat-label{display:none}  /* hide text, keep dot+number */
+  .hdr-right{gap:4px}
+  .btn-lbl{display:none}     /* hide button labels, icons only */
+  .lang-sw .lang-btn{padding:3px 5px;font-size:.67rem}
+  .user-badge{padding:3px 7px;font-size:.68rem}
+  .role-tag{display:none}
+
+  /* Full-screen modals */
+  .overlay{padding:0;align-items:flex-end}
+  .modal,.modal-wide{
+    max-width:100%;width:100%;border-radius:14px 14px 0 0;
+    margin:0;max-height:92dvh;display:flex;flex-direction:column;
+  }
+  .modal-body{overflow-y:auto;flex:1}
+  /* Two-column modal grids → single column */
+  .modal-body > div[style*="grid-template-columns:1fr 1fr"],
+  .modal-body > div[style*="grid-template-columns: 1fr 1fr"]{
+    display:flex !important;flex-direction:column;gap:0 !important;
+  }
+
+  /* Toolbar */
+  .toolbar{overflow-x:auto;flex-wrap:nowrap;gap:5px;padding:7px 10px;-webkit-overflow-scrolling:touch}
+  .toolbar::-webkit-scrollbar{display:none}
+  .tsep{display:none}
+  .view-sw{flex-shrink:0}
+  .search{width:120px;flex-shrink:0}
+
+  /* Cards */
+  main{padding:10px}
+  .grid,.grid-wide{grid-template-columns:1fr}
+
+  /* Forms */
+  .form-row{flex-direction:column !important;gap:0}
+  .info-grid{grid-template-columns:1fr}
+  .ch-fields{grid-template-columns:1fr !important}
+
+  /* Tables scroll */
+  .tbl-wrap{border-radius:0}
+  .tbl-wrap table{font-size:.7rem}
+  .tbl-wrap th,.tbl-wrap td{padding:5px 7px}
+
+  /* BMC password form */
+  div[style*="grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px"]{
+    display:flex !important;flex-direction:column;gap:0;
+  }
+}
+
+/* Touch targets */
+@media(hover:none){
+  .btn{min-height:40px;padding:7px 11px}
+  .fl-btn,.fl-sc{min-height:34px;padding:5px 12px}
+  .card{cursor:default}
+  .dd-item{padding:12px 14px}
+}
 </style>
 </head>
 <body>
@@ -331,30 +418,43 @@ tr:hover td{background:var(--sf2)}
       <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
       <button class="lang-btn" data-lang="ja" onclick="setLang('ja')">日</button>
     </div>
-    <button class="btn btn-icon" id="theme-btn" onclick="toggleTheme()" title="切换明暗模式">
+    <button class="btn btn-icon" id="theme-btn" onclick="toggleTheme()">
       <svg id="theme-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
     </button>
     <button class="btn admin-only" id="btn-refresh" onclick="triggerRefresh()">
       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-      <span id="lbl-refresh">刷新</span>
+      <span id="lbl-refresh" class="btn-lbl">刷新</span>
     </button>
-    <button class="btn admin-only" onclick="openOverlay('ov-cfg')">
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      <span id="lbl-settings">设置</span>
+    <div class="settings-dd admin-only" id="settings-dd">
+      <button class="btn" id="btn-settings-dd" onclick="toggleSettingsMenu()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span class="btn-lbl" id="lbl-settings">设置</span>
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="dd-menu" id="settings-menu">
+        <button class="dd-item" onclick="ddOpen('ov-cfg')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="4" rx="1"/><rect x="2" y="10" width="20" height="4" rx="1"/><rect x="2" y="17" width="20" height="4" rx="1"/></svg>
+          <span id="dd-lbl-cfg">BMC 配置</span>
+        </button>
+        <button class="dd-item" onclick="ddOpen('ov-sc')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="8" height="5" rx="1"/><rect x="14" y="3" width="8" height="5" rx="1"/><rect x="6" y="15" width="12" height="5" rx="1"/><line x1="6" y1="8" x2="6" y2="11"/><line x1="18" y1="8" x2="18" y2="11"/><line x1="6" y1="11" x2="18" y2="11"/><line x1="12" y1="11" x2="12" y2="15"/></svg>
+          <span id="dd-lbl-sc">子集群管理</span>
+        </button>
+        <div class="dd-sep"></div>
+        <button class="dd-item" onclick="ddOpen('ov-users')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span id="dd-lbl-users">用户管理</span>
+        </button>
+        <button class="dd-item" onclick="ddOpen('ov-alerts')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span id="dd-lbl-alerts">警报管理</span>
+        </button>
+      </div>
+    </div>
+    <button class="btn btn-danger" onclick="doLogout()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      <span class="btn-lbl" id="lbl-logout">登出</span>
     </button>
-    <button class="btn admin-only" onclick="openOverlay('ov-sc')">
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="8" height="5" rx="1"/><rect x="14" y="3" width="8" height="5" rx="1"/><rect x="6" y="15" width="12" height="5" rx="1"/><line x1="6" y1="8" x2="6" y2="11"/><line x1="18" y1="8" x2="18" y2="11"/><line x1="6" y1="11" x2="18" y2="11"/><line x1="12" y1="11" x2="12" y2="15"/></svg>
-      <span id="lbl-subclusters">子集群</span>
-    </button>
-    <button class="btn admin-only" onclick="openOverlay('ov-users')">
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      <span id="lbl-users">用户</span>
-    </button>
-    <button class="btn admin-only" onclick="openOverlay('ov-alerts')">
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-      <span id="lbl-alerts">警报</span>
-    </button>
-    <button class="btn btn-danger" onclick="doLogout()"><span id="lbl-logout">登出</span></button>
   </div>
 </header>
 
@@ -821,8 +921,8 @@ function applyI18n(){
   const M={
     'lbl-servers':'servers','lbl-online':'online','lbl-offline':'offline','lbl-collecting':'collecting',
     'lbl-filter':'filter','fl-all':'all','fl-ok':'ok','fl-warn':'warning','fl-crit':'critical','fl-off':'offline',
-    'lbl-refresh':'btn.refresh','lbl-settings':'btn.settings','lbl-subclusters':'btn.subclusters',
-    'lbl-users':'btn.users','lbl-logout':'btn.logout',
+    'lbl-refresh':'btn.refresh','lbl-settings':'btn.settings','lbl-logout':'btn.logout',
+    'dd-lbl-cfg':'cfg.title','dd-lbl-sc':'sc.title','dd-lbl-users':'u.title','dd-lbl-alerts':'al.title',
     'lbl-setup-title':'setup.title','lbl-setup-sub':'setup.sub','lbl-cluster':'setup.cluster',
     'lbl-admin-user':'setup.admin','lbl-admin-pass':'setup.pass','lbl-confirm':'setup.confirm',
     'btn-setup-submit':'setup.submit','lbl-login-title':'login.title',
@@ -866,6 +966,28 @@ function applyI18n(){
   }
   updateProtoHint();
 }
+
+/* ── Settings Dropdown ─────────────────────────────────────── */
+function toggleSettingsMenu(){
+  const m=$('settings-menu');
+  m.classList.toggle('open');
+}
+function ddOpen(id){
+  $('settings-menu').classList.remove('open');
+  openOverlay(id);
+}
+// Close dropdown on outside click
+document.addEventListener('click',function(e){
+  const dd=$('settings-dd');
+  if(dd && !dd.contains(e.target)){
+    $('settings-menu')?.classList.remove('open');
+  }
+});
+// Close on Escape
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape') $('settings-menu')?.classList.remove('open');
+});
+
 function setLang(l){
   currentLang=l;localStorage.setItem('sm_lang',l);applyI18n();renderGrid();
   if($('ov-alerts').classList.contains('open')){

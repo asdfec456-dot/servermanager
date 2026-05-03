@@ -129,7 +129,7 @@ DEFAULT_ALERT_CHANNELS = {
     },
     "email": {
         "enabled": False,
-        "smtp_host": "smtp.gmail.com",
+        "smtp_host": "",          # 留空，用户自行填写
         "smtp_port": 587,
         "smtp_user": "",
         "smtp_pass": "",
@@ -172,9 +172,8 @@ def load_alert_channels() -> dict:
             merged = {**DEFAULT_ALERT_CHANNELS}
             for k, v in saved.items():
                 merged[k] = {**DEFAULT_ALERT_CHANNELS.get(k, {}), **v}
-            # 空字符串时回落到默认值（防止用户清空保存后丢失默认）
+            # smtp_port 为空时保留 587，smtp_host 保持用户输入（不强加默认）
             em = merged.get("email", {})
-            if not em.get("smtp_host"): em["smtp_host"] = "smtp.gmail.com"
             if not em.get("smtp_port"): em["smtp_port"] = 587
             merged["email"] = em
             return merged
