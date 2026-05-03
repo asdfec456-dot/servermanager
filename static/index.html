@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" id="html-root">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
@@ -11,427 +11,332 @@
   --bd:#334155;--bd2:#4a5f7a;
   --tx:#e2e8f0;--tx2:#94a3b8;--tx3:#64748b;
   --ok:#22c55e;--warn:#f59e0b;--crit:#ef4444;--unk:#64748b;--pend:#3b82f6;
-  --acc:#38bdf8;--acc2:#0ea5e9;
-  --shadow:rgba(0,0,0,.4);--overlay:rgba(0,0,0,.65);
-  --r:10px;
+  --acc:#38bdf8;--shadow:rgba(0,0,0,.4);--overlay:rgba(0,0,0,.65);--r:10px;
 }
 :root.light{
   --bg:#f1f5f9;--sf:#ffffff;--sf2:#f8fafc;--sf3:#e2e8f0;
-  --bd:#cbd5e1;--bd2:#94a3b8;
-  --tx:#0f172a;--tx2:#475569;--tx3:#94a3b8;
+  --bd:#cbd5e1;--bd2:#94a3b8;--tx:#0f172a;--tx2:#475569;--tx3:#94a3b8;
   --ok:#15803d;--warn:#b45309;--crit:#b91c1c;--unk:#64748b;--pend:#1d4ed8;
-  --acc:#0369a1;--acc2:#0284c7;
-  --shadow:rgba(0,0,0,.12);--overlay:rgba(0,0,0,.5);
+  --acc:#0369a1;--shadow:rgba(0,0,0,.12);--overlay:rgba(0,0,0,.5);
 }
 html{font-size:14px}
 body{background:var(--bg);color:var(--tx);font-family:'Segoe UI','PingFang SC','Microsoft YaHei',system-ui,sans-serif;min-height:100vh;transition:background .2s,color .2s}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:var(--bg)}
 ::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px}
-
-/* ── Auth Screen ────────────────────────────────── */
-#auth-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;background:var(--bg)}
+/* Auth */
+#auth-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
 .auth-card{background:var(--sf);border:1px solid var(--bd);border-radius:16px;padding:36px 40px;width:100%;max-width:420px;box-shadow:0 8px 32px var(--shadow)}
-.auth-logo{text-align:center;margin-bottom:28px}
-.auth-logo h1{font-size:1.4rem;font-weight:700;color:var(--acc);margin-top:10px}
-.auth-logo p{font-size:.82rem;color:var(--tx2);margin-top:4px}
-.auth-step{display:none}
-.auth-step.active{display:block}
-.step-title{font-size:1rem;font-weight:600;margin-bottom:20px}
-.step-sub{font-size:.78rem;color:var(--tx2);margin-bottom:20px;line-height:1.6}
-.form-g{display:flex;flex-direction:column;gap:4px;margin-bottom:14px}
-.form-g label{font-size:.75rem;color:var(--tx2)}
-.inp{background:var(--sf2);border:1px solid var(--bd);border-radius:6px;padding:8px 11px;color:var(--tx);font-size:.85rem;outline:none;width:100%;transition:border-color .15s}
-.inp:focus{border-color:var(--acc)}
-.inp::placeholder{color:var(--tx3)}
-.inp-wrap{position:relative}
-.inp-wrap .inp{padding-right:36px}
-.eye-btn{position:absolute;right:9px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--tx2);cursor:pointer}
-.auth-err{color:var(--crit);font-size:.78rem;margin-bottom:10px;min-height:18px}
-.btn-block{width:100%;padding:9px;border-radius:7px;border:none;cursor:pointer;font-size:.9rem;font-weight:600;transition:all .15s}
-.btn-acc{background:var(--acc);color:#fff}
+.auth-logo{text-align:center;margin-bottom:26px}
+.auth-logo h1{font-size:1.3rem;font-weight:700;color:var(--acc);margin-top:8px}
+.auth-logo p{font-size:.8rem;color:var(--tx2);margin-top:3px}
+.auth-step{display:none}.auth-step.active{display:block}
+.step-title{font-size:1rem;font-weight:600;margin-bottom:18px}
+.form-g{display:flex;flex-direction:column;gap:4px;margin-bottom:13px}
+.form-g label{font-size:.73rem;color:var(--tx2)}
+.inp{background:var(--sf2);border:1px solid var(--bd);border-radius:6px;padding:7px 11px;color:var(--tx);font-size:.83rem;outline:none;width:100%;transition:border-color .15s}
+.inp:focus{border-color:var(--acc)}.inp::placeholder{color:var(--tx3)}
+select.inp{cursor:pointer}
+.inp-wrap{position:relative}.inp-wrap .inp{padding-right:34px}
+.eye-btn{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--tx2);cursor:pointer}
+.auth-err{color:var(--crit);font-size:.75rem;margin-bottom:9px;min-height:17px}
+.btn-block{width:100%;padding:8px;border-radius:7px;border:none;cursor:pointer;font-size:.88rem;font-weight:600;transition:all .15s}
+.btn-acc{background:var(--acc);color:#fff}.btn-acc:hover{opacity:.9}
 :root.light .btn-acc{color:#0f172a}
-.btn-acc:hover{background:var(--acc2)}
 .btn-acc:disabled{opacity:.5;cursor:not-allowed}
-.auth-footer{text-align:center;font-size:.72rem;color:var(--tx3);margin-top:20px}
-
-/* ── Header ─────────────────────────────────────── */
+.auth-footer{text-align:center;font-size:.7rem;color:var(--tx3);margin-top:18px}
+/* Header */
 header{background:var(--sf);border-bottom:1px solid var(--bd);height:56px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;z-index:50;box-shadow:0 1px 4px var(--shadow)}
-.logo{display:flex;align-items:center;gap:8px;font-size:1rem;font-weight:700;color:var(--acc);white-space:nowrap;min-width:0}
-.cluster-name{font-size:.75rem;color:var(--tx2);margin-left:4px;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
-.hdr-stats{display:flex;align-items:center;gap:12px;flex:1;justify-content:center}
-.stat{display:flex;align-items:center;gap:5px;font-size:.75rem;color:var(--tx2);white-space:nowrap}
+.logo{display:flex;align-items:center;gap:7px;font-size:.98rem;font-weight:700;color:var(--acc);white-space:nowrap}
+.cluster-name{font-size:.72rem;color:var(--tx2);margin-left:3px;font-weight:400;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hdr-stats{display:flex;align-items:center;gap:11px;flex:1;justify-content:center}
+.stat{display:flex;align-items:center;gap:4px;font-size:.73rem;color:var(--tx2);white-space:nowrap}
 .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.d-ok{background:var(--ok)}
-.d-off{background:var(--tx3)}
+.d-ok{background:var(--ok)}.d-off{background:var(--tx3)}
 .d-pend{background:var(--pend);animation:blink 1.2s ease-in-out infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
-.hdr-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
-.btn{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:6px;border:1px solid var(--bd);background:var(--sf2);color:var(--tx);cursor:pointer;font-size:.75rem;transition:all .15s;white-space:nowrap}
+.hdr-right{display:flex;align-items:center;gap:5px;flex-shrink:0}
+.btn{display:inline-flex;align-items:center;gap:4px;padding:5px 9px;border-radius:6px;border:1px solid var(--bd);background:var(--sf2);color:var(--tx);cursor:pointer;font-size:.73rem;transition:all .15s;white-space:nowrap}
 .btn:hover{background:var(--sf3);border-color:var(--acc);color:var(--acc)}
 .btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-icon{padding:5px 6px}
 .btn-danger{border-color:rgba(239,68,68,.4);color:var(--crit)}
 .btn-danger:hover{background:rgba(239,68,68,.1);border-color:var(--crit)}
-.btn-icon{padding:5px 7px}
-.user-badge{display:flex;align-items:center;gap:5px;padding:4px 9px;background:var(--sf2);border:1px solid var(--bd);border-radius:20px;font-size:.72rem;color:var(--tx2)}
-.role-tag{font-size:.6rem;padding:1px 6px;border-radius:3px;font-weight:600}
+.user-badge{display:flex;align-items:center;gap:5px;padding:3px 8px;background:var(--sf2);border:1px solid var(--bd);border-radius:20px;font-size:.7rem;color:var(--tx2)}
+.role-tag{font-size:.6rem;padding:1px 5px;border-radius:3px;font-weight:600}
 .role-admin{background:rgba(56,189,248,.15);color:var(--acc);border:1px solid rgba(56,189,248,.3)}
 .role-viewer{background:rgba(34,197,94,.12);color:var(--ok);border:1px solid rgba(34,197,94,.3)}
-
-/* ── Toolbar ─────────────────────────────────────── */
-.toolbar{background:var(--sf);border-bottom:1px solid var(--bd);padding:8px 16px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
-.fl-label{font-size:.72rem;color:var(--tx2)}
-.fl-btn,.fl-sc{padding:3px 10px;border-radius:20px;border:1px solid var(--bd);background:transparent;color:var(--tx2);cursor:pointer;font-size:.72rem;transition:all .15s}
+/* Lang switcher */
+.lang-sw{display:flex;gap:1px;background:var(--sf2);border:1px solid var(--bd);border-radius:6px;padding:2px}
+.lang-btn{background:none;border:none;color:var(--tx2);cursor:pointer;padding:3px 6px;border-radius:4px;font-size:.7rem;font-weight:600;transition:all .15s}
+.lang-btn:hover{color:var(--tx)}.lang-btn.act{background:var(--acc);color:#fff}
+:root.light .lang-btn.act{color:#0f172a}
+/* Toolbar */
+.toolbar{background:var(--sf);border-bottom:1px solid var(--bd);padding:8px 16px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.fl-btn,.fl-sc{padding:3px 9px;border-radius:20px;border:1px solid var(--bd);background:transparent;color:var(--tx2);cursor:pointer;font-size:.7rem;transition:all .15s}
 .fl-btn:hover,.fl-btn.act{border-color:var(--acc);color:var(--acc);background:rgba(56,189,248,.08)}
 .fl-sc:hover,.fl-sc.act{border-color:var(--warn);color:var(--warn);background:rgba(245,158,11,.07)}
-.toolbar-sep{width:1px;height:18px;background:var(--bd);margin:0 2px;flex-shrink:0}
-.search{background:var(--sf2);border:1px solid var(--bd);border-radius:6px;padding:4px 10px;color:var(--tx);font-size:.78rem;width:170px;outline:none;transition:border-color .15s}
-.search:focus{border-color:var(--acc)}
-.search::placeholder{color:var(--tx3)}
-
-/* ── View Mode Switcher ──────────────────────────── */
-.view-switcher{display:flex;gap:2px;background:var(--sf2);border:1px solid var(--bd);border-radius:7px;padding:2px}
-.vbtn{background:none;border:none;color:var(--tx2);cursor:pointer;padding:4px 6px;border-radius:5px;display:flex;align-items:center;transition:all .15s;line-height:1}
-.vbtn:hover{color:var(--tx);background:var(--sf3)}
-.vbtn.act{background:var(--acc);color:#fff}
+.tsep{width:1px;height:16px;background:var(--bd);margin:0 2px;flex-shrink:0}
+.search{background:var(--sf2);border:1px solid var(--bd);border-radius:6px;padding:4px 9px;color:var(--tx);font-size:.76rem;width:160px;outline:none}
+.search:focus{border-color:var(--acc)}.search::placeholder{color:var(--tx3)}
+/* View switcher */
+.view-sw{display:flex;gap:1px;background:var(--sf2);border:1px solid var(--bd);border-radius:7px;padding:2px}
+.vbtn{background:none;border:none;color:var(--tx2);cursor:pointer;padding:4px 5px;border-radius:4px;display:flex;align-items:center;transition:all .15s}
+.vbtn:hover{color:var(--tx);background:var(--sf3)}.vbtn.act{background:var(--acc);color:#fff}
 :root.light .vbtn.act{color:#0f172a}
-
-/* ── Shared card/item styles ─────────────────────── */
+/* Main */
 main{padding:16px;min-height:60vh}
-.hbadge{padding:2px 8px;border-radius:20px;font-size:.65rem;font-weight:700;white-space:nowrap;letter-spacing:.03em}
-.hb-ok  {background:rgba(34,197,94,.13); color:var(--ok);  border:1px solid rgba(34,197,94,.3)}
+.hbadge{padding:2px 7px;border-radius:20px;font-size:.63rem;font-weight:700;white-space:nowrap}
+.hb-ok{background:rgba(34,197,94,.13);color:var(--ok);border:1px solid rgba(34,197,94,.3)}
 .hb-warn{background:rgba(245,158,11,.13);color:var(--warn);border:1px solid rgba(245,158,11,.3)}
-.hb-crit{background:rgba(239,68,68,.13); color:var(--crit);border:1px solid rgba(239,68,68,.3)}
-.hb-unk {background:rgba(100,116,139,.12);color:var(--unk);border:1px solid rgba(100,116,139,.25)}
+.hb-crit{background:rgba(239,68,68,.13);color:var(--crit);border:1px solid rgba(239,68,68,.3)}
+.hb-unk{background:rgba(100,116,139,.12);color:var(--unk);border:1px solid rgba(100,116,139,.25)}
 .hb-pend{background:rgba(59,130,246,.12);color:var(--pend);border:1px solid rgba(59,130,246,.3)}
-.proto-tag{font-size:.6rem;padding:1px 5px;border-radius:3px;background:rgba(56,189,248,.1);color:var(--acc);border:1px solid rgba(56,189,248,.2);margin-left:5px;vertical-align:middle}
-.sc-tag{font-size:.62rem;padding:1px 6px;border-radius:3px;background:rgba(245,158,11,.1);color:var(--warn);border:1px solid rgba(245,158,11,.25)}
-.sdot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;vertical-align:middle}
+.proto-tag{font-size:.58rem;padding:1px 4px;border-radius:3px;background:rgba(56,189,248,.1);color:var(--acc);border:1px solid rgba(56,189,248,.2);margin-left:4px;vertical-align:middle}
+.sc-tag{font-size:.6rem;padding:1px 5px;border-radius:3px;background:rgba(245,158,11,.1);color:var(--warn);border:1px solid rgba(245,158,11,.25)}
+.sdot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:3px;vertical-align:middle}
 .s-ok{background:var(--ok)}.s-warn{background:var(--warn)}.s-crit{background:var(--crit)}.s-unk{background:var(--unk)}
-
-/* ══ VIEW: Grid (card) ══════════════════════════════ */
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:12px}
-.grid-wide{display:grid;grid-template-columns:repeat(auto-fill,minmax(480px,1fr));gap:14px}
-
+/* Grid views */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.grid-wide{display:grid;grid-template-columns:repeat(auto-fill,minmax(460px,1fr));gap:13px}
 .card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .15s}
-.card:hover{transform:translateY(-2px);border-color:var(--acc);box-shadow:0 4px 18px var(--shadow)}
-.card-head{padding:11px 13px 9px;display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.card:hover{transform:translateY(-2px);border-color:var(--acc);box-shadow:0 4px 16px var(--shadow)}
+.card-head{padding:11px 13px 9px;display:flex;align-items:flex-start;justify-content:space-between;gap:7px}
 .card-title{flex:1;min-width:0}
-.card-name{font-size:.9rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.card-sub{font-size:.7rem;color:var(--tx2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card-name{font-size:.88rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card-sub{font-size:.68rem;color:var(--tx2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .card-div{height:1px;background:var(--bd);margin:0 13px}
 .card-metrics{padding:9px 13px;display:grid;grid-template-columns:1fr 1fr;gap:7px}
-.ml{font-size:.63rem;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em}
+.ml{font-size:.62rem;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em}
 .mv{font-size:.82rem;font-weight:600;margin-top:1px}
 .mv-ok{color:var(--ok)}.mv-warn{color:var(--warn)}.mv-crit{color:var(--crit)}.mv-off{color:var(--tx3)}
-.card-temps{padding:0 13px 10px;display:flex;flex-wrap:wrap;gap:4px}
-.tchip{display:inline-flex;align-items:center;gap:3px;padding:2px 6px;border-radius:4px;font-size:.65rem;background:var(--sf2);border:1px solid var(--bd)}
+.card-temps{padding:0 13px 9px;display:flex;flex-wrap:wrap;gap:4px}
+.tchip{display:inline-flex;align-items:center;gap:2px;padding:2px 5px;border-radius:3px;font-size:.62rem;background:var(--sf2);border:1px solid var(--bd)}
 .tchip-ok{border-color:rgba(34,197,94,.3)}.tchip-warn{border-color:rgba(245,158,11,.4)}.tchip-crit{border-color:rgba(239,68,68,.4)}
 .tdot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
-.pbar-wrap{padding:0 13px 10px}
-.pbar-row{display:flex;justify-content:space-between;font-size:.63rem;color:var(--tx2);margin-bottom:3px}
+.pbar-wrap{padding:0 13px 9px}
+.pbar-row{display:flex;justify-content:space-between;font-size:.62rem;color:var(--tx2);margin-bottom:2px}
 .pbar-track{height:3px;background:var(--sf2);border-radius:2px;overflow:hidden}
 .pbar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--ok),var(--acc));transition:width .5s}
-.sc-tags{padding:0 13px 9px;display:flex;gap:4px;flex-wrap:wrap}
-.card-err{padding:6px 13px 10px;font-size:.7rem;color:var(--crit);display:flex;align-items:center;gap:4px}
-
-/* ══ VIEW: Detailed List ════════════════════════════ */
-.detail-list{display:flex;flex-direction:column;gap:10px}
-.dl-item{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);cursor:pointer;transition:border-color .15s,box-shadow .15s;overflow:hidden}
-.dl-item:hover{border-color:var(--acc);box-shadow:0 2px 12px var(--shadow)}
-.dl-head{padding:12px 16px;display:flex;align-items:center;gap:12px}
-.dl-name{font-size:.95rem;font-weight:600;flex:1;min-width:0}
-.dl-sub{font-size:.72rem;color:var(--tx2)}
-.dl-body{padding:0 16px 14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px 16px;border-top:1px solid var(--bd);padding-top:12px}
+.sc-tags{padding:0 13px 8px;display:flex;gap:3px;flex-wrap:wrap}
+.card-err{padding:5px 13px 9px;font-size:.68rem;color:var(--crit);display:flex;align-items:center;gap:4px}
+/* Detail list */
+.detail-list{display:flex;flex-direction:column;gap:9px}
+.dl-item{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);cursor:pointer;transition:border-color .15s}
+.dl-item:hover{border-color:var(--acc)}
+.dl-head{padding:11px 15px;display:flex;align-items:center;gap:10px}
+.dl-name{font-size:.92rem;font-weight:600;flex:1;min-width:0}
+.dl-sub{font-size:.7rem;color:var(--tx2)}
+.dl-body{padding:0 15px 12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:9px 14px;border-top:1px solid var(--bd);padding-top:10px}
 .dl-field{display:flex;flex-direction:column;gap:2px}
-.dl-label{font-size:.63rem;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em}
-.dl-value{font-size:.82rem;font-weight:500}
-.dl-temps{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:5px}
-.dl-alerts{color:var(--warn);font-size:.78rem}
-.dl-err{color:var(--crit);font-size:.75rem}
-
-/* ══ VIEW: Simple List ══════════════════════════════ */
+.dl-lbl{font-size:.6rem;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em}
+.dl-val{font-size:.8rem;font-weight:500}
+.dl-temps{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px}
+/* Simple list */
 .simple-list{display:flex;flex-direction:column;gap:1px;background:var(--bd);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden}
-.sl-item{background:var(--sf);padding:8px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:background .1s;font-size:.8rem}
+.sl-item{background:var(--sf);padding:7px 13px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:background .1s;font-size:.78rem}
 .sl-item:hover{background:var(--sf2)}
-.sl-ip{font-family:monospace;font-size:.78rem;color:var(--tx2);min-width:120px;flex-shrink:0}
+.sl-ip{font-family:monospace;font-size:.75rem;color:var(--tx2);min-width:115px;flex-shrink:0}
 .sl-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
-.sl-metric{white-space:nowrap;font-size:.75rem;color:var(--tx2)}
-.sl-sep{color:var(--bd2);padding:0 2px;flex-shrink:0}
-
-/* ══ VIEW: Table ════════════════════════════════════ */
+.sl-m{white-space:nowrap;font-size:.72rem;color:var(--tx2)}
+.sl-sep{color:var(--bd2);flex-shrink:0}
+/* Table */
 .tbl-wrap{overflow-x:auto;border:1px solid var(--bd);border-radius:var(--r);background:var(--sf)}
-.tbl-wrap table{width:100%;border-collapse:collapse;font-size:.78rem;min-width:900px}
-.tbl-wrap th{background:var(--sf2);padding:8px 12px;text-align:left;font-size:.65rem;text-transform:uppercase;letter-spacing:.06em;color:var(--tx2);border-bottom:2px solid var(--bd);white-space:nowrap;cursor:pointer;user-select:none;position:sticky;top:0;z-index:2}
-.tbl-wrap th:hover{color:var(--tx);background:var(--sf3)}
-.tbl-wrap th.sorted{color:var(--acc)}
-.sort-arrow{margin-left:4px;opacity:.7;font-size:.7rem}
-.tbl-wrap td{padding:7px 12px;border-bottom:1px solid var(--bd);vertical-align:middle;white-space:nowrap}
+.tbl-wrap table{width:100%;border-collapse:collapse;font-size:.76rem;min-width:860px}
+.tbl-wrap th{background:var(--sf2);padding:7px 11px;text-align:left;font-size:.62rem;text-transform:uppercase;letter-spacing:.06em;color:var(--tx2);border-bottom:2px solid var(--bd);white-space:nowrap;cursor:pointer;user-select:none;position:sticky;top:0;z-index:2}
+.tbl-wrap th:hover{color:var(--tx)}.tbl-wrap th.sorted{color:var(--acc)}
+.sort-arr{margin-left:3px;font-size:.65rem;opacity:.7}
+.tbl-wrap td{padding:6px 11px;border-bottom:1px solid var(--bd);vertical-align:middle;white-space:nowrap}
 .tbl-wrap tr:last-child td{border-bottom:none}
-.tbl-wrap tr.tbl-row{cursor:pointer;transition:background .1s}
-.tbl-wrap tr.tbl-row:hover td{background:var(--sf2)}
-.tbl-wrap td.td-ip{font-family:monospace;font-size:.75rem;color:var(--tx2)}
-.tbl-ip-cell{display:flex;align-items:center;gap:5px}
-.tbl-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.td-num{text-align:right;font-variant-numeric:tabular-nums}
-.td-hot{color:var(--crit);font-weight:600}
-.td-warm{color:var(--warn);font-weight:600}
-
-/* ── Subcluster group headings ───────────────────── */
-.sc-group{margin-bottom:20px}
-.sc-group-title{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--warn);margin-bottom:9px;display:flex;align-items:center;gap:8px}
+.tbl-wrap tr.trow{cursor:pointer;transition:background .1s}
+.tbl-wrap tr.trow:hover td{background:var(--sf2)}
+.td-ip{font-family:monospace;font-size:.72rem;color:var(--tx2)}
+.td-r{text-align:right;font-variant-numeric:tabular-nums}
+.td-hot{color:var(--crit);font-weight:600}.td-warm{color:var(--warn);font-weight:600}
+/* SC group */
+.sc-group{margin-bottom:18px}
+.sc-group-title{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--warn);margin-bottom:8px;display:flex;align-items:center;gap:7px}
 .sc-group-title::after{content:'';flex:1;height:1px;background:rgba(245,158,11,.2)}
-
-/* ── Empty / Loading ────────────────────────────── */
-.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:50vh;gap:13px;text-align:center}
-.empty h2{font-size:1rem;color:var(--tx2)}
-.empty p{font-size:.8rem;color:var(--tx3);max-width:300px;line-height:1.6}
-.spin{width:28px;height:28px;border:2.5px solid var(--bd);border-top-color:var(--acc);border-radius:50%;animation:sp .7s linear infinite}
+/* Empty/Loading */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:50vh;gap:12px;text-align:center}
+.empty h2{font-size:.98rem;color:var(--tx2)}.empty p{font-size:.78rem;color:var(--tx3);max-width:280px;line-height:1.6}
+.spin{width:26px;height:26px;border:2.5px solid var(--bd);border-top-color:var(--acc);border-radius:50%;animation:sp .7s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
-
-/* ── Overlays / Modals ──────────────────────────── */
-.overlay{display:none;position:fixed;inset:0;background:var(--overlay);z-index:200;overflow-y:auto;padding:18px}
+/* Overlay/Modal */
+.overlay{display:none;position:fixed;inset:0;background:var(--overlay);z-index:200;overflow-y:auto;padding:16px}
 .overlay.open{display:block}
 .modal{background:var(--sf);border:1px solid var(--bd);border-radius:12px;max-width:640px;margin:0 auto;overflow:hidden;animation:su .2s ease;box-shadow:0 16px 48px var(--shadow)}
 .modal-wide{max-width:860px}
-@keyframes su{from{transform:translateY(14px);opacity:0}to{transform:none;opacity:1}}
-.modal-hdr{padding:16px 20px;border-bottom:1px solid var(--bd);display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
-.modal-title{font-size:.98rem;font-weight:700}
-.modal-sub{font-size:.72rem;color:var(--tx2);margin-top:3px}
-.mclose{background:none;border:none;color:var(--tx2);cursor:pointer;font-size:1.1rem;padding:2px;border-radius:4px;line-height:1;transition:color .15s}
+@keyframes su{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
+.modal-hdr{padding:14px 18px;border-bottom:1px solid var(--bd);display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.modal-title{font-size:.96rem;font-weight:700}
+.modal-sub{font-size:.7rem;color:var(--tx2);margin-top:2px}
+.mclose{background:none;border:none;color:var(--tx2);cursor:pointer;font-size:1.05rem;padding:2px;border-radius:4px;line-height:1;transition:color .15s}
 .mclose:hover{color:var(--tx)}
-.modal-body{padding:20px}
-.modal-footer{padding:12px 20px;border-top:1px solid var(--bd);display:flex;justify-content:flex-end;gap:8px}
-
-/* Modal form elements */
-.form-row{display:flex;gap:10px}
-.form-g2{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;flex:1}
-.form-g2 label{font-size:.7rem;color:var(--tx2)}
-.sec-title{font-size:.63rem;text-transform:uppercase;letter-spacing:.08em;color:var(--tx2);margin-bottom:7px;display:flex;align-items:center;gap:7px}
+.modal-body{padding:18px}
+.modal-footer{padding:11px 18px;border-top:1px solid var(--bd);display:flex;justify-content:flex-end;gap:7px}
+/* Form elements */
+.form-row{display:flex;gap:9px}
+.form-g2{display:flex;flex-direction:column;gap:3px;margin-bottom:11px;flex:1}
+.form-g2 label{font-size:.68rem;color:var(--tx2)}
+.sec-title{font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--tx2);margin-bottom:7px;display:flex;align-items:center;gap:6px}
 .sec-title::after{content:'';flex:1;height:1px;background:var(--bd)}
-.err-msg{color:var(--crit);font-size:.72rem;margin-bottom:8px;min-height:16px}
-
-/* Settings-specific */
-.proto-seg{display:flex;gap:0;border:1px solid var(--bd);border-radius:7px;overflow:hidden}
-.proto-opt{flex:1;padding:6px 4px;text-align:center;font-size:.75rem;cursor:pointer;background:transparent;color:var(--tx2);border:none;transition:all .15s}
+.err-msg{color:var(--crit);font-size:.7rem;margin-bottom:7px;min-height:15px}
+.proto-seg{display:flex;border:1px solid var(--bd);border-radius:6px;overflow:hidden}
+.proto-opt{flex:1;padding:5px 4px;text-align:center;font-size:.73rem;cursor:pointer;background:transparent;color:var(--tx2);border:none;transition:all .15s}
 .proto-opt:not(:last-child){border-right:1px solid var(--bd)}
 .proto-opt.sel{background:var(--acc);color:#0f172a;font-weight:600}
 .proto-opt:not(.sel):hover{background:var(--sf3);color:var(--tx)}
-.ip-count{display:inline-flex;align-items:center;gap:5px;font-size:.7rem;color:var(--acc);padding:2px 8px;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.2);border-radius:20px;margin-top:5px}
-.adv-toggle{display:flex;align-items:center;gap:5px;cursor:pointer;font-size:.72rem;color:var(--tx2);background:none;border:none;padding:5px 0;transition:color .15s}
-.adv-toggle:hover{color:var(--tx)}
-.adv-toggle svg{transition:transform .2s}
+.ip-cnt{display:inline-flex;align-items:center;gap:4px;font-size:.68rem;color:var(--acc);padding:2px 7px;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.2);border-radius:20px;margin-top:5px}
+.adv-toggle{display:flex;align-items:center;gap:4px;cursor:pointer;font-size:.7rem;color:var(--tx2);background:none;border:none;padding:5px 0;transition:color .15s}
+.adv-toggle:hover{color:var(--tx)}.adv-toggle svg{transition:transform .2s}
 .adv-toggle.open svg{transform:rotate(90deg)}
-.adv-body{display:none;padding-top:8px}
-.adv-body.open{display:block}
-
-/* User management */
-.user-list{display:flex;flex-direction:column;gap:7px;margin-bottom:16px}
-.user-item{display:flex;align-items:center;justify-content:space-between;padding:9px 13px;background:var(--sf2);border:1px solid var(--bd);border-radius:7px;gap:10px}
+.adv-body{display:none;padding-top:8px}.adv-body.open{display:block}
+/* User list */
+.user-list{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;max-height:220px;overflow-y:auto}
+.user-item{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--sf2);border:1px solid var(--bd);border-radius:7px;gap:8px}
 .user-info{flex:1;min-width:0}
-.user-name{font-size:.85rem;font-weight:600}
-.user-meta{font-size:.7rem;color:var(--tx2);margin-top:2px}
-.btn-sm{padding:3px 8px;border-radius:5px;border:1px solid var(--bd);background:var(--sf3);color:var(--tx2);cursor:pointer;font-size:.7rem;transition:all .15s}
+.user-name{font-size:.83rem;font-weight:600}
+.user-meta{font-size:.68rem;color:var(--tx2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btn-sm{padding:3px 8px;border-radius:5px;border:1px solid var(--bd);background:var(--sf3);color:var(--tx2);cursor:pointer;font-size:.68rem;transition:all .15s}
 .btn-sm:hover{border-color:var(--acc);color:var(--acc)}
 .btn-sm-del{border-color:rgba(239,68,68,.3);color:var(--crit)}
 .btn-sm-del:hover{background:rgba(239,68,68,.1);border-color:var(--crit)}
-.access-list{display:flex;flex-direction:column;gap:5px;max-height:140px;overflow-y:auto;border:1px solid var(--bd);border-radius:6px;padding:7px 10px;background:var(--sf2)}
-.access-item{display:flex;align-items:center;gap:7px;font-size:.75rem}
+.access-list{display:flex;flex-direction:column;gap:4px;max-height:130px;overflow-y:auto;border:1px solid var(--bd);border-radius:5px;padding:6px 8px;background:var(--sf2)}
+.access-item{display:flex;align-items:center;gap:6px;font-size:.72rem}
 .access-item input{accent-color:var(--acc)}
-
-/* Subcluster management */
-.sc-item{display:flex;align-items:flex-start;justify-content:space-between;padding:11px 13px;background:var(--sf2);border:1px solid var(--bd);border-radius:7px;gap:10px;margin-bottom:7px}
+/* Subcluster */
+.sc-item{display:flex;align-items:flex-start;justify-content:space-between;padding:10px 12px;background:var(--sf2);border:1px solid var(--bd);border-radius:7px;gap:8px;margin-bottom:6px}
 .sc-info{flex:1;min-width:0}
-.sc-name{font-size:.88rem;font-weight:600}
-.sc-desc{font-size:.7rem;color:var(--tx2);margin-top:2px}
-.sc-ips{font-size:.68rem;color:var(--tx3);margin-top:3px}
-.ip-select-wrap{max-height:170px;overflow-y:auto;border:1px solid var(--bd);border-radius:6px;background:var(--sf2)}
-.ip-select-item{display:flex;align-items:center;gap:8px;padding:5px 9px;cursor:pointer;transition:background .1s}
-.ip-select-item:hover{background:var(--sf3)}
-.ip-select-item input[type=checkbox]{accent-color:var(--acc);width:13px;height:13px}
-.ip-select-item label{font-size:.75rem;cursor:pointer;flex:1;min-width:0}
-
+.sc-name{font-size:.85rem;font-weight:600}
+.sc-desc{font-size:.68rem;color:var(--tx2);margin-top:1px}
+.sc-ips{font-size:.65rem;color:var(--tx3);margin-top:3px}
+.ip-sel-wrap{max-height:160px;overflow-y:auto;border:1px solid var(--bd);border-radius:5px;background:var(--sf2)}
+.ip-sel-item{display:flex;align-items:center;gap:7px;padding:5px 8px;cursor:pointer;transition:background .1s}
+.ip-sel-item:hover{background:var(--sf3)}
+.ip-sel-item input[type=checkbox]{accent-color:var(--acc);width:13px;height:13px}
+.ip-sel-item label{font-size:.73rem;cursor:pointer;flex:1;min-width:0}
 /* Detail tables */
-.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:16px}
-.ik{font-size:.63rem;color:var(--tx2);margin-bottom:1px}
-.iv{font-size:.8rem;font-weight:500;word-break:break-all}
-table{width:100%;border-collapse:collapse;font-size:.76rem}
-th{text-align:left;padding:5px 8px;font-size:.63rem;text-transform:uppercase;letter-spacing:.05em;color:var(--tx2);border-bottom:1px solid var(--bd)}
-td{padding:6px 8px;border-bottom:1px solid var(--bd);vertical-align:middle}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:14px}
+.ik{font-size:.62rem;color:var(--tx2);margin-bottom:1px}
+.iv{font-size:.78rem;font-weight:500;word-break:break-all}
+table{width:100%;border-collapse:collapse;font-size:.75rem}
+th{text-align:left;padding:5px 7px;font-size:.62rem;text-transform:uppercase;letter-spacing:.05em;color:var(--tx2);border-bottom:1px solid var(--bd)}
+td{padding:6px 7px;border-bottom:1px solid var(--bd);vertical-align:middle}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:var(--sf2)}
-
 /* Footer */
-.footer{text-align:center;padding:14px 0 18px;font-size:.67rem;color:var(--tx3);letter-spacing:.06em;border-top:1px solid var(--bd);margin-top:4px}
-.footer a{color:var(--tx3);text-decoration:none}
-.footer a:hover{color:var(--tx2)}
-
-@media(max-width:540px){.hdr-stats{display:none}main{padding:10px}.grid,.grid-wide{grid-template-columns:1fr}}
+.footer{text-align:center;padding:13px 0 17px;font-size:.65rem;color:var(--tx3);letter-spacing:.06em;border-top:1px solid var(--bd);margin-top:4px}
+.footer a{color:var(--tx3);text-decoration:none}.footer a:hover{color:var(--tx2)}
+@media(max-width:520px){.hdr-stats{display:none}main{padding:10px}.grid,.grid-wide{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-
-<!-- ══ Auth Screen ══════════════════════════════════ -->
+<!-- AUTH SCREEN -->
 <div id="auth-screen" style="display:none">
-  <div class="auth-card">
-    <div class="auth-logo">
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="1.8">
-        <rect x="2" y="3" width="20" height="4" rx="1"/><rect x="2" y="10" width="20" height="4" rx="1"/>
-        <rect x="2" y="17" width="20" height="4" rx="1"/>
-        <line x1="6" y1="5" x2="6.01" y2="5" stroke-width="3" stroke-linecap="round"/>
-        <line x1="6" y1="12" x2="6.01" y2="12" stroke-width="3" stroke-linecap="round"/>
-        <line x1="6" y1="19" x2="6.01" y2="19" stroke-width="3" stroke-linecap="round"/>
-      </svg>
-      <h1>Server Manager</h1>
-      <p id="auth-cluster-name" style="display:none"></p>
-    </div>
-    <div class="auth-step" id="step-setup">
-      <div class="step-title">初始化设置</div>
-      <div class="step-sub">首次使用，请设定集群名称和管理员账户。</div>
-      <div class="form-g"><label>集群名称</label><input class="inp" id="s-cluster" type="text" placeholder="例：CATNETWORK IDC Tokyo"></div>
-      <div class="form-g"><label>管理员用户名</label><input class="inp" id="s-user" type="text" autocomplete="off"></div>
-      <div class="form-g"><label>管理员密码（至少 6 位）</label>
-        <div class="inp-wrap"><input class="inp" id="s-pass" type="password">
-          <button class="eye-btn" onclick="toggleEye('s-pass')" type="button">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
-        </div>
-      </div>
-      <div class="form-g"><label>确认密码</label><input class="inp" id="s-pass2" type="password"></div>
-      <div class="auth-err" id="setup-err"></div>
-      <button class="btn-block btn-acc" onclick="doSetup()">完成初始化</button>
-    </div>
-    <div class="auth-step" id="step-login">
-      <div class="step-title">登录</div>
-      <div class="form-g"><label>用户名</label><input class="inp" id="l-user" type="text" autocomplete="username"></div>
-      <div class="form-g"><label>密码</label>
-        <div class="inp-wrap"><input class="inp" id="l-pass" type="password" autocomplete="current-password">
-          <button class="eye-btn" onclick="toggleEye('l-pass')" type="button">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
-        </div>
-      </div>
-      <div class="auth-err" id="login-err"></div>
-      <button class="btn-block btn-acc" id="login-btn" onclick="doLogin()">登录</button>
-    </div>
-    <div class="auth-footer">© 2026 CATNETWORK · Server Manager</div>
+<div class="auth-card">
+  <div class="auth-logo">
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="1.8">
+      <rect x="2" y="3" width="20" height="4" rx="1"/><rect x="2" y="10" width="20" height="4" rx="1"/><rect x="2" y="17" width="20" height="4" rx="1"/>
+      <line x1="6" y1="5" x2="6.01" y2="5" stroke-width="3" stroke-linecap="round"/>
+      <line x1="6" y1="12" x2="6.01" y2="12" stroke-width="3" stroke-linecap="round"/>
+    </svg>
+    <h1>Server Manager</h1>
+    <p id="auth-cluster-sub" style="display:none"></p>
   </div>
+  <!-- Setup -->
+  <div class="auth-step" id="step-setup">
+    <div class="step-title" id="lbl-setup-title">初始化设置</div>
+    <p style="font-size:.76rem;color:var(--tx2);margin-bottom:16px;line-height:1.5" id="lbl-setup-sub">首次使用，请设定集群名称和管理员账户。</p>
+    <div class="form-g"><label id="lbl-cluster">集群名称</label><input class="inp" id="s-cluster" type="text"></div>
+    <div class="form-g"><label id="lbl-admin-user">管理员用户名</label><input class="inp" id="s-user" type="text" autocomplete="off"></div>
+    <div class="form-g"><label id="lbl-admin-pass">管理员密码（至少 6 位）</label>
+      <div class="inp-wrap"><input class="inp" id="s-pass" type="password">
+        <button class="eye-btn" onclick="toggleEye('s-pass')" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
+    </div>
+    <div class="form-g"><label id="lbl-confirm">确认密码</label><input class="inp" id="s-pass2" type="password"></div>
+    <div class="auth-err" id="setup-err"></div>
+    <button class="btn-block btn-acc" id="btn-setup-submit" onclick="doSetup()">完成初始化</button>
+  </div>
+  <!-- Login -->
+  <div class="auth-step" id="step-login">
+    <div class="step-title" id="lbl-login-title">登录</div>
+    <div class="form-g"><label id="lbl-username">用户名</label><input class="inp" id="l-user" type="text" autocomplete="username"></div>
+    <div class="form-g"><label id="lbl-password">密码</label>
+      <div class="inp-wrap"><input class="inp" id="l-pass" type="password" autocomplete="current-password">
+        <button class="eye-btn" onclick="toggleEye('l-pass')" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
+    </div>
+    <div class="auth-err" id="login-err"></div>
+    <button class="btn-block btn-acc" id="login-btn" onclick="doLogin()">登录</button>
+  </div>
+  <div class="auth-footer">© 2026 CATNETWORK · Server Manager</div>
+</div>
 </div>
 
-<!-- ══ Main App ══════════════════════════════════════ -->
+<!-- MAIN APP -->
 <div id="app" style="display:none">
-
 <header>
   <div class="logo">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <rect x="2" y="3" width="20" height="4" rx="1"/><rect x="2" y="10" width="20" height="4" rx="1"/>
-      <rect x="2" y="17" width="20" height="4" rx="1"/>
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="2" y="3" width="20" height="4" rx="1"/><rect x="2" y="10" width="20" height="4" rx="1"/><rect x="2" y="17" width="20" height="4" rx="1"/>
       <line x1="6" y1="5" x2="6.01" y2="5" stroke-width="3" stroke-linecap="round"/>
     </svg>
-    Server Manager
-    <span class="cluster-name" id="hdr-cluster"></span>
+    Server Manager<span class="cluster-name" id="hdr-cluster"></span>
   </div>
-
   <div class="hdr-stats">
-    <div class="stat"><span class="dot d-ok"></span><span id="s-total">—</span> 台</div>
-    <div class="stat"><span class="dot d-ok"></span><span id="s-online">—</span> 在线</div>
-    <div class="stat"><span class="dot d-off"></span><span id="s-offline">—</span> 离线</div>
-    <div class="stat" id="s-coll" style="display:none"><span class="dot d-pend"></span>采集中</div>
+    <div class="stat"><span class="dot d-ok"></span><span id="s-total">—</span> <span id="lbl-servers">台</span></div>
+    <div class="stat"><span class="dot d-ok"></span><span id="s-online">—</span> <span id="lbl-online">在线</span></div>
+    <div class="stat"><span class="dot d-off"></span><span id="s-offline">—</span> <span id="lbl-offline">离线</span></div>
+    <div class="stat" id="s-coll" style="display:none"><span class="dot d-pend"></span><span id="lbl-collecting">采集中</span></div>
     <div class="stat" id="s-time" style="color:var(--tx3)"></div>
   </div>
-
   <div class="hdr-right">
-    <div class="user-badge">
-      <span id="hdr-username"></span>
-      <span class="role-tag" id="hdr-role-tag"></span>
+    <div class="user-badge"><span id="hdr-uname"></span><span class="role-tag" id="hdr-role-tag"></span></div>
+    <div class="lang-sw">
+      <button class="lang-btn" data-lang="zh" onclick="setLang('zh')">中</button>
+      <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" data-lang="ja" onclick="setLang('ja')">日</button>
     </div>
-    <!-- theme toggle -->
     <button class="btn btn-icon" id="theme-btn" onclick="toggleTheme()" title="切换明暗模式">
-      <svg id="theme-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
-        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-        <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
-        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-      </svg>
+      <svg id="theme-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
     </button>
     <button class="btn admin-only" id="btn-refresh" onclick="triggerRefresh()">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
-        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-      </svg>刷新
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      <span id="lbl-refresh">刷新</span>
     </button>
-    <button class="btn admin-only" onclick="openOverlay('ov-settings')">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="3"/>
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06-.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-      </svg>设置
+    <button class="btn admin-only" onclick="openOverlay('ov-cfg')">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span id="lbl-settings">设置</span>
     </button>
-    <button class="btn admin-only" onclick="openOverlay('ov-subclusters')">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <rect x="2" y="3" width="8" height="5" rx="1"/><rect x="14" y="3" width="8" height="5" rx="1"/>
-        <rect x="6" y="15" width="12" height="5" rx="1"/>
-        <line x1="6" y1="8" x2="6" y2="11"/><line x1="18" y1="8" x2="18" y2="11"/>
-        <line x1="6" y1="11" x2="18" y2="11"/><line x1="12" y1="11" x2="12" y2="15"/>
-      </svg>子集群
+    <button class="btn admin-only" onclick="openOverlay('ov-sc')">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="8" height="5" rx="1"/><rect x="14" y="3" width="8" height="5" rx="1"/><rect x="6" y="15" width="12" height="5" rx="1"/><line x1="6" y1="8" x2="6" y2="11"/><line x1="18" y1="8" x2="18" y2="11"/><line x1="6" y1="11" x2="18" y2="11"/><line x1="12" y1="11" x2="12" y2="15"/></svg>
+      <span id="lbl-subclusters">子集群</span>
     </button>
     <button class="btn admin-only" onclick="openOverlay('ov-users')">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-      </svg>用户
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <span id="lbl-users">用户</span>
     </button>
-    <button class="btn btn-danger" onclick="doLogout()">登出</button>
+    <button class="btn btn-danger" onclick="doLogout()"><span id="lbl-logout">登出</span></button>
   </div>
 </header>
 
 <div class="toolbar">
-  <span class="fl-label">筛选：</span>
-  <button class="fl-btn act" onclick="setFilter('all',this)">全部</button>
-  <button class="fl-btn" onclick="setFilter('ok',this)">正常</button>
-  <button class="fl-btn" onclick="setFilter('warning',this)">警告</button>
-  <button class="fl-btn" onclick="setFilter('critical',this)">严重</button>
-  <button class="fl-btn" onclick="setFilter('offline',this)">离线</button>
+  <span style="font-size:.7rem;color:var(--tx2)" id="lbl-filter">筛选：</span>
+  <button class="fl-btn act" onclick="setFilter('all',this)" id="fl-all">全部</button>
+  <button class="fl-btn" onclick="setFilter('ok',this)" id="fl-ok">正常</button>
+  <button class="fl-btn" onclick="setFilter('warning',this)" id="fl-warn">警告</button>
+  <button class="fl-btn" onclick="setFilter('critical',this)" id="fl-crit">严重</button>
+  <button class="fl-btn" onclick="setFilter('offline',this)" id="fl-off">离线</button>
   <span id="sc-filter-btns"></span>
-  <div class="toolbar-sep"></div>
-  <!-- View mode switcher -->
-  <div class="view-switcher" title="视图模式">
-    <button class="vbtn act" data-mode="grid" onclick="setView(this)" title="卡片视图">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
-        <rect x="0" y="0" width="6" height="6" rx="1"/><rect x="8" y="0" width="6" height="6" rx="1"/>
-        <rect x="0" y="8" width="6" height="6" rx="1"/><rect x="8" y="8" width="6" height="6" rx="1"/>
-      </svg>
-    </button>
-    <button class="vbtn" data-mode="grid-wide" onclick="setView(this)" title="满屏卡片">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
-        <rect x="0" y="0" width="14" height="6" rx="1"/><rect x="0" y="8" width="14" height="6" rx="1"/>
-      </svg>
-    </button>
-    <button class="vbtn" data-mode="list-detail" onclick="setView(this)" title="详细列表">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5">
-        <rect x="0" y="0" width="14" height="4" rx="1"/><rect x="0" y="5" width="14" height="4" rx="1"/><rect x="0" y="10" width="14" height="4" rx="1"/>
-        <line x1="3" y1="2" x2="11" y2="2" stroke-width="1"/>
-        <line x1="3" y1="7" x2="11" y2="7" stroke-width="1"/>
-        <line x1="3" y1="12" x2="11" y2="12" stroke-width="1"/>
-      </svg>
-    </button>
-    <button class="vbtn" data-mode="list-simple" onclick="setView(this)" title="简单列表">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
-        <circle cx="1.5" cy="2.5" r=".8" fill="currentColor" stroke="none"/>
-        <line x1="4" y1="2.5" x2="14" y2="2.5"/>
-        <circle cx="1.5" cy="7" r=".8" fill="currentColor" stroke="none"/>
-        <line x1="4" y1="7" x2="14" y2="7"/>
-        <circle cx="1.5" cy="11.5" r=".8" fill="currentColor" stroke="none"/>
-        <line x1="4" y1="11.5" x2="14" y2="11.5"/>
-      </svg>
-    </button>
-    <button class="vbtn" data-mode="table" onclick="setView(this)" title="表格">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3">
-        <rect x="0" y="0" width="14" height="14" rx="1"/>
-        <line x1="0" y1="4" x2="14" y2="4"/><line x1="5" y1="4" x2="5" y2="14"/><line x1="9" y1="4" x2="9" y2="14"/>
-        <line x1="0" y1="7.5" x2="14" y2="7.5" stroke-dasharray="14"/><line x1="0" y1="11" x2="14" y2="11" stroke-dasharray="14"/>
-        <rect x="0" y="0" width="14" height="4" rx="1" fill="currentColor" opacity=".15"/>
-      </svg>
-    </button>
+  <div class="tsep"></div>
+  <div class="view-sw">
+    <button class="vbtn act" data-mode="grid" onclick="setView(this)" title="卡片"><svg width="13" height="13" viewBox="0 0 13 13" fill="currentColor"><rect x="0" y="0" width="5.5" height="5.5" rx="1"/><rect x="7.5" y="0" width="5.5" height="5.5" rx="1"/><rect x="0" y="7.5" width="5.5" height="5.5" rx="1"/><rect x="7.5" y="7.5" width="5.5" height="5.5" rx="1"/></svg></button>
+    <button class="vbtn" data-mode="grid-wide" onclick="setView(this)" title="满屏"><svg width="13" height="13" viewBox="0 0 13 13" fill="currentColor"><rect x="0" y="0" width="13" height="5.5" rx="1"/><rect x="0" y="7.5" width="13" height="5.5" rx="1"/></svg></button>
+    <button class="vbtn" data-mode="list-detail" onclick="setView(this)" title="详细列表"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="0" y="0" width="13" height="3.5" rx="1"/><rect x="0" y="4.75" width="13" height="3.5" rx="1"/><rect x="0" y="9.5" width="13" height="3.5" rx="1"/></svg></button>
+    <button class="vbtn" data-mode="list-simple" onclick="setView(this)" title="简单列表"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="1.5" cy="2.5" r=".7" fill="currentColor" stroke="none"/><line x1="4" y1="2.5" x2="13" y2="2.5"/><circle cx="1.5" cy="6.5" r=".7" fill="currentColor" stroke="none"/><line x1="4" y1="6.5" x2="13" y2="6.5"/><circle cx="1.5" cy="10.5" r=".7" fill="currentColor" stroke="none"/><line x1="4" y1="10.5" x2="13" y2="10.5"/></svg></button>
+    <button class="vbtn" data-mode="table" onclick="setView(this)" title="表格"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="0" y="0" width="13" height="13" rx="1"/><line x1="0" y1="4" x2="13" y2="4"/><line x1="4.5" y1="4" x2="4.5" y2="13"/><line x1="8.5" y1="4" x2="8.5" y2="13"/><line x1="0" y1="7.5" x2="13" y2="7.5"/><line x1="0" y1="11" x2="13" y2="11"/><rect x="0" y="0" width="13" height="4" rx="1" fill="currentColor" opacity=".15"/></svg></button>
   </div>
   <input class="search" id="search" type="text" placeholder="搜索名称 / IP..." oninput="renderGrid()">
 </div>
@@ -440,657 +345,814 @@ tr:hover td{background:var(--sf2)}
 <div class="footer">© 2026 <a href="https://www.catnetwork.co.jp" target="_blank">CATNETWORK</a> · Server Manager</div>
 </div>
 
-<!-- ══ Settings Modal ════════════════════════════════ -->
-<div class="overlay" id="ov-settings" onclick="closeOvBg(event,'ov-settings')">
+<!-- SETTINGS MODAL -->
+<div class="overlay" id="ov-cfg" onclick="closeOvBg(event,'ov-cfg')">
 <div class="modal">
   <div class="modal-hdr">
-    <div><div class="modal-title">BMC 配置</div><div class="modal-sub">保存后立即触发全量扫描</div></div>
-    <button class="mclose" onclick="closeOverlay('ov-settings')">✕</button>
+    <div><div class="modal-title" id="lbl-cfg-title">BMC 配置</div><div class="modal-sub" id="lbl-cfg-sub">保存后立即触发全量扫描</div></div>
+    <button class="mclose" onclick="closeOverlay('ov-cfg')">✕</button>
   </div>
   <div class="modal-body">
-    <div class="sec-title">IP 地址范围</div>
-    <div class="form-g2"><label>BMC 地址（每行一条）</label>
-      <textarea class="inp" id="cfg-ip" style="min-height:85px;font-family:monospace;font-size:.76rem;resize:vertical" placeholder="192.168.1.100&#10;192.168.1.100-200&#10;192.168.1.0/24" oninput="updateIpCount()"></textarea>
-      <div id="ip-count-badge" style="display:none" class="ip-count"><span id="ip-count-text"></span></div>
+    <div class="sec-title" id="lbl-ip-range">IP 地址范围</div>
+    <div class="form-g2"><label id="lbl-ip-help">BMC 地址（每行一条）</label>
+      <textarea class="inp" id="cfg-ip" style="min-height:80px;font-family:monospace;font-size:.74rem;resize:vertical" oninput="updateIpCount()"></textarea>
+      <div id="ip-cnt-badge" style="display:none" class="ip-cnt"><span id="ip-cnt-text"></span></div>
     </div>
-    <div class="sec-title" style="margin-top:12px">统一认证凭据</div>
+    <div class="sec-title" style="margin-top:11px" id="lbl-cred">统一认证凭据</div>
     <div class="form-row">
-      <div class="form-g2"><label>用户名</label><input class="inp" id="cfg-user" type="text" placeholder="admin"></div>
-      <div class="form-g2"><label>密码</label>
-        <div class="inp-wrap"><input class="inp" id="cfg-pw" type="password" placeholder="••••••••">
-          <button class="eye-btn" onclick="toggleEye('cfg-pw')" type="button">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
+      <div class="form-g2"><label id="lbl-cfg-user">用户名</label><input class="inp" id="cfg-user" type="text"></div>
+      <div class="form-g2"><label id="lbl-cfg-pw">密码</label>
+        <div class="inp-wrap"><input class="inp" id="cfg-pw" type="password">
+          <button class="eye-btn" onclick="toggleEye('cfg-pw')" type="button"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
         </div>
       </div>
     </div>
-    <div class="sec-title" style="margin-top:12px">扫描协议</div>
+    <div class="sec-title" style="margin-top:11px" id="lbl-proto">扫描协议</div>
     <div class="proto-seg" id="proto-seg">
-      <button class="proto-opt sel" data-v="auto"    onclick="selProto(this)">自动检测</button>
-      <button class="proto-opt"     data-v="redfish" onclick="selProto(this)">Redfish</button>
-      <button class="proto-opt"     data-v="ipmi"    onclick="selProto(this)">IPMI</button>
+      <button class="proto-opt sel" data-v="auto" onclick="selProto(this)" id="lbl-proto-auto">自动检测</button>
+      <button class="proto-opt" data-v="redfish" onclick="selProto(this)">Redfish</button>
+      <button class="proto-opt" data-v="ipmi" onclick="selProto(this)">IPMI</button>
     </div>
-    <div id="proto-hint" style="font-size:.68rem;color:var(--tx3);margin-top:5px">自动检测：优先 Redfish，失败后回退 IPMI</div>
-    <button class="adv-toggle" id="adv-toggle" onclick="toggleAdv()" type="button" style="margin-top:10px">
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-      高级设置
+    <div id="proto-hint" style="font-size:.67rem;color:var(--tx3);margin-top:4px"></div>
+    <button class="adv-toggle" id="adv-toggle" onclick="toggleAdv()" type="button" style="margin-top:9px">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      <span id="lbl-advanced">高级设置</span>
     </button>
     <div class="adv-body" id="adv-body">
       <div class="form-row">
-        <div class="form-g2"><label>自动刷新（秒）</label><input class="inp" id="cfg-ri" type="number" min="10" value="60"></div>
-        <div class="form-g2"><label>超时（秒）</label><input class="inp" id="cfg-to" type="number" min="3" value="15"></div>
-        <div class="form-g2"><label>并发数</label><input class="inp" id="cfg-cc" type="number" min="1" value="10"></div>
+        <div class="form-g2"><label id="lbl-refresh-int">自动刷新（秒）</label><input class="inp" id="cfg-ri" type="number" min="10" value="60"></div>
+        <div class="form-g2"><label id="lbl-timeout">超时（秒）</label><input class="inp" id="cfg-to" type="number" min="3" value="15"></div>
+        <div class="form-g2"><label id="lbl-concurrent">并发数</label><input class="inp" id="cfg-cc" type="number" min="1" value="10"></div>
       </div>
     </div>
   </div>
   <div class="modal-footer">
-    <button class="btn" onclick="closeOverlay('ov-settings')">取消</button>
-    <button class="btn btn-acc" id="btn-save-cfg" onclick="saveSettings()">保存并扫描</button>
+    <button class="btn" onclick="closeOverlay('ov-cfg')" id="lbl-cfg-cancel">取消</button>
+    <button class="btn btn-acc" id="btn-save-cfg" onclick="saveSettings()"><span id="lbl-cfg-save">保存并扫描</span></button>
   </div>
 </div>
 </div>
 
-<!-- ══ User Modal ════════════════════════════════════ -->
+<!-- USERS MODAL — two-column: list left, form right -->
 <div class="overlay" id="ov-users" onclick="closeOvBg(event,'ov-users')">
-<div class="modal">
-  <div class="modal-hdr">
-    <div><div class="modal-title">用户管理</div></div>
-    <button class="mclose" onclick="closeOverlay('ov-users')">✕</button>
-  </div>
-  <div class="modal-body">
-    <div class="sec-title">用户列表</div>
-    <div id="user-list" class="user-list"></div>
-    <div class="sec-title">添加用户</div>
-    <div class="form-row">
-      <div class="form-g2"><label>用户名</label><input class="inp" id="nu-name" type="text" autocomplete="off"></div>
-      <div class="form-g2"><label>密码</label><input class="inp" id="nu-pass" type="password" placeholder="至少 6 位"></div>
-    </div>
-    <div class="form-g2" style="margin-bottom:10px"><label>角色</label>
-      <select class="inp" id="nu-role" onchange="onRoleChange()"><option value="viewer">查看者</option><option value="admin">管理员</option></select>
-    </div>
-    <div id="nu-access-wrap"><div class="form-g2"><label>可访问的子集群</label>
-      <div class="access-list" id="nu-access-list"><div style="color:var(--tx3);font-size:.73rem;padding:3px">暂无子集群</div></div>
-    </div></div>
-    <div class="err-msg" id="user-err"></div>
-  </div>
-  <div class="modal-footer">
-    <button class="btn" onclick="closeOverlay('ov-users')">关闭</button>
-    <button class="btn btn-acc" onclick="addUser()">添加用户</button>
-  </div>
-</div>
-</div>
-
-<!-- ══ Subcluster Modal ══════════════════════════════ -->
-<div class="overlay" id="ov-subclusters" onclick="closeOvBg(event,'ov-subclusters')">
 <div class="modal modal-wide">
   <div class="modal-hdr">
-    <div><div class="modal-title">子集群管理</div><div class="modal-sub">同一台机器可属于多个子集群</div></div>
-    <button class="mclose" onclick="closeOverlay('ov-subclusters')">✕</button>
+    <div><div class="modal-title" id="lbl-users-title">用户管理</div></div>
+    <button class="mclose" onclick="closeOverlay('ov-users')">✕</button>
   </div>
-  <div class="modal-body" style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
-    <div><div class="sec-title">已有子集群</div><div id="sc-list"></div></div>
+  <div class="modal-body" style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+    <!-- Left: list -->
     <div>
-      <div class="sec-title" id="sc-form-title">新建子集群</div>
-      <div class="form-g2"><label>名称</label><input class="inp" id="sc-name" type="text" placeholder="例：Web Cluster"></div>
-      <div class="form-g2"><label>描述（可选）</label><input class="inp" id="sc-desc" type="text"></div>
-      <div class="form-g2"><label>包含的机器</label><div class="ip-select-wrap" id="sc-ip-select"></div></div>
-      <div class="err-msg" id="sc-err"></div>
-      <div style="display:flex;gap:8px">
-        <button class="btn" onclick="cancelScEdit()">取消</button>
-        <button class="btn btn-acc" id="btn-sc-save" onclick="saveSubcluster()">保存</button>
+      <div class="sec-title" id="lbl-user-list">用户列表</div>
+      <div id="user-list" class="user-list"></div>
+    </div>
+    <!-- Right: create/edit form -->
+    <div>
+      <div class="sec-title" id="user-form-title">添加用户</div>
+      <div class="form-g2"><label id="lbl-u-name">用户名</label><input class="inp" id="nu-name" type="text" autocomplete="off"></div>
+      <div class="form-g2">
+        <label id="lbl-u-pass">密码</label>
+        <input class="inp" id="nu-pass" type="password">
+        <div id="nu-pass-hint" style="font-size:.65rem;color:var(--tx3);margin-top:2px">至少 6 位</div>
+      </div>
+      <div class="form-g2" style="margin-bottom:8px"><label id="lbl-u-role">角色</label>
+        <select class="inp" id="nu-role" onchange="onRoleChange()">
+          <option value="viewer" id="lbl-role-viewer">查看者</option>
+          <option value="admin" id="lbl-role-admin">管理员</option>
+        </select>
+      </div>
+      <div id="nu-access-wrap">
+        <div class="sec-title" id="lbl-access">访问权限</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div class="form-g2"><label id="lbl-access-sc">子集群</label><div class="access-list" id="nu-sc-list"></div></div>
+          <div class="form-g2"><label id="lbl-access-mach">单台机器</label><div class="access-list" id="nu-mac-list"></div></div>
+        </div>
+      </div>
+      <div class="err-msg" id="user-err"></div>
+      <div style="display:flex;gap:7px;margin-top:4px">
+        <button class="btn" id="btn-user-cancel" onclick="cancelUserEdit()" style="display:none"><span id="lbl-u-cancel">取消</span></button>
+        <button class="btn btn-acc" id="btn-user-submit" onclick="submitUser()"><span id="lbl-u-submit">添加</span></button>
       </div>
     </div>
   </div>
 </div>
 </div>
 
-<!-- ══ Detail Modal ══════════════════════════════════ -->
+<!-- SUBCLUSTERS MODAL -->
+<div class="overlay" id="ov-sc" onclick="closeOvBg(event,'ov-sc')">
+<div class="modal modal-wide">
+  <div class="modal-hdr">
+    <div><div class="modal-title" id="lbl-sc-title">子集群管理</div><div class="modal-sub" id="lbl-sc-sub">同一台机器可属于多个子集群</div></div>
+    <button class="mclose" onclick="closeOverlay('ov-sc')">✕</button>
+  </div>
+  <div class="modal-body" style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+    <div><div class="sec-title" id="lbl-sc-list">已有子集群</div><div id="sc-list"></div></div>
+    <div>
+      <div class="sec-title" id="sc-form-title">新建子集群</div>
+      <div class="form-g2"><label id="lbl-sc-name">名称</label><input class="inp" id="sc-name" type="text"></div>
+      <div class="form-g2"><label id="lbl-sc-desc">描述（可选）</label><input class="inp" id="sc-desc" type="text"></div>
+      <div class="form-g2"><label id="lbl-sc-machines">包含的机器</label><div class="ip-sel-wrap" id="sc-ip-sel"></div></div>
+      <div class="err-msg" id="sc-err"></div>
+      <div style="display:flex;gap:7px">
+        <button class="btn" id="btn-sc-cancel" onclick="cancelScEdit()"><span id="lbl-sc-cancel">取消</span></button>
+        <button class="btn btn-acc" id="btn-sc-save" onclick="saveSubcluster()"><span id="lbl-sc-save">创建</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- DETAIL MODAL -->
 <div class="overlay" id="ov-detail" onclick="closeOvBg(event,'ov-detail')">
 <div class="modal modal-wide">
   <div class="modal-hdr">
     <div><div class="modal-title" id="det-title"></div><div class="modal-sub" id="det-sub"></div></div>
-    <div style="display:flex;align-items:center;gap:8px"><span id="det-badge"></span><button class="mclose" onclick="closeOverlay('ov-detail')">✕</button></div>
+    <div style="display:flex;align-items:center;gap:7px"><span id="det-badge"></span><button class="mclose" onclick="closeOverlay('ov-detail')">✕</button></div>
   </div>
   <div class="modal-body" id="det-body"></div>
 </div>
 </div>
 
 <script>
-// ── State ──────────────────────────────────────────
-let token = localStorage.getItem('sm_token') || '';
-let currentUser = null;
-let servers = [], subclusters = [], filter = 'all', scFilter = null;
-let viewMode = localStorage.getItem('sm_view') || 'grid';
-let cfgProto = 'auto', _pollTimer = null;
-let _editScId = null;
-let sortCol = 'bmc_ip', sortDir = 1;
+/* ── TRANSLATIONS ──────────────────────────────────────────── */
+const LANG={
+zh:{
+  'servers':'台','online':'在线','offline':'离线','collecting':'采集中','refreshed':'刷新:',
+  'filter':'筛选：','all':'全部','ok':'正常','warning':'警告','critical':'严重',
+  'role.admin':'管理员','role.viewer':'查看者',
+  'btn.refresh':'刷新','btn.settings':'设置','btn.subclusters':'子集群','btn.users':'用户','btn.logout':'登出',
+  'h.ok':'正常','h.warning':'警告','h.critical':'严重','h.unknown':'未知','h.offline':'离线','h.collecting':'采集中',
+  'c.power':'电源状态','c.memory':'内存','c.fans':'风扇','c.psu':'电源模块',
+  'c.on':'⚡ 开机','c.off':'○ 关机','c.anomaly':'异常','c.normal':'正常','c.unknown_model':'型号未知',
+  'sl.power':'功耗','sl.temp':'温度','sl.fans':'风扇','sl.memory':'内存','ungrouped':'未分组',
+  't.ip':'IP 地址','t.name':'名称','t.status':'状态','t.health':'健康','t.proto':'协议',
+  't.mfr':'制造商','t.model':'型号','t.mem':'内存(GiB)','t.cpu':'CPU 型号','t.cores':'核心',
+  't.power':'功耗(W)','t.temp':'最高温(°C)','t.fans':'风扇','t.psus':'电源模块',
+  'e.no_match':'没有符合条件的服务器','e.not_configured':'尚未配置 BMC 地址',
+  'e.hint':'点击右上角「设置」填写服务器 BMC IP 范围和凭据。','e.configure':'立即配置','e.collecting':'正在采集硬件数据...',
+  'cfg.title':'BMC 配置','cfg.sub':'保存后立即触发全量扫描','cfg.ip':'IP 地址范围','cfg.ip_help':'BMC 地址（每行一条）',
+  'cfg.cred':'统一认证凭据','cfg.user':'用户名','cfg.pw':'密码','cfg.proto':'扫描协议','cfg.proto_auto':'自动检测',
+  'cfg.hint_auto':'自动检测：优先 Redfish，失败后回退 IPMI','cfg.hint_rf':'仅使用 Redfish REST API','cfg.hint_ipmi':'仅使用 IPMI（需要 ipmitool）',
+  'cfg.advanced':'高级设置','cfg.refresh':'自动刷新（秒）','cfg.timeout':'超时（秒）','cfg.concurrent':'并发数',
+  'cfg.cancel':'取消','cfg.save':'保存并扫描','cfg.saving':'保存中...','cfg.ip_count':'共 {n} 个地址',
+  'u.title':'用户管理','u.list':'用户列表','u.form_add':'添加用户','u.form_edit':'编辑用户',
+  'u.name':'用户名','u.pass':'密码','u.pass_hint':'至少 6 位','u.pass_hint_edit':'留空则不修改',
+  'u.role':'角色','u.role_viewer':'查看者','u.role_admin':'管理员',
+  'u.access':'访问权限','u.access_sc':'子集群','u.access_mach':'单台机器',
+  'u.no_sc':'暂无子集群','u.no_mach':'暂无机器数据','u.all_access':'所有权限','u.accessible':'可访问：',
+  'u.edit':'编辑','u.delete':'删除','u.cancel':'取消','u.add':'添加','u.save':'保存修改',
+  'u.err_name':'请输入用户名','u.err_pass':'请输入密码','u.err_short':'密码至少 6 位','u.confirm_del':'确认删除用户',
+  'sc.title':'子集群管理','sc.sub':'同一台机器可属于多个子集群','sc.list':'已有子集群',
+  'sc.new':'新建子集群','sc.edit':'编辑子集群','sc.name':'名称','sc.desc':'描述（可选）','sc.machines':'包含的机器',
+  'sc.cancel':'取消','sc.create':'创建','sc.save':'保存修改','sc.edit_btn':'编辑','sc.del':'删除',
+  'sc.no_list':'暂无子集群','sc.no_mach':'暂无机器','sc.scan_first':'请先配置 IP 范围并等待扫描',
+  'sc.err_name':'请输入名称','sc.count_unit':'台','sc.confirm_del':'确认删除子集群',
+  'sc.confirm_note':'注意：机器本身不会被删除，仅移除分组。',
+  'd.sysinfo':'系统信息','d.hostname':'主机名','d.mfr':'制造商','d.model':'型号','d.serial':'序列号',
+  'd.bios':'BIOS / 固件','d.power':'电源状态','d.mem':'总内存','d.draw':'当前功耗',
+  'd.proc':'处理器','d.name':'名称','d.cores':'核心','d.freq':'频率',
+  'd.temp':'温度传感器','d.sensor':'传感器','d.current':'当前值','d.warn':'警告阈值','d.crit':'严重阈值',
+  'd.fans':'风扇','d.speed':'转速','d.psus':'电源模块','d.input_v':'输入电压','d.output_w':'输出功率',
+  'd.storage':'存储控制器','d.drives':'驱动器数','d.alerts':'告警','d.error':'错误',
+  'setup.title':'初始化设置','setup.sub':'首次使用，请设定集群名称和管理员账户。',
+  'setup.cluster':'集群名称','setup.admin':'管理员用户名','setup.pass':'管理员密码（至少 6 位）',
+  'setup.confirm':'确认密码','setup.submit':'完成初始化',
+  'login.title':'登录','login.username':'用户名','login.password':'密码','login.submit':'登录','login.loading':'登录中...',
+},
+en:{
+  'servers':'servers','online':'online','offline':'offline','collecting':'Collecting','refreshed':'Updated:',
+  'filter':'Filter:','all':'All','ok':'OK','warning':'Warning','critical':'Critical',
+  'role.admin':'Admin','role.viewer':'Viewer',
+  'btn.refresh':'Refresh','btn.settings':'Settings','btn.subclusters':'Subclusters','btn.users':'Users','btn.logout':'Logout',
+  'h.ok':'OK','h.warning':'Warning','h.critical':'Critical','h.unknown':'Unknown','h.offline':'Offline','h.collecting':'Collecting',
+  'c.power':'Power','c.memory':'Memory','c.fans':'Fans','c.psu':'PSUs',
+  'c.on':'⚡ On','c.off':'○ Off','c.anomaly':'failed','c.normal':'OK','c.unknown_model':'Unknown model',
+  'sl.power':'Power','sl.temp':'Temp','sl.fans':'Fans','sl.memory':'Mem','ungrouped':'Ungrouped',
+  't.ip':'IP Address','t.name':'Name','t.status':'Status','t.health':'Health','t.proto':'Protocol',
+  't.mfr':'Manufacturer','t.model':'Model','t.mem':'Memory(GiB)','t.cpu':'CPU Model','t.cores':'Cores',
+  't.power':'Power(W)','t.temp':'Max Temp(°C)','t.fans':'Fans','t.psus':'PSUs',
+  'e.no_match':'No servers match the filter','e.not_configured':'BMC Addresses Not Configured',
+  'e.hint':'Click Settings (top right) to enter BMC IP ranges and credentials.','e.configure':'Configure Now','e.collecting':'Collecting hardware data...',
+  'cfg.title':'BMC Configuration','cfg.sub':'Scan starts immediately after saving','cfg.ip':'IP Address Ranges','cfg.ip_help':'BMC addresses (one per line)',
+  'cfg.cred':'Unified Credentials','cfg.user':'Username','cfg.pw':'Password','cfg.proto':'Protocol','cfg.proto_auto':'Auto Detect',
+  'cfg.hint_auto':'Auto: try Redfish first, fall back to IPMI','cfg.hint_rf':'Redfish REST API only','cfg.hint_ipmi':'IPMI only (requires ipmitool)',
+  'cfg.advanced':'Advanced','cfg.refresh':'Auto Refresh (s)','cfg.timeout':'Timeout (s)','cfg.concurrent':'Concurrency',
+  'cfg.cancel':'Cancel','cfg.save':'Save & Scan','cfg.saving':'Saving...','cfg.ip_count':'{n} addresses',
+  'u.title':'User Management','u.list':'User List','u.form_add':'Add User','u.form_edit':'Edit User',
+  'u.name':'Username','u.pass':'Password','u.pass_hint':'Min 6 characters','u.pass_hint_edit':'Leave blank to keep current',
+  'u.role':'Role','u.role_viewer':'Viewer','u.role_admin':'Administrator',
+  'u.access':'Access Control','u.access_sc':'Subclusters','u.access_mach':'Individual Machines',
+  'u.no_sc':'No subclusters yet','u.no_mach':'No machine data yet','u.all_access':'Full access','u.accessible':'Access: ',
+  'u.edit':'Edit','u.delete':'Delete','u.cancel':'Cancel','u.add':'Add','u.save':'Save Changes',
+  'u.err_name':'Please enter username','u.err_pass':'Please enter password','u.err_short':'Password must be at least 6 characters','u.confirm_del':'Confirm delete user',
+  'sc.title':'Subcluster Management','sc.sub':'A machine can belong to multiple subclusters','sc.list':'Existing Subclusters',
+  'sc.new':'New Subcluster','sc.edit':'Edit Subcluster','sc.name':'Name','sc.desc':'Description (optional)','sc.machines':'Member Machines',
+  'sc.cancel':'Cancel','sc.create':'Create','sc.save':'Save Changes','sc.edit_btn':'Edit','sc.del':'Delete',
+  'sc.no_list':'No subclusters yet','sc.no_mach':'No machines assigned','sc.scan_first':'Configure IP ranges and wait for scan first',
+  'sc.err_name':'Please enter a name','sc.count_unit':'machines','sc.confirm_del':'Confirm delete subcluster',
+  'sc.confirm_note':'Note: machines will not be deleted, only the grouping.',
+  'd.sysinfo':'System Info','d.hostname':'Hostname','d.mfr':'Manufacturer','d.model':'Model','d.serial':'Serial',
+  'd.bios':'BIOS / Firmware','d.power':'Power State','d.mem':'Total Memory','d.draw':'Power Draw',
+  'd.proc':'Processors','d.name':'Name','d.cores':'Cores','d.freq':'Frequency',
+  'd.temp':'Temperature Sensors','d.sensor':'Sensor','d.current':'Current','d.warn':'Warning','d.crit':'Critical',
+  'd.fans':'Fans','d.speed':'Speed','d.psus':'Power Supplies','d.input_v':'Input Voltage','d.output_w':'Output Power',
+  'd.storage':'Storage Controllers','d.drives':'Drives','d.alerts':'Alerts','d.error':'Error',
+  'setup.title':'Initial Setup','setup.sub':'First use: set cluster name and admin account.',
+  'setup.cluster':'Cluster Name','setup.admin':'Admin Username','setup.pass':'Admin Password (min 6 chars)',
+  'setup.confirm':'Confirm Password','setup.submit':'Complete Setup',
+  'login.title':'Login','login.username':'Username','login.password':'Password','login.submit':'Login','login.loading':'Logging in...',
+},
+ja:{
+  'servers':'台','online':'オンライン','offline':'オフライン','collecting':'収集中','refreshed':'更新:',
+  'filter':'フィルター：','all':'すべて','ok':'正常','warning':'警告','critical':'重大',
+  'role.admin':'管理者','role.viewer':'閲覧者',
+  'btn.refresh':'更新','btn.settings':'設定','btn.subclusters':'サブクラスター','btn.users':'ユーザー','btn.logout':'ログアウト',
+  'h.ok':'正常','h.warning':'警告','h.critical':'重大','h.unknown':'不明','h.offline':'オフライン','h.collecting':'収集中',
+  'c.power':'電源状態','c.memory':'メモリ','c.fans':'ファン','c.psu':'電源ユニット',
+  'c.on':'⚡ 起動中','c.off':'○ 停止','c.anomaly':'異常','c.normal':'正常','c.unknown_model':'モデル不明',
+  'sl.power':'電力','sl.temp':'温度','sl.fans':'ファン','sl.memory':'メモリ','ungrouped':'グループなし',
+  't.ip':'IP アドレス','t.name':'名前','t.status':'状態','t.health':'健全性','t.proto':'プロトコル',
+  't.mfr':'メーカー','t.model':'モデル','t.mem':'メモリ(GiB)','t.cpu':'CPU モデル','t.cores':'コア数',
+  't.power':'消費電力(W)','t.temp':'最高温度(°C)','t.fans':'ファン','t.psus':'電源ユニット',
+  'e.no_match':'条件に一致するサーバーがありません','e.not_configured':'BMC アドレスが未設定です',
+  'e.hint':'右上の「設定」から BMC IP 範囲と認証情報を入力してください。','e.configure':'今すぐ設定','e.collecting':'ハードウェアデータを収集中...',
+  'cfg.title':'BMC 設定','cfg.sub':'保存後すぐにスキャンを実行します','cfg.ip':'IP アドレス範囲','cfg.ip_help':'BMC アドレス（1行につき1つ）',
+  'cfg.cred':'統一認証情報','cfg.user':'ユーザー名','cfg.pw':'パスワード','cfg.proto':'スキャンプロトコル','cfg.proto_auto':'自動検出',
+  'cfg.hint_auto':'自動：まず Redfish、失敗時は IPMI にフォールバック','cfg.hint_rf':'Redfish REST API のみ','cfg.hint_ipmi':'IPMI のみ（ipmitool が必要）',
+  'cfg.advanced':'詳細設定','cfg.refresh':'自動更新（秒）','cfg.timeout':'タイムアウト（秒）','cfg.concurrent':'最大同時接続数',
+  'cfg.cancel':'キャンセル','cfg.save':'保存してスキャン','cfg.saving':'保存中...','cfg.ip_count':'{n} アドレス',
+  'u.title':'ユーザー管理','u.list':'ユーザー一覧','u.form_add':'ユーザー追加','u.form_edit':'ユーザー編集',
+  'u.name':'ユーザー名','u.pass':'パスワード','u.pass_hint':'6文字以上','u.pass_hint_edit':'空白のままで変更しない',
+  'u.role':'ロール','u.role_viewer':'閲覧者','u.role_admin':'管理者',
+  'u.access':'アクセス権限','u.access_sc':'サブクラスター','u.access_mach':'個別サーバー',
+  'u.no_sc':'サブクラスターなし','u.no_mach':'サーバーデータなし','u.all_access':'すべてのアクセス権','u.accessible':'アクセス可能：',
+  'u.edit':'編集','u.delete':'削除','u.cancel':'キャンセル','u.add':'追加','u.save':'変更を保存',
+  'u.err_name':'ユーザー名を入力してください','u.err_pass':'パスワードを入力してください','u.err_short':'パスワードは6文字以上です','u.confirm_del':'ユーザーを削除しますか',
+  'sc.title':'サブクラスター管理','sc.sub':'同じサーバーを複数のサブクラスターに追加できます','sc.list':'既存のサブクラスター',
+  'sc.new':'サブクラスター作成','sc.edit':'サブクラスター編集','sc.name':'名前','sc.desc':'説明（オプション）','sc.machines':'所属サーバー',
+  'sc.cancel':'キャンセル','sc.create':'作成','sc.save':'変更を保存','sc.edit_btn':'編集','sc.del':'削除',
+  'sc.no_list':'サブクラスターなし','sc.no_mach':'サーバー未設定','sc.scan_first':'IP範囲を設定してスキャン完了後に設定できます',
+  'sc.err_name':'名前を入力してください','sc.count_unit':'台','sc.confirm_del':'サブクラスターを削除しますか',
+  'sc.confirm_note':'注意：サーバー自体は削除されません。グループのみ削除されます。',
+  'd.sysinfo':'システム情報','d.hostname':'ホスト名','d.mfr':'メーカー','d.model':'モデル','d.serial':'シリアル番号',
+  'd.bios':'BIOS / ファームウェア','d.power':'電源状態','d.mem':'総メモリ','d.draw':'消費電力',
+  'd.proc':'プロセッサー','d.name':'名前','d.cores':'コア数','d.freq':'周波数',
+  'd.temp':'温度センサー','d.sensor':'センサー','d.current':'現在値','d.warn':'警告閾値','d.crit':'重大閾値',
+  'd.fans':'ファン','d.speed':'回転数','d.psus':'電源ユニット','d.input_v':'入力電圧','d.output_w':'出力電力',
+  'd.storage':'ストレージコントローラー','d.drives':'ドライブ数','d.alerts':'アラート','d.error':'エラー',
+  'setup.title':'初期設定','setup.sub':'初回起動：クラスター名と管理者アカウントを設定してください。',
+  'setup.cluster':'クラスター名','setup.admin':'管理者ユーザー名','setup.pass':'管理者パスワード（6文字以上）',
+  'setup.confirm':'パスワード確認','setup.submit':'設定完了',
+  'login.title':'ログイン','login.username':'ユーザー名','login.password':'パスワード','login.submit':'ログイン','login.loading':'ログイン中...',
+}};
+let currentLang=localStorage.getItem('sm_lang')||'zh';
+const t=k=>(LANG[currentLang]||LANG.zh)[k]||k;
 
-// ── Theme ──────────────────────────────────────────
-function applyTheme(theme) {
-  if (theme === 'light') {
-    document.documentElement.classList.add('light');
+/* ── i18n ──────────────────────────────────────────────────── */
+function applyI18n(){
+  const L=LANG[currentLang]||LANG.zh;
+  // Static labels map: element-id → translation-key
+  const M={
+    'lbl-servers':'servers','lbl-online':'online','lbl-offline':'offline','lbl-collecting':'collecting',
+    'lbl-filter':'filter','fl-all':'all','fl-ok':'ok','fl-warn':'warning','fl-crit':'critical','fl-off':'offline',
+    'lbl-refresh':'btn.refresh','lbl-settings':'btn.settings','lbl-subclusters':'btn.subclusters',
+    'lbl-users':'btn.users','lbl-logout':'btn.logout',
+    'lbl-setup-title':'setup.title','lbl-setup-sub':'setup.sub','lbl-cluster':'setup.cluster',
+    'lbl-admin-user':'setup.admin','lbl-admin-pass':'setup.pass','lbl-confirm':'setup.confirm',
+    'btn-setup-submit':'setup.submit','lbl-login-title':'login.title',
+    'lbl-username':'login.username','lbl-password':'login.password','login-btn':'login.submit',
+    'lbl-cfg-title':'cfg.title','lbl-cfg-sub':'cfg.sub','lbl-ip-range':'cfg.ip','lbl-ip-help':'cfg.ip_help',
+    'lbl-cred':'cfg.cred','lbl-cfg-user':'cfg.user','lbl-cfg-pw':'cfg.pw',
+    'lbl-proto':'cfg.proto','lbl-proto-auto':'cfg.proto_auto','lbl-advanced':'cfg.advanced',
+    'lbl-refresh-int':'cfg.refresh','lbl-timeout':'cfg.timeout','lbl-concurrent':'cfg.concurrent',
+    'lbl-cfg-cancel':'cfg.cancel','lbl-cfg-save':'cfg.save',
+    'lbl-users-title':'u.title','lbl-user-list':'u.list',
+    'lbl-u-name':'u.name','lbl-u-pass':'u.pass','lbl-u-role':'u.role',
+    'lbl-access':'u.access','lbl-access-sc':'u.access_sc','lbl-access-mach':'u.access_mach',
+    'lbl-u-cancel':'u.cancel','lbl-u-submit':'u.add',
+    'lbl-role-viewer':'u.role_viewer','lbl-role-admin':'u.role_admin',
+    'lbl-sc-title':'sc.title','lbl-sc-sub':'sc.sub','lbl-sc-list':'sc.list',
+    'lbl-sc-name':'sc.name','lbl-sc-desc':'sc.desc','lbl-sc-machines':'sc.machines',
+    'lbl-sc-cancel':'sc.cancel','lbl-sc-save':'sc.create',
+  };
+  for(const[id,key] of Object.entries(M)){
+    const el=document.getElementById(id);
+    if(el&&L[key]) el.textContent=L[key];
+  }
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('act',b.dataset.lang===currentLang));
+  // Keep form-state labels in sync when a user is being edited
+  if(_editUserId){
+    $('user-form-title').textContent=t('u.form_edit');
+    $('lbl-u-submit').textContent=t('u.save');
+    $('lbl-u-cancel').textContent=t('u.cancel');
+    $('nu-pass-hint').textContent=t('u.pass_hint_edit');
   } else {
-    document.documentElement.classList.remove('light');
+    $('user-form-title').textContent=t('u.form_add');
+    $('lbl-u-submit').textContent=t('u.add');
+    $('nu-pass-hint').textContent=t('u.pass_hint');
   }
-  // Update theme button icon
-  const icon = $('theme-icon');
-  if (theme === 'light') {
-    icon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+  if(_editScId){
+    $('sc-form-title').textContent=t('sc.edit');
+    $('lbl-sc-save').textContent=t('sc.save');
   } else {
-    icon.innerHTML = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+    $('sc-form-title').textContent=t('sc.new');
+    $('lbl-sc-save').textContent=t('sc.create');
   }
+  updateProtoHint();
+}
+function setLang(l){currentLang=l;localStorage.setItem('sm_lang',l);applyI18n();renderGrid();}
+
+/* ── State ─────────────────────────────────────────────────── */
+let token=localStorage.getItem('sm_token')||'';
+let currentUser=null;
+let servers=[],subclusters=[],filter='all',scFilter=null;
+let viewMode=localStorage.getItem('sm_view')||'grid';
+let cfgProto='auto',_pollTimer=null;
+let sortCol='bmc_ip',sortDir=1;
+let _editUserId=null,_editScId=null;
+
+/* ── Helpers ───────────────────────────────────────────────── */
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function authH(){return{'Content-Type':'application/json','Authorization':`Bearer ${token}`};}
+async function api(m,p,b){
+  const o={method:m,headers:authH()};
+  if(b!==undefined)o.body=JSON.stringify(b);
+  const r=await fetch(p,o);
+  if(r.status===401){doLogout();return null;}
+  return r;
+}
+function fmtT(ts){return ts?new Date(ts*1000).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'—';}
+function fmtW(w){return w!=null?`${Math.round(w)} W`:'—';}
+function tCol(h){return h==='Critical'?'var(--crit)':h==='Warning'?'var(--warn)':'var(--ok)';}
+function toggleEye(id){const i=$(id);i.type=i.type==='password'?'text':'password';}
+function maxTemp(s){const ts=s.temperatures||[];return ts.length?Math.max(...ts.map(t=>t.reading_celsius)):null;}
+function fanSum(s){const f=s.fans||[],b=f.filter(x=>x.health!=='OK').length;return f.length===0?'—':b>0?`${b}${t('c.anomaly')}`:`${f.length}${t('c.normal')}`;}
+function psuSum(s){const p=s.power_supplies||[],b=p.filter(x=>x.health!=='OK').length;return p.length===0?'—':b>0?`${b}${t('c.anomaly')}`:`${p.length}${t('c.normal')}`;}
+function fanCls(s){const f=s.fans||[];if(f.some(x=>x.health==='Critical'))return'mv-crit';if(f.some(x=>x.health==='Warning'))return'mv-warn';return'mv-ok';}
+function sdot(h){return{OK:'s-ok',Warning:'s-warn',Critical:'s-crit'}[h]||'s-unk';}
+function hbadge(s){
+  if(s.status==='offline')return['hb-unk',t('h.offline')];
+  if(s.status==='pending')return['hb-pend',t('h.collecting')];
+  const m={OK:['hb-ok',t('h.ok')],Warning:['hb-warn',t('h.warning')],Critical:['hb-crit',t('h.critical')]};
+  return m[s.health]||['hb-unk',t('h.unknown')];
 }
 
-function toggleTheme() {
-  const isLight = document.documentElement.classList.contains('light');
-  const next = isLight ? 'dark' : 'light';
-  localStorage.setItem('sm_theme', next);
-  applyTheme(next);
+/* ── Theme ─────────────────────────────────────────────────── */
+function applyTheme(th){
+  document.documentElement.classList.toggle('light',th==='light');
+  const icon=$('theme-icon');
+  if(th==='light')icon.innerHTML='<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+  else icon.innerHTML='<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
 }
+function toggleTheme(){const n=document.documentElement.classList.contains('light')?'dark':'light';localStorage.setItem('sm_theme',n);applyTheme(n);}
 
-// ── View Mode ──────────────────────────────────────
-function setView(el) {
-  viewMode = el.dataset.mode;
-  localStorage.setItem('sm_view', viewMode);
-  document.querySelectorAll('.vbtn').forEach(b => b.classList.remove('act'));
-  el.classList.add('act');
-  renderGrid();
-}
+/* ── View ──────────────────────────────────────────────────── */
+function setView(el){viewMode=el.dataset.mode;localStorage.setItem('sm_view',viewMode);document.querySelectorAll('.vbtn').forEach(b=>b.classList.toggle('act',b.dataset.mode===viewMode));renderGrid();}
+function initViewBtn(){document.querySelectorAll('.vbtn').forEach(b=>b.classList.toggle('act',b.dataset.mode===viewMode));}
 
-function initViewBtn() {
-  document.querySelectorAll('.vbtn').forEach(b => {
-    b.classList.toggle('act', b.dataset.mode === viewMode);
-  });
+/* ── Auth ──────────────────────────────────────────────────── */
+async function checkAuth(){
+  const st=await fetch('/api/auth/status').then(r=>r.json()).catch(()=>null);
+  if(!st)return;
+  if(!st.initialized){showAuth('setup');return;}
+  $('auth-cluster-sub').textContent=st.cluster_name;
+  $('auth-cluster-sub').style.display='block';
+  if(token){const r=await api('GET','/api/auth/me');if(r&&r.ok){currentUser=await r.json();showApp();return;}}
+  showAuth('login');
 }
-
-// ── Helpers ────────────────────────────────────────
-const $ = id => document.getElementById(id);
-const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-
-function authHeaders() {
-  return {'Content-Type':'application/json','Authorization':`Bearer ${token}`};
-}
-async function api(method, path, body) {
-  const opts = {method, headers: authHeaders()};
-  if (body !== undefined) opts.body = JSON.stringify(body);
-  const res = await fetch(path, opts);
-  if (res.status === 401) { doLogout(); return null; }
-  return res;
-}
-
-function fmtTime(ts) { return ts ? new Date(ts*1000).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '—'; }
-function fmtW(w) { return w != null ? `${Math.round(w)} W` : '—'; }
-function tempColor(h) { return h==='Critical'?'var(--crit)':h==='Warning'?'var(--warn)':'var(--ok)'; }
-function toggleEye(id) { const i=$(id); i.type=i.type==='password'?'text':'password'; }
-
-function hbadge(s) {
-  if (s.status==='offline') return ['hb-unk','离线'];
-  if (s.status==='pending') return ['hb-pend','采集中'];
-  return {OK:['hb-ok','正常'],Warning:['hb-warn','警告'],Critical:['hb-crit','严重']}[s.health] || ['hb-unk','未知'];
-}
-function sdot(h) { return {OK:'s-ok',Warning:'s-warn',Critical:'s-crit'}[h]||'s-unk'; }
-
-function maxTemp(s) {
-  const temps = s.temperatures || [];
-  if (!temps.length) return null;
-  return Math.max(...temps.map(t => t.reading_celsius));
-}
-function fanSummary(s) {
-  const fans = s.fans||[];
-  const bad = fans.filter(f=>f.health!=='OK').length;
-  return fans.length===0 ? '—' : bad>0 ? `${bad}异常` : `${fans.length}正常`;
-}
-function psuSummary(s) {
-  const psus = s.power_supplies||[];
-  const bad = psus.filter(p=>p.health!=='OK').length;
-  return psus.length===0 ? '—' : bad>0 ? `${bad}异常` : `${psus.length}正常`;
-}
-function fanClass(s) {
-  const fans = s.fans||[];
-  if (fans.some(f=>f.health==='Critical')) return 'mv-crit';
-  if (fans.some(f=>f.health==='Warning'))  return 'mv-warn';
-  return 'mv-ok';
-}
-
-// ── Auth ───────────────────────────────────────────
-async function checkAuth() {
-  const status = await fetch('/api/auth/status').then(r=>r.json()).catch(()=>null);
-  if (!status) return;
-  if (!status.initialized) { showAuthScreen('setup'); return; }
-  $('auth-cluster-name').textContent = status.cluster_name;
-  $('auth-cluster-name').style.display = 'block';
-  if (token) {
-    const res = await api('GET','/api/auth/me');
-    if (res && res.ok) { currentUser = await res.json(); showApp(); return; }
-  }
-  showAuthScreen('login');
-}
-
-function showAuthScreen(step) {
-  $('app').style.display = 'none';
-  $('auth-screen').style.display = 'flex';
+function showAuth(step){
+  $('app').style.display='none';$('auth-screen').style.display='flex';
   document.querySelectorAll('.auth-step').forEach(s=>s.classList.remove('active'));
   $('step-'+step).classList.add('active');
-  setTimeout(()=>$(step==='login'?'l-user':'s-cluster').focus(), 100);
+  setTimeout(()=>$(step==='login'?'l-user':'s-cluster').focus(),80);
 }
-
-function showApp() {
-  $('auth-screen').style.display = 'none';
-  $('app').style.display = 'block';
-  $('hdr-username').textContent = currentUser.username;
-  $('hdr-cluster').textContent = currentUser.cluster_name;
-  $('hdr-role-tag').textContent = currentUser.role==='admin'?'管理员':'查看者';
-  $('hdr-role-tag').className = 'role-tag '+(currentUser.role==='admin'?'role-admin':'role-viewer');
+function showApp(){
+  $('auth-screen').style.display='none';$('app').style.display='block';
+  $('hdr-uname').textContent=currentUser.username;
+  $('hdr-cluster').textContent=currentUser.cluster_name;
+  $('hdr-role-tag').textContent=t(currentUser.role==='admin'?'role.admin':'role.viewer');
+  $('hdr-role-tag').className='role-tag '+(currentUser.role==='admin'?'role-admin':'role-viewer');
   document.querySelectorAll('.admin-only').forEach(el=>el.style.display=currentUser.role==='admin'?'':'none');
-  initViewBtn();
-  startPolling();
+  initViewBtn();applyI18n();startPolling();
 }
-
-async function doSetup() {
-  const cluster=$('s-cluster').value.trim(), username=$('s-user').value.trim();
-  const password=$('s-pass').value, pass2=$('s-pass2').value;
-  const err=$('setup-err'); err.textContent='';
-  if(!cluster){err.textContent='请输入集群名称';return;}
-  if(!username){err.textContent='请输入用户名';return;}
-  if(password.length<6){err.textContent='密码至少 6 位';return;}
-  if(password!==pass2){err.textContent='两次密码不一致';return;}
-  const res=await fetch('/api/auth/setup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cluster_name:cluster,username,password})});
-  const data=await res.json();
-  if(!res.ok){err.textContent=data.detail||'初始化失败';return;}
-  token=data.token; localStorage.setItem('sm_token',token);
-  currentUser={username:data.username,role:data.role,cluster_access:null,cluster_name:data.cluster_name};
+async function doSetup(){
+  const cl=$('s-cluster').value.trim(),un=$('s-user').value.trim(),pw=$('s-pass').value,pw2=$('s-pass2').value,err=$('setup-err');
+  err.textContent='';
+  if(!cl){err.textContent=t('setup.cluster')+' ?';return;}
+  if(!un){err.textContent=t('u.err_name');return;}
+  if(pw.length<6){err.textContent=t('u.err_short');return;}
+  if(pw!==pw2){err.textContent='密码不一致';return;}
+  const r=await fetch('/api/auth/setup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cluster_name:cl,username:un,password:pw})});
+  const d=await r.json();
+  if(!r.ok){err.textContent=d.detail||'失败';return;}
+  token=d.token;localStorage.setItem('sm_token',token);
+  currentUser={username:d.username,role:d.role,cluster_access:null,machine_access:null,cluster_name:d.cluster_name};
   showApp();
 }
-
-async function doLogin() {
-  const username=$('l-user').value.trim(), password=$('l-pass').value;
-  const err=$('login-err'), btn=$('login-btn'); err.textContent='';
-  if(!username||!password){err.textContent='请输入用户名和密码';return;}
-  btn.disabled=true; btn.textContent='登录中...';
-  const res=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});
-  const data=await res.json();
-  btn.disabled=false; btn.textContent='登录';
-  if(!res.ok){err.textContent=data.detail||'登录失败';return;}
-  token=data.token; localStorage.setItem('sm_token',token);
-  currentUser={username:data.username,role:data.role,cluster_access:data.cluster_access,cluster_name:data.cluster_name};
+async function doLogin(){
+  const un=$('l-user').value.trim(),pw=$('l-pass').value,err=$('login-err'),btn=$('login-btn');
+  err.textContent='';
+  if(!un||!pw){err.textContent=t('u.err_pass');return;}
+  btn.disabled=true;btn.textContent=t('login.loading');
+  const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:un,password:pw})});
+  const d=await r.json();
+  btn.disabled=false;btn.textContent=t('login.submit');
+  if(!r.ok){err.textContent=d.detail||'错误';return;}
+  token=d.token;localStorage.setItem('sm_token',token);
+  currentUser={username:d.username,role:d.role,cluster_access:d.cluster_access,machine_access:d.machine_access,cluster_name:d.cluster_name};
   showApp();
 }
-
-async function doLogout() {
-  if(token) await api('POST','/api/auth/logout');
-  token=''; currentUser=null; servers=[]; subclusters=[];
-  localStorage.removeItem('sm_token');
-  if(_pollTimer) clearTimeout(_pollTimer);
-  showAuthScreen('login');
+async function doLogout(){
+  if(token)await api('POST','/api/auth/logout');
+  token='';currentUser=null;servers=[];subclusters=[];localStorage.removeItem('sm_token');
+  if(_pollTimer)clearTimeout(_pollTimer);
+  showAuth('login');
 }
-
-document.addEventListener('keydown', e => {
-  if(e.key==='Escape') ['ov-settings','ov-users','ov-subclusters','ov-detail'].forEach(closeOverlay);
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape')['ov-cfg','ov-users','ov-sc','ov-detail'].forEach(closeOverlay);
   if(e.key==='Enter'){
-    if($('step-login').classList.contains('active')) doLogin();
-    if($('step-setup').classList.contains('active')) doSetup();
+    if($('step-login').classList.contains('active'))doLogin();
+    if($('step-setup').classList.contains('active'))doSetup();
   }
 });
 
-// ── Filter & View ──────────────────────────────────
-function setFilter(f, el) {
-  filter=f; scFilter=null;
-  document.querySelectorAll('.fl-btn').forEach(b=>b.classList.remove('act'));
-  document.querySelectorAll('.fl-sc').forEach(b=>b.classList.remove('act'));
-  el.classList.add('act');
-  renderGrid();
-}
-function setScFilter(scId, el) {
-  scFilter=scId; filter='all';
-  document.querySelectorAll('.fl-btn,.fl-sc').forEach(b=>b.classList.remove('act'));
-  el.classList.add('act');
-  renderGrid();
-}
-function renderScFilterBtns() {
-  $('sc-filter-btns').innerHTML = subclusters.map(sc=>
-    `<button class="fl-sc${scFilter===sc.id?' act':''}" onclick="setScFilter('${sc.id}',this)">${esc(sc.name)}</button>`
-  ).join('');
-}
-function matchFilter(s) {
+/* ── Filter & Sort ─────────────────────────────────────────── */
+function setFilter(f,el){filter=f;scFilter=null;document.querySelectorAll('.fl-btn,.fl-sc').forEach(b=>b.classList.remove('act'));el.classList.add('act');renderGrid();}
+function setScFilter(id,el){scFilter=id;filter='all';document.querySelectorAll('.fl-btn,.fl-sc').forEach(b=>b.classList.remove('act'));el.classList.add('act');renderGrid();}
+function renderScFilterBtns(){$('sc-filter-btns').innerHTML=subclusters.map(sc=>`<button class="fl-sc${scFilter===sc.id?' act':''}" onclick="setScFilter('${sc.id}',this)">${esc(sc.name)}</button>`).join('');}
+function matchFilter(s){
   const q=$('search').value.toLowerCase();
-  if(q&&!s.name.toLowerCase().includes(q)&&!s.bmc_ip.includes(q)) return false;
-  if(scFilter!==null) return (s.subcluster_ids||[]).includes(scFilter);
-  if(filter==='all') return true;
-  if(filter==='offline') return s.status!=='online';
-  if(filter==='ok') return s.status==='online'&&s.health==='OK';
-  if(filter==='warning') return s.status==='online'&&s.health==='Warning';
-  if(filter==='critical') return s.status==='online'&&s.health==='Critical';
+  if(q&&!s.name.toLowerCase().includes(q)&&!s.bmc_ip.includes(q))return false;
+  if(scFilter!==null)return(s.subcluster_ids||[]).includes(scFilter);
+  if(filter==='all')return true;
+  if(filter==='offline')return s.status!=='online';
+  if(filter==='ok')return s.status==='online'&&s.health==='OK';
+  if(filter==='warning')return s.status==='online'&&s.health==='Warning';
+  if(filter==='critical')return s.status==='online'&&s.health==='Critical';
   return true;
 }
+function sortedServers(arr){
+  const gv=(s,c)=>{switch(c){case'bmc_ip':return s.bmc_ip;case'name':return s.name;case'status':return s.status;case'health':return s.health;case'proto':return s.protocol_used||'';case'mfr':return s.manufacturer||'';case'model':return s.model||'';case'memory':return(s.memory_summary||{}).total_gib;case'cpu':return(s.processors||[])[0]?.model||'';case'cores':return(s.processors||[])[0]?.cores;case'power':return s.power_consumed_watts;case'temp':return maxTemp(s);default:return null;}};
+  return[...arr].sort((a,b)=>{let av=gv(a,sortCol),bv=gv(b,sortCol);if(typeof av==='string'&&typeof bv==='string')return av.localeCompare(bv)*sortDir;av=av??-Infinity;bv=bv??-Infinity;return(av-bv)*sortDir;});
+}
+function clickSort(c){if(sortCol===c)sortDir*=-1;else{sortCol=c;sortDir=1;}renderGrid();}
+function sArr(c){return sortCol!==c?'<span class="sort-arr">↕</span>':sortDir===1?'<span class="sort-arr">↑</span>':'<span class="sort-arr">↓</span>';}
 
-// ── Sort (for table) ───────────────────────────────
-function sortedServers(arr) {
-  return [...arr].sort((a,b) => {
-    let av = getSortVal(a, sortCol), bv = getSortVal(b, sortCol);
-    if (typeof av === 'string' && typeof bv === 'string') return av.localeCompare(bv)*sortDir;
-    av = av ?? -Infinity; bv = bv ?? -Infinity;
-    return (av-bv)*sortDir;
-  });
-}
-function getSortVal(s, col) {
-  switch(col) {
-    case 'bmc_ip':  return s.bmc_ip;
-    case 'name':    return s.name;
-    case 'status':  return s.status;
-    case 'health':  return s.health;
-    case 'proto':   return s.protocol_used||'';
-    case 'mfr':     return s.manufacturer||'';
-    case 'model':   return s.model||'';
-    case 'memory':  return (s.memory_summary||{}).total_gib;
-    case 'cpu':     return (s.processors||[])[0]?.model||'';
-    case 'cores':   return (s.processors||[])[0]?.cores;
-    case 'power':   return s.power_consumed_watts;
-    case 'temp':    return maxTemp(s);
-    default:        return null;
-  }
-}
-function clickSort(col) {
-  if(sortCol===col) sortDir*=-1; else { sortCol=col; sortDir=1; }
-  renderGrid();
-}
-function sortArrow(col) {
-  if(sortCol!==col) return '<span class="sort-arrow">↕</span>';
-  return sortDir===1?'<span class="sort-arrow">↑</span>':'<span class="sort-arrow">↓</span>';
-}
-
-// ══ Render functions ═══════════════════════════════
-
-function renderCardHtml(s, wide=false) {
-  const [hcls,hlbl]=hbadge(s);
+/* ── Card/List/Table rendering ─────────────────────────────── */
+function renderCardHtml(s,wide){
+  const[hcls,hlbl]=hbadge(s),ms=s.memory_summary||{},procs=s.processors||[];
   const proto=s.protocol_used?`<span class="proto-tag">${s.protocol_used}</span>`:'';
-  const ms=s.memory_summary||{};
-  const fans=s.fans||[], psuBad=(s.power_supplies||[]).filter(p=>p.health!=='OK').length;
-  const fanBad=fans.filter(f=>f.health!=='OK').length;
-  const topT=[...(s.temperatures||[])].sort((a,b)=>{
-    const p=h=>h==='Critical'?2:h==='Warning'?1:0;
-    return p(b.health)-p(a.health)||b.reading_celsius-a.reading_celsius;
-  }).slice(0,wide?6:4);
-  const tempChips=topT.map(t=>{
-    const c=t.health==='Critical'?'tchip-crit':t.health==='Warning'?'tchip-warn':'tchip-ok';
-    const n=t.name.replace(/temperature/i,'').replace(/\s+/g,' ').trim()||t.name;
-    return `<span class="tchip ${c}"><span class="tdot" style="background:${tempColor(t.health)}"></span>${esc(n)}: ${t.reading_celsius}°C</span>`;
-  }).join('');
+  const topT=[...(s.temperatures||[])].sort((a,b)=>{const p=h=>h==='Critical'?2:h==='Warning'?1:0;return p(b.health)-p(a.health)||b.reading_celsius-a.reading_celsius;}).slice(0,wide?6:4);
+  const chips=topT.map(tp=>{const c=tp.health==='Critical'?'tchip-crit':tp.health==='Warning'?'tchip-warn':'tchip-ok';const n=tp.name.replace(/temperature/i,'').replace(/\s+/g,' ').trim()||tp.name;return`<span class="tchip ${c}"><span class="tdot" style="background:${tCol(tp.health)}"></span>${esc(n)}: ${tp.reading_celsius}°C</span>`;}).join('');
   const pct=s.power_consumed_watts?Math.min(100,s.power_consumed_watts/2000*100):0;
-  const pbar=s.status==='online'&&s.power_consumed_watts!=null?`<div class="pbar-wrap"><div class="pbar-row"><span>功耗</span><span>${fmtW(s.power_consumed_watts)}</span></div><div class="pbar-track"><div class="pbar-fill" style="width:${pct}%"></div></div></div>`:'';
-  const errHtml=s.error?`<div class="card-err"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${esc(s.error)}</div>`:'';
-  const scTagsHtml=currentUser&&currentUser.role==='admin'&&(s.subcluster_ids||[]).length>0
-    ?`<div class="sc-tags">${(s.subcluster_ids||[]).map(id=>{const sc=subclusters.find(x=>x.id===id);return sc?`<span class="sc-tag">${esc(sc.name)}</span>`:''}).join('')}</div>`:''
-  const pwrState=s.status==='online'?(s.power_state==='On'?'⚡ 开机':s.power_state==='Off'?'○ 关机':s.power_state||'—'):'—';
+  const pbar=s.status==='online'&&s.power_consumed_watts!=null?`<div class="pbar-wrap"><div class="pbar-row"><span>${t('c.power')}</span><span>${fmtW(s.power_consumed_watts)}</span></div><div class="pbar-track"><div class="pbar-fill" style="width:${pct}%"></div></div></div>`:'';
+  const err=s.error?`<div class="card-err"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${esc(s.error)}</div>`:'';
+  const scTags=currentUser?.role==='admin'&&(s.subcluster_ids||[]).length?`<div class="sc-tags">${(s.subcluster_ids||[]).map(id=>{const sc=subclusters.find(x=>x.id===id);return sc?`<span class="sc-tag">${esc(sc.name)}</span>`:''}).join('')}</div>`:'';
+  const pwr=s.status==='online'?(s.power_state==='On'?t('c.on'):s.power_state==='Off'?t('c.off'):s.power_state||'—'):'—';
   const key=s.bmc_ip.replace(/\./g,'-');
-  return `<div class="card" onclick="openDetail('${key}')">
-  <div class="card-head">
-    <div class="card-title"><div class="card-name">${esc(s.name)}${proto}</div><div class="card-sub">${s.bmc_ip} · ${s.model||'型号未知'}</div></div>
-    <span class="hbadge ${hcls}">${hlbl}</span>
-  </div>
-  <div class="card-div"></div>
-  <div class="card-metrics">
-    <div><div class="ml">电源状态</div><div class="mv ${s.status==='online'?'mv-ok':'mv-off'}">${pwrState}</div></div>
-    <div><div class="ml">内存</div><div class="mv ${ms.health==='OK'?'mv-ok':'mv-off'}">${ms.total_gib?ms.total_gib+' GiB':'—'}</div></div>
-    <div><div class="ml">风扇</div><div class="mv ${fanClass(s)}">${fanSummary(s)}</div></div>
-    <div><div class="ml">电源模块</div><div class="mv ${psuBad>0?'mv-crit':'mv-ok'}">${psuSummary(s)}</div></div>
-    ${wide&&(s.processors||[]).length?`<div><div class="ml">处理器</div><div class="mv mv-ok" style="font-size:.75rem;font-weight:400">${esc((s.processors[0].model||'').substring(0,32))}</div></div>`:'' }
-    ${wide&&s.manufacturer?`<div><div class="ml">制造商</div><div class="mv" style="font-weight:400">${esc(s.manufacturer)}</div></div>`:''}
-  </div>
-  ${topT.length?`<div class="card-temps">${tempChips}</div>`:''}
-  ${scTagsHtml}${pbar}${errHtml}
-  </div>`;
+  return`<div class="card" onclick="openDetail('${key}')">
+<div class="card-head"><div class="card-title"><div class="card-name">${esc(s.name)}${proto}</div><div class="card-sub">${s.bmc_ip} · ${s.model||t('c.unknown_model')}</div></div><span class="hbadge ${hcls}">${hlbl}</span></div>
+<div class="card-div"></div>
+<div class="card-metrics">
+<div><div class="ml">${t('c.power')}</div><div class="mv ${s.status==='online'?'mv-ok':'mv-off'}">${pwr}</div></div>
+<div><div class="ml">${t('c.memory')}</div><div class="mv ${ms.health==='OK'?'mv-ok':'mv-off'}">${ms.total_gib?ms.total_gib+' GiB':'—'}</div></div>
+<div><div class="ml">${t('c.fans')}</div><div class="mv ${fanCls(s)}">${fanSum(s)}</div></div>
+<div><div class="ml">${t('c.psu')}</div><div class="mv ${(s.power_supplies||[]).some(p=>p.health!=='OK')?'mv-crit':'mv-ok'}">${psuSum(s)}</div></div>
+${wide&&procs.length?`<div><div class="ml">CPU</div><div class="mv" style="font-size:.73rem;font-weight:400">${esc((procs[0].model||'').substring(0,30))}</div></div>`:''}
+</div>
+${topT.length?`<div class="card-temps">${chips}</div>`:''}${scTags}${pbar}${err}
+</div>`;
 }
 
-function renderDetailListHtml(s) {
-  const [hcls,hlbl]=hbadge(s);
+function renderDetailListHtml(s){
+  const[hcls,hlbl]=hbadge(s),ms=s.memory_summary||{},procs=s.processors||[];
   const proto=s.protocol_used?`<span class="proto-tag">${s.protocol_used}</span>`:'';
-  const ms=s.memory_summary||{};
-  const topT=[...(s.temperatures||[])].sort((a,b)=>{
-    const p=h=>h==='Critical'?2:h==='Warning'?1:0;
-    return p(b.health)-p(a.health)||b.reading_celsius-a.reading_celsius;
-  }).slice(0,8);
-  const tempChips=topT.map(t=>{
-    const c=t.health==='Critical'?'tchip-crit':t.health==='Warning'?'tchip-warn':'tchip-ok';
-    const n=t.name.replace(/temperature/i,'').replace(/\s+/g,' ').trim()||t.name;
-    return `<span class="tchip ${c}"><span class="tdot" style="background:${tempColor(t.health)}"></span>${esc(n)}: ${t.reading_celsius}°C</span>`;
-  }).join('');
-  const procs=s.processors||[];
+  const topT=[...(s.temperatures||[])].sort((a,b)=>{const p=h=>h==='Critical'?2:h==='Warning'?1:0;return p(b.health)-p(a.health)||b.reading_celsius-a.reading_celsius;}).slice(0,8);
+  const chips=topT.map(tp=>{const c=tp.health==='Critical'?'tchip-crit':tp.health==='Warning'?'tchip-warn':'tchip-ok';const n=tp.name.replace(/temperature/i,'').replace(/\s+/g,' ').trim()||tp.name;return`<span class="tchip ${c}"><span class="tdot" style="background:${tCol(tp.health)}"></span>${esc(n)}: ${tp.reading_celsius}°C</span>`;}).join('');
   const key=s.bmc_ip.replace(/\./g,'-');
-  return `<div class="dl-item" onclick="openDetail('${key}')">
-  <div class="dl-head">
-    <div>
-      <div class="dl-name">${esc(s.name)}${proto}</div>
-      <div class="dl-sub">${s.bmc_ip}${s.manufacturer?' · '+esc(s.manufacturer):''}${s.model?' · '+esc(s.model):''}</div>
-    </div>
-    <span class="hbadge ${hcls}">${hlbl}</span>
-  </div>
-  <div class="dl-body">
-    <div class="dl-field"><div class="dl-label">电源状态</div><div class="dl-value mv-ok">${s.power_state||'—'}</div></div>
-    <div class="dl-field"><div class="dl-label">内存</div><div class="dl-value">${ms.total_gib?ms.total_gib+' GiB':'—'}</div></div>
-    <div class="dl-field"><div class="dl-label">功耗</div><div class="dl-value">${fmtW(s.power_consumed_watts)}</div></div>
-    <div class="dl-field"><div class="dl-label">序列号</div><div class="dl-value" style="font-size:.73rem">${s.serial||'—'}</div></div>
-    ${procs.length?`<div class="dl-field"><div class="dl-label">处理器</div><div class="dl-value" style="font-size:.73rem;font-weight:400">${esc((procs[0].model||'').substring(0,40))}${procs[0].cores?' · '+procs[0].cores+'核':''}</div></div>`:''}
-    <div class="dl-field"><div class="dl-label">风扇</div><div class="dl-value ${fanClass(s)}">${fanSummary(s)}</div></div>
-    <div class="dl-field"><div class="dl-label">电源模块</div><div class="dl-value ${(s.power_supplies||[]).some(p=>p.health!=='OK')?'mv-crit':'mv-ok'}">${psuSummary(s)}</div></div>
-    ${(s.alerts||[]).length?`<div class="dl-field"><div class="dl-label">告警</div><div class="dl-value dl-alerts">${s.alerts.join('、')}</div></div>`:''}
-    ${s.error?`<div class="dl-field" style="grid-column:1/-1"><div class="dl-label">错误</div><div class="dl-value dl-err">${esc(s.error)}</div></div>`:''}
-    ${topT.length?`<div class="dl-temps">${tempChips}</div>`:''}
-  </div>
-  </div>`;
+  return`<div class="dl-item" onclick="openDetail('${key}')">
+<div class="dl-head"><div><div class="dl-name">${esc(s.name)}${proto}</div><div class="dl-sub">${s.bmc_ip}${s.manufacturer?' · '+esc(s.manufacturer):''}${s.model?' · '+esc(s.model):''}</div></div><span class="hbadge ${hcls}">${hlbl}</span></div>
+<div class="dl-body">
+<div class="dl-field"><div class="dl-lbl">${t('c.power')}</div><div class="dl-val mv-ok">${s.power_state||'—'}</div></div>
+<div class="dl-field"><div class="dl-lbl">${t('c.memory')}</div><div class="dl-val">${ms.total_gib?ms.total_gib+' GiB':'—'}</div></div>
+<div class="dl-field"><div class="dl-lbl">${t('d.draw')}</div><div class="dl-val">${fmtW(s.power_consumed_watts)}</div></div>
+<div class="dl-field"><div class="dl-lbl">${t('d.serial')}</div><div class="dl-val" style="font-size:.71rem">${s.serial||'—'}</div></div>
+${procs.length?`<div class="dl-field"><div class="dl-lbl">CPU</div><div class="dl-val" style="font-size:.71rem;font-weight:400">${esc((procs[0].model||'').substring(0,38))}${procs[0].cores?' · '+procs[0].cores+t('d.cores'):''}</div></div>`:''}
+<div class="dl-field"><div class="dl-lbl">${t('c.fans')}</div><div class="dl-val ${fanCls(s)}">${fanSum(s)}</div></div>
+<div class="dl-field"><div class="dl-lbl">${t('c.psu')}</div><div class="dl-val ${(s.power_supplies||[]).some(p=>p.health!=='OK')?'mv-crit':'mv-ok'}">${psuSum(s)}</div></div>
+${s.error?`<div class="dl-field" style="grid-column:1/-1"><div class="dl-lbl">${t('d.error')}</div><div class="dl-val" style="color:var(--crit)">${esc(s.error)}</div></div>`:''}
+${topT.length?`<div class="dl-temps">${chips}</div>`:''}
+</div></div>`;
 }
 
-function renderSimpleListHtml(s) {
-  const [hcls,hlbl]=hbadge(s);
-  const mt=maxTemp(s);
-  const tempStr=mt!=null?`${mt}°C`:'—';
+function renderSimpleListHtml(s){
+  const[hcls,hlbl]=hbadge(s),mt=maxTemp(s),pwr=s.power_consumed_watts!=null?`${Math.round(s.power_consumed_watts)}W`:'—';
   const proto=s.protocol_used?`<span class="proto-tag">${s.protocol_used}</span>`:'';
-  const key=s.bmc_ip.replace(/\./g,'-');
   const dot=s.status==='online'?'var(--ok)':s.status==='offline'?'var(--crit)':'var(--unk)';
-  const pwr=s.power_consumed_watts!=null?`${Math.round(s.power_consumed_watts)}W`:'—';
-  return `<div class="sl-item" onclick="openDetail('${key}')">
-    <span style="width:8px;height:8px;border-radius:50%;background:${dot};flex-shrink:0"></span>
-    <span class="sl-ip">${s.bmc_ip}</span>
-    <span class="sl-name">${esc(s.name)}${proto}</span>
-    <span class="hbadge ${hcls}" style="font-size:.6rem">${hlbl}</span>
-    <span class="sl-sep">·</span>
-    <span class="sl-metric" title="功耗">⚡${pwr}</span>
-    <span class="sl-sep">·</span>
-    <span class="sl-metric" title="温度" style="color:${mt!=null&&mt>=70?'var(--crit)':mt!=null&&mt>=60?'var(--warn)':'inherit'}">🌡${tempStr}</span>
-    <span class="sl-sep">·</span>
-    <span class="sl-metric" title="风扇">🌀${fanSummary(s)}</span>
-    ${s.memory_summary&&s.memory_summary.total_gib?`<span class="sl-sep">·</span><span class="sl-metric" title="内存">💾${s.memory_summary.total_gib}G</span>`:''}
-  </div>`;
+  const key=s.bmc_ip.replace(/\./g,'-');
+  const ms=s.memory_summary||{};
+  return`<div class="sl-item" onclick="openDetail('${key}')">
+<span style="width:7px;height:7px;border-radius:50%;background:${dot};flex-shrink:0"></span>
+<span class="sl-ip">${s.bmc_ip}</span>
+<span class="sl-name">${esc(s.name)}${proto}</span>
+<span class="hbadge ${hcls}" style="font-size:.58rem">${hlbl}</span>
+<span class="sl-sep">·</span><span class="sl-m" title="${t('sl.power')}">⚡${pwr}</span>
+<span class="sl-sep">·</span><span class="sl-m" title="${t('sl.temp')}" style="color:${mt!=null&&mt>=70?'var(--crit)':mt!=null&&mt>=60?'var(--warn)':'inherit'}">🌡${mt!=null?mt+'°C':'—'}</span>
+<span class="sl-sep">·</span><span class="sl-m" title="${t('sl.fans')}">🌀${fanSum(s)}</span>
+${ms.total_gib?`<span class="sl-sep">·</span><span class="sl-m">💾${ms.total_gib}G</span>`:''}
+</div>`;
 }
 
-const TABLE_COLS = [
-  {key:'bmc_ip',  label:'IP 地址',     sortable:true,  cls:'td-ip'},
-  {key:'name',    label:'名称',         sortable:true},
-  {key:'status',  label:'状态',         sortable:true},
-  {key:'health',  label:'健康',         sortable:true},
-  {key:'proto',   label:'协议',         sortable:true},
-  {key:'mfr',     label:'制造商',       sortable:true},
-  {key:'model',   label:'型号',         sortable:true},
-  {key:'memory',  label:'内存(GiB)',    sortable:true,  cls:'td-num'},
-  {key:'cpu',     label:'CPU 型号',     sortable:true},
-  {key:'cores',   label:'核心',         sortable:true,  cls:'td-num'},
-  {key:'power',   label:'功耗(W)',      sortable:true,  cls:'td-num'},
-  {key:'temp',    label:'最高温(°C)',   sortable:true,  cls:'td-num'},
-  {key:'fans',    label:'风扇',         sortable:false},
-  {key:'psus',    label:'电源模块',     sortable:false},
+const TCOLS=[
+  {k:'bmc_ip',l:'t.ip'},{k:'name',l:'t.name'},{k:'status',l:'t.status'},{k:'health',l:'t.health'},
+  {k:'proto',l:'t.proto'},{k:'mfr',l:'t.mfr'},{k:'model',l:'t.model'},{k:'memory',l:'t.mem',r:true},
+  {k:'cpu',l:'t.cpu'},{k:'cores',l:'t.cores',r:true},{k:'power',l:'t.power',r:true},{k:'temp',l:'t.temp',r:true},
+  {k:'fans',l:'t.fans',s:false},{k:'psus',l:'t.psus',s:false},
 ];
-
-function renderTableRow(s) {
-  const [hcls,hlbl]=hbadge(s);
-  const ms=s.memory_summary||{};
-  const procs=s.processors||[];
-  const mt=maxTemp(s);
-  const proto=s.protocol_used||'—';
+function renderTableRow(s){
+  const[hcls,hlbl]=hbadge(s),ms=s.memory_summary||{},procs=s.processors||[],mt=maxTemp(s);
   const dot=s.status==='online'?'var(--ok)':s.status==='offline'?'var(--crit)':'var(--unk)';
   const key=s.bmc_ip.replace(/\./g,'-');
-  const tempCls=mt!=null?mt>=70?'td-hot':mt>=60?'td-warm':'':'';
-  return `<tr class="tbl-row" onclick="openDetail('${key}')">
-    <td class="td-ip"><div class="tbl-ip-cell"><span class="tbl-dot" style="background:${dot}"></span>${s.bmc_ip}</div></td>
-    <td>${esc(s.name)}</td>
-    <td><span class="hbadge ${hcls}" style="font-size:.62rem">${hlbl}</span></td>
-    <td>${s.health||'—'}</td>
-    <td>${proto}</td>
-    <td>${esc(s.manufacturer||'—')}</td>
-    <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis">${esc(s.model||'—')}</td>
-    <td class="td-num">${ms.total_gib!=null?ms.total_gib:'—'}</td>
-    <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;font-size:.72rem">${esc((procs[0]?.model||'—').substring(0,36))}</td>
-    <td class="td-num">${procs[0]?.cores!=null?procs[0].cores:'—'}</td>
-    <td class="td-num">${s.power_consumed_watts!=null?Math.round(s.power_consumed_watts):'—'}</td>
-    <td class="td-num ${tempCls}">${mt!=null?mt:'—'}</td>
-    <td><span class="${fanClass(s)}">${fanSummary(s)}</span></td>
-    <td><span class="${(s.power_supplies||[]).some(p=>p.health!=='OK')?'mv-crit':'mv-ok'}">${psuSummary(s)}</span></td>
-  </tr>`;
+  const tc=mt!=null?mt>=70?'td-hot':mt>=60?'td-warm':'':'';
+  return`<tr class="trow" onclick="openDetail('${key}')">
+<td class="td-ip"><span style="display:inline-flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:${dot};flex-shrink:0"></span>${s.bmc_ip}</span></td>
+<td>${esc(s.name)}</td><td><span class="hbadge ${hcls}" style="font-size:.58rem">${hlbl}</span></td>
+<td>${s.health||'—'}</td><td>${s.protocol_used||'—'}</td><td>${esc(s.manufacturer||'—')}</td>
+<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis">${esc(s.model||'—')}</td>
+<td class="td-r">${ms.total_gib!=null?ms.total_gib:'—'}</td>
+<td style="max-width:170px;overflow:hidden;text-overflow:ellipsis;font-size:.7rem">${esc((procs[0]?.model||'—').substring(0,34))}</td>
+<td class="td-r">${procs[0]?.cores!=null?procs[0].cores:'—'}</td>
+<td class="td-r">${s.power_consumed_watts!=null?Math.round(s.power_consumed_watts):'—'}</td>
+<td class="td-r ${tc}">${mt!=null?mt:'—'}</td>
+<td><span class="${fanCls(s)}">${fanSum(s)}</span></td>
+<td><span class="${(s.power_supplies||[]).some(p=>p.health!=='OK')?'mv-crit':'mv-ok'}">${psuSum(s)}</span></td>
+</tr>`;
 }
 
-// ── Main render dispatcher ─────────────────────────
-function renderGrid() {
-  const vis = servers.filter(matchFilter);
-  const el = $('main');
-
-  if (!vis.length) {
-    el.innerHTML = '<div class="empty"><div style="color:var(--tx3)">没有符合条件的服务器</div></div>';
-    return;
-  }
-
-  // Viewer: group by subcluster in grid/wide modes only
-  const isViewerGrouped = currentUser?.role==='viewer' && !scFilter && filter==='all'
-    && (viewMode==='grid'||viewMode==='grid-wide');
-
-  const sorted = viewMode==='table' ? sortedServers(vis) : vis;
-
-  switch(viewMode) {
-    case 'grid':
-    case 'grid-wide': {
-      const cls = viewMode==='grid-wide' ? 'grid-wide' : 'grid';
-      if (isViewerGrouped) {
-        let html='';
-        for (const sc of subclusters) {
-          const items = sorted.filter(s=>(s.subcluster_ids||[]).includes(sc.id));
-          if (!items.length) continue;
-          html+=`<div class="sc-group"><div class="sc-group-title">${esc(sc.name)}${sc.description?` <span style="font-size:.63rem;color:var(--tx3);font-weight:400">${esc(sc.description)}</span>`:''}</div><div class="${cls}">${items.map(s=>renderCardHtml(s,viewMode==='grid-wide')).join('')}</div></div>`;
-        }
-        const ungrouped=sorted.filter(s=>!(s.subcluster_ids||[]).length);
-        if (ungrouped.length) html+=`<div class="sc-group"><div class="sc-group-title">未分组</div><div class="${cls}">${ungrouped.map(s=>renderCardHtml(s)).join('')}</div></div>`;
-        el.innerHTML = html;
-      } else {
-        el.innerHTML = `<div class="${cls}">${sorted.map(s=>renderCardHtml(s,viewMode==='grid-wide')).join('')}</div>`;
-      }
-      break;
-    }
-    case 'list-detail':
-      el.innerHTML = `<div class="detail-list">${sorted.map(renderDetailListHtml).join('')}</div>`;
-      break;
-    case 'list-simple':
-      el.innerHTML = `<div class="simple-list">${sorted.map(renderSimpleListHtml).join('')}</div>`;
-      break;
-    case 'table': {
-      const thead = TABLE_COLS.map(c=>{
-        const active = sortCol===c.key?' sorted':'';
-        const click = c.sortable?`onclick="clickSort('${c.key}')" style="cursor:pointer"`:'';
-        return `<th class="${active}" ${click}>${c.label}${c.sortable?sortArrow(c.key):''}</th>`;
-      }).join('');
-      el.innerHTML = `<div class="tbl-wrap"><table><thead><tr>${thead}</tr></thead><tbody>${sorted.map(renderTableRow).join('')}</tbody></table></div>`;
-      break;
-    }
+/* ── Main renderGrid ───────────────────────────────────────── */
+function renderGrid(){
+  const vis=servers.filter(matchFilter),el=$('main');
+  if(!vis.length){el.innerHTML=`<div class="empty"><div style="color:var(--tx3)">${t('e.no_match')}</div></div>`;return;}
+  const isViewerGroup=currentUser?.role==='viewer'&&!scFilter&&filter==='all'&&(viewMode==='grid'||viewMode==='grid-wide');
+  const sorted=viewMode==='table'?sortedServers(vis):vis;
+  switch(viewMode){
+    case'grid':case'grid-wide':{
+      const cls=viewMode==='grid-wide'?'grid-wide':'grid';
+      if(isViewerGroup){
+        let h='';
+        for(const sc of subclusters){const items=sorted.filter(s=>(s.subcluster_ids||[]).includes(sc.id));if(!items.length)continue;h+=`<div class="sc-group"><div class="sc-group-title">${esc(sc.name)}${sc.description?` <span style="font-size:.62rem;color:var(--tx3);font-weight:400">${esc(sc.description)}</span>`:''}</div><div class="${cls}">${items.map(s=>renderCardHtml(s,viewMode==='grid-wide')).join('')}</div></div>`;}
+        const ug=sorted.filter(s=>!(s.subcluster_ids||[]).length);
+        if(ug.length)h+=`<div class="sc-group"><div class="sc-group-title">${t('ungrouped')}</div><div class="${cls}">${ug.map(s=>renderCardHtml(s)).join('')}</div></div>`;
+        el.innerHTML=h;
+      } else el.innerHTML=`<div class="${cls}">${sorted.map(s=>renderCardHtml(s,viewMode==='grid-wide')).join('')}</div>`;
+      break;}
+    case'list-detail':el.innerHTML=`<div class="detail-list">${sorted.map(renderDetailListHtml).join('')}</div>`;break;
+    case'list-simple':el.innerHTML=`<div class="simple-list">${sorted.map(renderSimpleListHtml).join('')}</div>`;break;
+    case'table':{
+      const thead=TCOLS.map(c=>`<th class="${sortCol===c.k?' sorted':''}"${c.s!==false?` onclick="clickSort('${c.k}')" style="cursor:pointer"`:''}>${t(c.l)}${c.s!==false?sArr(c.k):''}</th>`).join('');
+      el.innerHTML=`<div class="tbl-wrap"><table><thead><tr>${thead}</tr></thead><tbody>${sorted.map(renderTableRow).join('')}</tbody></table></div>`;
+      break;}
   }
 }
 
-// ── Update UI ──────────────────────────────────────
-function updateUI(data) {
-  servers = data.servers||[];
-  subclusters = data.subclusters||[];
-  $('s-total').textContent = data.total??'—';
-  $('s-online').textContent = data.online??'—';
-  $('s-offline').textContent = data.offline??'—';
-  $('s-coll').style.display = data.collecting?'flex':'none';
-  if(data.last_refresh) $('s-time').textContent='刷新:'+fmtTime(data.last_refresh);
+/* ── Update UI ─────────────────────────────────────────────── */
+function updateUI(data){
+  servers=data.servers||[];subclusters=data.subclusters||[];
+  $('s-total').textContent=data.total??'—';$('s-online').textContent=data.online??'—';$('s-offline').textContent=data.offline??'—';
+  $('s-coll').style.display=data.collecting?'flex':'none';
+  if(data.last_refresh)$('s-time').textContent=t('refreshed')+fmtT(data.last_refresh);
   renderScFilterBtns();
-
-  if(!data.configured&&!data.collecting&&currentUser?.role==='admin') {
-    $('main').innerHTML=`<div class="empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--bd2)" stroke-width="1.2"><rect x="2" y="3" width="20" height="4" rx="1"/><rect x="2" y="10" width="20" height="4" rx="1"/><rect x="2" y="17" width="20" height="4" rx="1"/></svg><h2>尚未配置 BMC 地址</h2><p>点击右上角「设置」填写服务器 BMC IP 范围和凭据。</p><button class="btn btn-acc" style="border:none;padding:8px 18px" onclick="openOverlay('ov-settings')">立即配置</button></div>`;
+  if(!data.configured&&!data.collecting&&currentUser?.role==='admin'){
+    $('main').innerHTML=`<div class="empty"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--bd2)" stroke-width="1.2"><rect x="2" y="3" width="20" height="4" rx="1"/><rect x="2" y="10" width="20" height="4" rx="1"/><rect x="2" y="17" width="20" height="4" rx="1"/></svg><h2>${t('e.not_configured')}</h2><p>${t('e.hint')}</p><button class="btn btn-acc" style="border:none;padding:7px 16px" onclick="openOverlay('ov-cfg')">${t('e.configure')}</button></div>`;
     return;
   }
-  if(data.collecting&&servers.every(s=>s.status==='pending')) {
-    $('main').innerHTML='<div class="empty"><div class="spin"></div><div style="color:var(--tx2)">正在采集硬件数据...</div></div>';
-    return;
-  }
+  if(data.collecting&&servers.every(s=>s.status==='pending')){$('main').innerHTML=`<div class="empty"><div class="spin"></div><div style="color:var(--tx2)">${t('e.collecting')}</div></div>`;return;}
   renderGrid();
 }
 
-// ── Polling ────────────────────────────────────────
-function startPolling() { if(_pollTimer)clearTimeout(_pollTimer); _pollTimer=setTimeout(poll,200); }
-async function poll() {
-  if(!token) return;
-  try {
-    const res=await api('GET','/api/servers');
-    if(!res) return;
-    const data=await res.json();
-    updateUI(data);
-    _pollTimer=setTimeout(poll,data.collecting?1800:(data.refresh_interval||60)*1000);
-  } catch(e) { _pollTimer=setTimeout(poll,5000); }
+/* ── Polling ───────────────────────────────────────────────── */
+function startPolling(){if(_pollTimer)clearTimeout(_pollTimer);_pollTimer=setTimeout(poll,200);}
+async function poll(){
+  if(!token)return;
+  try{const r=await api('GET','/api/servers');if(!r)return;const d=await r.json();updateUI(d);_pollTimer=setTimeout(poll,d.collecting?1800:(d.refresh_interval||60)*1000);}
+  catch(e){_pollTimer=setTimeout(poll,5000);}
 }
+async function triggerRefresh(){const b=$('btn-refresh');b.disabled=true;await api('POST','/api/refresh').catch(()=>{});startPolling();setTimeout(()=>{b.disabled=false;},3000);}
 
-async function triggerRefresh() {
-  const btn=$('btn-refresh'); btn.disabled=true;
-  await api('POST','/api/refresh').catch(()=>{});
-  startPolling();
-  setTimeout(()=>{btn.disabled=false;},3000);
-}
-
-// ── Settings Modal ─────────────────────────────────
-async function openSettingsModal() {
-  const res=await api('GET','/api/settings'); if(!res) return;
-  const s=await res.json();
-  $('cfg-ip').value=s.ip_ranges||''; $('cfg-user').value=s.username||'admin';
-  $('cfg-pw').value=s.password||''; $('cfg-ri').value=s.refresh_interval||60;
-  $('cfg-to').value=s.collection_timeout||15; $('cfg-cc').value=s.max_concurrent||10;
+/* ── Settings Modal ────────────────────────────────────────── */
+let cfgProto_='auto';
+async function openSettingsModal(){
+  const r=await api('GET','/api/settings');if(!r)return;
+  const s=await r.json();
+  $('cfg-ip').value=s.ip_ranges||'';$('cfg-user').value=s.username||'admin';
+  $('cfg-pw').value=s.password||'';$('cfg-ri').value=s.refresh_interval||60;
+  $('cfg-to').value=s.collection_timeout||15;$('cfg-cc').value=s.max_concurrent||10;
   cfgProto=s.protocol||'auto';
   document.querySelectorAll('.proto-opt').forEach(b=>b.classList.toggle('sel',b.dataset.v===cfgProto));
-  updateIpCount();
-  $('ov-settings').classList.add('open'); document.body.style.overflow='hidden';
+  updateProtoHint();updateIpCount();
+  $('ov-cfg').classList.add('open');document.body.style.overflow='hidden';
 }
-function selProto(el){document.querySelectorAll('.proto-opt').forEach(b=>b.classList.remove('sel'));el.classList.add('sel');cfgProto=el.dataset.v;const h={auto:'自动检测：优先 Redfish，失败后回退 IPMI',redfish:'仅使用 Redfish REST API',ipmi:'仅使用 IPMI（需要 ipmitool）'};$('proto-hint').textContent=h[cfgProto]||'';}
-function countIps(t){let n=0;for(const e of t.split(/[\n,;]+/)){const s=e.trim();if(!s||s.startsWith('#'))continue;try{if(s.includes('/')){const b=parseInt(s.split('/')[1]);n+=Math.pow(2,32-b)-2;}else if(s.includes('-')){const[l,r]=s.split('-',2);const ip=o=>o.split('.').reduce((a,x)=>(a<<8)+parseInt(x),0)>>>0;const ei=(r.includes('.')?r:l.split('.').slice(0,3).join('.')+'.'+r);n+=Math.max(0,ip(ei)-ip(l)+1);}else n+=1;}catch(e){}}return n;}
-function updateIpCount(){const n=countIps($('cfg-ip').value);const b=$('ip-count-badge');if(n>0){b.style.display='inline-flex';$('ip-count-text').textContent=`共 ${n} 个地址`;}else b.style.display='none';}
+function selProto(el){document.querySelectorAll('.proto-opt').forEach(b=>b.classList.remove('sel'));el.classList.add('sel');cfgProto=el.dataset.v;updateProtoHint();}
+function updateProtoHint(){const h={auto:t('cfg.hint_auto'),redfish:t('cfg.hint_rf'),ipmi:t('cfg.hint_ipmi')};$('proto-hint').textContent=h[cfgProto]||'';}
+function countIps(tx){let n=0;for(const e of tx.split(/[\n,;]+/)){const s=e.trim();if(!s||s.startsWith('#'))continue;try{if(s.includes('/')){const b=parseInt(s.split('/')[1]);n+=Math.pow(2,32-b)-2;}else if(s.includes('-')){const[l,r]=s.split('-',2);const ip=o=>o.split('.').reduce((a,x)=>(a<<8)+parseInt(x),0)>>>0;const ei=(r.includes('.')?r:l.split('.').slice(0,3).join('.')+'.'+r);n+=Math.max(0,ip(ei)-ip(l)+1);}else n+=1;}catch(e){}}return n;}
+function updateIpCount(){const n=countIps($('cfg-ip').value);const b=$('ip-cnt-badge');if(n>0){b.style.display='inline-flex';$('ip-cnt-text').textContent=t('cfg.ip_count').replace('{n}',n);}else b.style.display='none';}
 function toggleAdv(){$('adv-toggle').classList.toggle('open');$('adv-body').classList.toggle('open');}
-async function saveSettings(){const btn=$('btn-save-cfg');btn.disabled=true;btn.textContent='保存中...';try{await api('POST','/api/settings',{ip_ranges:$('cfg-ip').value,username:$('cfg-user').value,password:$('cfg-pw').value,protocol:cfgProto,refresh_interval:parseInt($('cfg-ri').value)||60,collection_timeout:parseInt($('cfg-to').value)||15,max_concurrent:parseInt($('cfg-cc').value)||10});closeOverlay('ov-settings');startPolling();}finally{btn.disabled=false;btn.textContent='保存并扫描';}}
+async function saveSettings(){const b=$('btn-save-cfg');b.disabled=true;$('lbl-cfg-save').textContent=t('cfg.saving');try{await api('POST','/api/settings',{ip_ranges:$('cfg-ip').value,username:$('cfg-user').value,password:$('cfg-pw').value,protocol:cfgProto,refresh_interval:parseInt($('cfg-ri').value)||60,collection_timeout:parseInt($('cfg-to').value)||15,max_concurrent:parseInt($('cfg-cc').value)||10});closeOverlay('ov-cfg');startPolling();}finally{b.disabled=false;$('lbl-cfg-save').textContent=t('cfg.save');}}
 
-// ── User Modal ─────────────────────────────────────
-async function openUsersModal(){$('user-err').textContent='';$('nu-name').value='';$('nu-pass').value='';$('nu-role').value='viewer';onRoleChange();await refreshUserList();await refreshAccessList();$('ov-users').classList.add('open');document.body.style.overflow='hidden';}
-function getScNames(ids){return(ids||[]).map(id=>{const sc=subclusters.find(s=>s.id===id);return sc?sc.name:id;});}
-async function refreshUserList(){const res=await api('GET','/api/users');if(!res)return;const users=await res.json();$('user-list').innerHTML=users.map(u=>`<div class="user-item"><div class="user-info"><div class="user-name">${esc(u.username)} <span class="role-tag ${u.role==='admin'?'role-admin':'role-viewer'}">${u.role==='admin'?'管理员':'查看者'}</span></div><div class="user-meta">${u.role==='viewer'&&u.cluster_access?'可访问：'+getScNames(u.cluster_access).join('、'):'所有权限'}</div></div><div style="display:flex;gap:5px"><button class="btn-sm" onclick="editUserModal('${u.id}','${esc(u.username)}','${u.role}',${JSON.stringify(u.cluster_access||null)})">编辑</button>${u.username!==currentUser.username?`<button class="btn-sm btn-sm-del" onclick="deleteUser('${u.id}','${esc(u.username)}')">删除</button>`:''}</div></div>`).join('')||'<div style="color:var(--tx3);font-size:.75rem">暂无用户</div>';}
-async function refreshAccessList(){$('nu-access-list').innerHTML=subclusters.length===0?'<div style="color:var(--tx3);font-size:.73rem;padding:3px">暂无子集群</div>':subclusters.map(sc=>`<label class="access-item"><input type="checkbox" class="nu-sc-cb" value="${sc.id}"> ${esc(sc.name)}</label>`).join('');}
-function onRoleChange(){$('nu-access-wrap').style.display=$('nu-role').value==='viewer'?'':'';}
-async function addUser(){const name=$('nu-name').value.trim(),pass=$('nu-pass').value,role=$('nu-role').value,err=$('user-err');err.textContent='';if(!name||!pass){err.textContent='请填写用户名和密码';return;}if(pass.length<6){err.textContent='密码至少 6 位';return;}const cluster_access=role==='viewer'?[...document.querySelectorAll('.nu-sc-cb:checked')].map(cb=>cb.value):null;const res=await api('POST','/api/users',{username:name,password:pass,role,cluster_access});if(!res)return;const data=await res.json();if(!res.ok){err.textContent=data.detail||'添加失败';return;}$('nu-name').value='';$('nu-pass').value='';await refreshUserList();}
-async function editUserModal(id,username,role,cluster_access){const newPass=prompt(`编辑用户 "${username}"\n新密码（留空不修改）：`);const newRole=prompt(`角色 (admin/viewer)，当前：${role}`)||role;let newAccess=cluster_access;if(newRole==='viewer'){const ids=(cluster_access||[]).join(',');const input=prompt(`可访问子集群 ID（逗号分隔），当前：${ids}\n可用：\n${subclusters.map(s=>s.name+': '+s.id).join('\n')}`)||ids;newAccess=input.split(',').map(s=>s.trim()).filter(Boolean);}else newAccess=null;const body={role:newRole,cluster_access:newAccess};if(newPass&&newPass.trim())body.password=newPass.trim();const res=await api('PUT',`/api/users/${id}`,body);if(!res)return;if(!res.ok){const d=await res.json();alert(d.detail||'更新失败');return;}await refreshUserList();}
-async function deleteUser(id,username){if(!confirm(`确认删除用户 "${username}"？`))return;const res=await api('DELETE',`/api/users/${id}`);if(!res)return;if(!res.ok){const d=await res.json();alert(d.detail||'删除失败');return;}await refreshUserList();}
+/* ── User Modal (inline edit, no prompt dialogs) ───────────── */
+async function openUsersModal(){
+  _editUserId=null;resetUserForm();
+  await refreshUserList();await refreshAccessLists([],[]);
+  $('ov-users').classList.add('open');document.body.style.overflow='hidden';
+}
+function resetUserForm(){
+  _editUserId=null;
+  $('user-form-title').textContent=t('u.form_add');
+  $('nu-name').value='';$('nu-pass').value='';
+  $('nu-pass-hint').textContent=t('u.pass_hint');
+  $('nu-role').value='viewer';
+  $('btn-user-cancel').style.display='none';
+  $('lbl-u-submit').textContent=t('u.add');
+  $('user-err').textContent='';
+  onRoleChange();
+}
+function cancelUserEdit(){resetUserForm();refreshAccessLists([],[]);}
+function onRoleChange(){$('nu-access-wrap').style.display=$('nu-role').value==='viewer'?'':'none';}
+async function refreshUserList(){
+  const r=await api('GET','/api/users');if(!r)return;
+  const users=await r.json();
+  $('user-list').innerHTML=users.map(u=>{
+    const scNames=(u.cluster_access||[]).map(id=>{const sc=subclusters.find(x=>x.id===id);return sc?sc.name:id;});
+    const machCount=(u.machine_access||[]).length;
+    let meta=u.role==='admin'?t('u.all_access'):t('u.accessible')+(scNames.join('、')||(machCount?machCount+'台':'—'));
+    return`<div class="user-item">
+<div class="user-info"><div class="user-name">${esc(u.username)} <span class="role-tag ${u.role==='admin'?'role-admin':'role-viewer'}">${t(u.role==='admin'?'role.admin':'role.viewer')}</span></div><div class="user-meta">${esc(meta)}</div></div>
+<div style="display:flex;gap:5px">
+<button class="btn-sm" onclick="editUser('${u.id}')">${t('u.edit')}</button>
+${u.username!==currentUser.username?`<button class="btn-sm btn-sm-del" onclick="deleteUser('${u.id}','${esc(u.username)}')">${t('u.delete')}</button>`:''}
+</div></div>`;
+  }).join('')||`<div style="color:var(--tx3);font-size:.73rem">${t('sc.no_list')}</div>`;
+}
+async function refreshAccessLists(selSc,selMach){
+  // Subclusters
+  $('nu-sc-list').innerHTML=subclusters.length===0
+    ?`<div style="color:var(--tx3);font-size:.7rem;padding:3px">${t('u.no_sc')}</div>`
+    :subclusters.map(sc=>`<label class="access-item"><input type="checkbox" class="nu-sc-cb" value="${sc.id}"${selSc.includes(sc.id)?' checked':''}> ${esc(sc.name)}</label>`).join('');
+  // Machines
+  $('nu-mac-list').innerHTML=servers.length===0
+    ?`<div style="color:var(--tx3);font-size:.7rem;padding:3px">${t('u.no_mach')}</div>`
+    :servers.map(s=>`<label class="access-item"><input type="checkbox" class="nu-mac-cb" value="${s.bmc_ip}"${selMach.includes(s.bmc_ip)?' checked':''}> ${s.bmc_ip}${s.name!==s.bmc_ip?` <span style="color:var(--tx3)">${esc(s.name)}</span>`:''}</label>`).join('');
+}
+async function editUser(id){
+  const r=await api('GET','/api/users');if(!r)return;
+  const u=(await r.json()).find(x=>x.id===id);if(!u)return;
+  _editUserId=id;
+  $('user-form-title').textContent=t('u.form_edit');
+  $('nu-name').value=u.username;$('nu-pass').value='';
+  $('nu-pass-hint').textContent=t('u.pass_hint_edit');
+  $('nu-role').value=u.role;
+  $('btn-user-cancel').style.display='';
+  $('lbl-u-submit').textContent=t('u.save');
+  $('user-err').textContent='';
+  onRoleChange();
+  await refreshAccessLists(u.cluster_access||[],u.machine_access||[]);
+}
+async function submitUser(){
+  const name=$('nu-name').value.trim(),pw=$('nu-pass').value,role=$('nu-role').value,err=$('user-err');
+  err.textContent='';
+  if(!name){err.textContent=t('u.err_name');return;}
+  if(!_editUserId&&!pw){err.textContent=t('u.err_pass');return;}
+  if(pw&&pw.length<6){err.textContent=t('u.err_short');return;}
+  const cluster_access=role==='viewer'?[...document.querySelectorAll('.nu-sc-cb:checked')].map(cb=>cb.value):null;
+  const machine_access=role==='viewer'?[...document.querySelectorAll('.nu-mac-cb:checked')].map(cb=>cb.value):null;
+  const body={username:name,role,cluster_access,machine_access};
+  if(pw)body.password=pw;
+  const r=_editUserId?await api('PUT',`/api/users/${_editUserId}`,body):await api('POST','/api/users',body);
+  if(!r)return;
+  const d=await r.json();
+  if(!r.ok){err.textContent=d.detail||'失败';return;}
+  resetUserForm();await refreshUserList();await refreshAccessLists([],[]);
+}
+async function deleteUser(id,uname){
+  if(!confirm(`${t('u.confirm_del')} "${uname}"?`))return;
+  const r=await api('DELETE',`/api/users/${id}`);if(!r)return;
+  if(!r.ok){const d=await r.json();alert(d.detail||'失败');return;}
+  await refreshUserList();
+}
 
-// ── Subcluster Modal ───────────────────────────────
-async function openSubclustersModal(){_editScId=null;$('sc-name').value='';$('sc-desc').value='';$('sc-err').textContent='';$('sc-form-title').textContent='新建子集群';$('btn-sc-save').textContent='创建';await renderScList();renderIpSelect([]);$('ov-subclusters').classList.add('open');document.body.style.overflow='hidden';}
-async function renderScList(){const res=await api('GET','/api/subclusters');if(!res)return;const scs=await res.json();subclusters=scs;renderScFilterBtns();$('sc-list').innerHTML=scs.length===0?'<div style="color:var(--tx3);font-size:.75rem">暂无子集群</div>':scs.map(sc=>`<div class="sc-item"><div class="sc-info"><div class="sc-name">${esc(sc.name)}</div>${sc.description?`<div class="sc-desc">${esc(sc.description)}</div>`:''}<div class="sc-ips">${sc.bmc_ips&&sc.bmc_ips.length?sc.bmc_ips.length+'台: '+sc.bmc_ips.slice(0,3).join(', ')+(sc.bmc_ips.length>3?'...':''):'暂无机器'}</div></div><div style="display:flex;gap:5px;flex-shrink:0"><button class="btn-sm" onclick="editSc('${sc.id}')">编辑</button><button class="btn-sm btn-sm-del" onclick="deleteSc('${sc.id}','${esc(sc.name)}')">删除</button></div></div>`).join('');}
-function renderIpSelect(sel){const w=$('sc-ip-select');if(!servers.length){w.innerHTML='<div style="padding:9px;color:var(--tx3);font-size:.72rem">请先配置 IP 范围并等待扫描</div>';return;}w.innerHTML=servers.map(s=>{const id='ip-'+s.bmc_ip.replace(/\./g,'-');return`<div class="ip-select-item"><input type="checkbox" id="${id}" value="${s.bmc_ip}"${sel.includes(s.bmc_ip)?' checked':''}><label for="${id}">${s.bmc_ip}${s.name!==s.bmc_ip?' <span style="color:var(--tx3)">'+esc(s.name)+'</span>':''}</label><span style="font-size:.65rem;color:${s.status==='online'?'var(--ok)':'var(--crit)'}">${s.status==='online'?'●':'○'}</span></div>`;}).join('');}
-function getSelectedIps(){return[...document.querySelectorAll('#sc-ip-select input:checked')].map(cb=>cb.value);}
-async function editSc(id){const sc=subclusters.find(s=>s.id===id);if(!sc)return;_editScId=id;$('sc-form-title').textContent='编辑子集群';$('sc-name').value=sc.name;$('sc-desc').value=sc.description||'';$('btn-sc-save').textContent='保存修改';$('sc-err').textContent='';renderIpSelect(sc.bmc_ips||[]);}
-function cancelScEdit(){_editScId=null;$('sc-form-title').textContent='新建子集群';$('sc-name').value='';$('sc-desc').value='';$('btn-sc-save').textContent='创建';$('sc-err').textContent='';renderIpSelect([]);}
-async function saveSubcluster(){const name=$('sc-name').value.trim(),desc=$('sc-desc').value.trim(),ips=getSelectedIps(),err=$('sc-err');err.textContent='';if(!name){err.textContent='请输入名称';return;}const res=_editScId?await api('PUT',`/api/subclusters/${_editScId}`,{name,description:desc,bmc_ips:ips}):await api('POST','/api/subclusters',{name,description:desc,bmc_ips:ips});if(!res)return;if(!res.ok){const d=await res.json();err.textContent=d.detail||'保存失败';return;}cancelScEdit();await renderScList();renderGrid();}
-async function deleteSc(id,name){if(!confirm(`确认删除子集群 "${name}"？`))return;const res=await api('DELETE',`/api/subclusters/${id}`);if(!res)return;await renderScList();renderGrid();}
+/* ── Subcluster Modal (fix: cancel closes modal in create mode) */
+async function openScModal(){
+  _editScId=null;resetScForm();
+  await renderScList();renderIpSelect([]);
+  $('ov-sc').classList.add('open');document.body.style.overflow='hidden';
+}
+function resetScForm(){
+  _editScId=null;
+  $('sc-form-title').textContent=t('sc.new');
+  $('sc-name').value='';$('sc-desc').value='';
+  $('lbl-sc-save').textContent=t('sc.create');
+  $('sc-err').textContent='';
+  renderIpSelect([]);
+}
+function cancelScEdit(){
+  if(_editScId){
+    // In edit mode: go back to create mode
+    resetScForm();
+  } else {
+    // In create mode: close the modal
+    closeOverlay('ov-sc');
+  }
+}
+async function renderScList(){
+  const r=await api('GET','/api/subclusters');if(!r)return;
+  const scs=await r.json();subclusters=scs;renderScFilterBtns();
+  $('sc-list').innerHTML=scs.length===0
+    ?`<div style="color:var(--tx3);font-size:.73rem">${t('sc.no_list')}</div>`
+    :scs.map(sc=>`<div class="sc-item">
+<div class="sc-info"><div class="sc-name">${esc(sc.name)}</div>${sc.description?`<div class="sc-desc">${esc(sc.description)}</div>`:''}<div class="sc-ips">${sc.bmc_ips&&sc.bmc_ips.length?sc.bmc_ips.length+t('sc.count_unit')+': '+sc.bmc_ips.slice(0,3).join(', ')+(sc.bmc_ips.length>3?'...':''):t('sc.no_mach')}</div></div>
+<div style="display:flex;gap:5px;flex-shrink:0"><button class="btn-sm" onclick="editSc('${sc.id}')">${t('sc.edit_btn')}</button><button class="btn-sm btn-sm-del" onclick="deleteSc('${sc.id}','${esc(sc.name)}')">${t('sc.del')}</button></div>
+</div>`).join('');
+}
+function renderIpSelect(sel){
+  const w=$('sc-ip-sel');
+  if(!servers.length){w.innerHTML=`<div style="padding:8px;color:var(--tx3);font-size:.7rem">${t('sc.scan_first')}</div>`;return;}
+  w.innerHTML=servers.map(s=>{const id='ip-'+s.bmc_ip.replace(/\./g,'-');return`<div class="ip-sel-item"><input type="checkbox" id="${id}" value="${s.bmc_ip}"${sel.includes(s.bmc_ip)?' checked':''}><label for="${id}">${s.bmc_ip}${s.name!==s.bmc_ip?` <span style="color:var(--tx3)">${esc(s.name)}</span>`:''}</label><span style="font-size:.62rem;color:${s.status==='online'?'var(--ok)':'var(--crit)'}">${s.status==='online'?'●':'○'}</span></div>`;}).join('');
+}
+async function editSc(id){
+  const sc=subclusters.find(s=>s.id===id);if(!sc)return;
+  _editScId=id;
+  $('sc-form-title').textContent=t('sc.edit');
+  $('sc-name').value=sc.name;$('sc-desc').value=sc.description||'';
+  $('lbl-sc-save').textContent=t('sc.save');$('sc-err').textContent='';
+  renderIpSelect(sc.bmc_ips||[]);
+}
+async function saveSubcluster(){
+  const name=$('sc-name').value.trim(),desc=$('sc-desc').value.trim(),err=$('sc-err');
+  err.textContent='';
+  if(!name){err.textContent=t('sc.err_name');return;}
+  const ips=[...document.querySelectorAll('#sc-ip-sel input:checked')].map(cb=>cb.value);
+  const r=_editScId?await api('PUT',`/api/subclusters/${_editScId}`,{name,description:desc,bmc_ips:ips}):await api('POST','/api/subclusters',{name,description:desc,bmc_ips:ips});
+  if(!r)return;
+  if(!r.ok){const d=await r.json();err.textContent=d.detail||'失败';return;}
+  resetScForm();await renderScList();renderGrid();
+}
+async function deleteSc(id,name){
+  if(!confirm(`${t('sc.confirm_del')} "${name}"?\n${t('sc.confirm_note')}`))return;
+  const r=await api('DELETE',`/api/subclusters/${id}`);if(!r)return;
+  await renderScList();renderGrid();
+}
 
-// ── Detail Modal ───────────────────────────────────
-function openDetail(key){const ip=key.replace(/-/g,'.');const s=servers.find(x=>x.bmc_ip===ip);if(!s)return;const[hcls,hlbl]=hbadge(s);$('det-title').textContent=s.name;$('det-sub').textContent=`BMC: ${s.bmc_ip}  ·  序列号: ${s.serial||'—'}  ·  协议: ${s.protocol_used||'—'}  ·  更新: ${fmtTime(s.last_updated)}`;$('det-badge').innerHTML=`<span class="hbadge ${hcls}">${hlbl}</span>`;$('det-body').innerHTML=buildDetail(s);$('ov-detail').classList.add('open');document.body.style.overflow='hidden';}
-function buildDetail(s){const sec=(t,b)=>`<div style="margin-bottom:18px"><div class="sec-title">${t}</div>${b}</div>`;const ms=s.memory_summary||{};const parts=[];parts.push(sec('系统信息',`<div class="info-grid"><div><div class="ik">主机名</div><div class="iv">${s.hostname||'—'}</div></div><div><div class="ik">制造商</div><div class="iv">${s.manufacturer||'—'}</div></div><div><div class="ik">型号</div><div class="iv">${s.model||'—'}</div></div><div><div class="ik">序列号</div><div class="iv">${s.serial||'—'}</div></div><div><div class="ik">BIOS / 固件</div><div class="iv">${s.bios_version||'—'}</div></div><div><div class="ik">电源状态</div><div class="iv">${s.power_state||'—'}</div></div>${ms.total_gib?`<div><div class="ik">总内存</div><div class="iv">${ms.total_gib} GiB</div></div>`:''}<div><div class="ik">当前功耗</div><div class="iv">${fmtW(s.power_consumed_watts)}</div></div></div>`));if((s.processors||[]).length){const rows=s.processors.map(p=>`<tr><td>${esc(p.name)}</td><td>${esc(p.model||'—')}</td><td>${p.cores??'—'}</td><td>${p.speed_ghz!=null?p.speed_ghz+' GHz':'—'}</td><td><span class="sdot ${sdot(p.health)}"></span>${p.health||'—'}</td></tr>`).join('');parts.push(sec('处理器',`<table><thead><tr><th>名称</th><th>型号</th><th>核心</th><th>频率</th><th>状态</th></tr></thead><tbody>${rows}</tbody></table>`));}if((s.temperatures||[]).length){const rows=s.temperatures.map(t=>`<tr><td>${esc(t.name)}</td><td style="font-weight:600;color:${tempColor(t.health)}">${t.reading_celsius} °C</td><td>${t.upper_caution!=null?t.upper_caution+' °C':'—'}</td><td>${t.upper_critical!=null?t.upper_critical+' °C':'—'}</td><td><span class="sdot ${sdot(t.health)}"></span>${t.health||'OK'}</td></tr>`).join('');parts.push(sec('温度传感器',`<table><thead><tr><th>传感器</th><th>当前值</th><th>警告阈值</th><th>严重阈值</th><th>状态</th></tr></thead><tbody>${rows}</tbody></table>`));}if((s.fans||[]).length){const rows=s.fans.map(f=>`<tr><td>${esc(f.name)}</td><td>${f.reading!=null?f.reading+' '+(f.reading_units||'RPM'):'—'}</td><td><span class="sdot ${sdot(f.health)}"></span>${f.health||'—'}</td></tr>`).join('');parts.push(sec('风扇',`<table><thead><tr><th>名称</th><th>转速</th><th>状态</th></tr></thead><tbody>${rows}</tbody></table>`));}if((s.power_supplies||[]).length){const rows=s.power_supplies.map(p=>`<tr><td>${esc(p.name)}</td><td>${esc(p.model||'—')}</td><td>${p.line_input_voltage!=null?p.line_input_voltage+' V':'—'}</td><td>${p.power_output_watts!=null?p.power_output_watts+' W':'—'}</td><td><span class="sdot ${sdot(p.health)}"></span>${p.health||'—'}</td></tr>`).join('');parts.push(sec('电源模块',`<table><thead><tr><th>名称</th><th>型号</th><th>输入电压</th><th>输出功率</th><th>状态</th></tr></thead><tbody>${rows}</tbody></table>`));}if((s.storage||[]).length){const rows=s.storage.map(c=>`<tr><td>${esc(c.name)}</td><td>${c.drives_count??'—'} 个</td><td><span class="sdot ${sdot(c.health)}"></span>${c.health||'—'}</td></tr>`).join('');parts.push(sec('存储控制器',`<table><thead><tr><th>控制器</th><th>驱动器数</th><th>状态</th></tr></thead><tbody>${rows}</tbody></table>`));}if((s.alerts||[]).length)parts.push(sec('告警',`<div style="color:var(--warn);font-size:.82rem">${s.alerts.map(esc).join('<br>')}</div>`));if(s.error)parts.push(sec('错误',`<div style="color:var(--crit);font-size:.78rem">${esc(s.error)}</div>`));return parts.join('');}
+/* ── Detail Modal ──────────────────────────────────────────── */
+function openDetail(key){
+  const ip=key.replace(/-/g,'.');const s=servers.find(x=>x.bmc_ip===ip);if(!s)return;
+  const[hcls,hlbl]=hbadge(s);
+  $('det-title').textContent=s.name;
+  $('det-sub').textContent=`BMC: ${s.bmc_ip}  ·  ${t('d.serial')}: ${s.serial||'—'}  ·  ${t('t.proto')}: ${s.protocol_used||'—'}`;
+  $('det-badge').innerHTML=`<span class="hbadge ${hcls}">${hlbl}</span>`;
+  $('det-body').innerHTML=buildDetail(s);
+  $('ov-detail').classList.add('open');document.body.style.overflow='hidden';
+}
+function buildDetail(s){
+  const sec=(title,body)=>`<div style="margin-bottom:16px"><div class="sec-title">${title}</div>${body}</div>`;
+  const ms=s.memory_summary||{};const parts=[];
+  parts.push(sec(t('d.sysinfo'),`<div class="info-grid">
+<div><div class="ik">${t('d.hostname')}</div><div class="iv">${s.hostname||'—'}</div></div>
+<div><div class="ik">${t('d.mfr')}</div><div class="iv">${s.manufacturer||'—'}</div></div>
+<div><div class="ik">${t('d.model')}</div><div class="iv">${s.model||'—'}</div></div>
+<div><div class="ik">${t('d.serial')}</div><div class="iv">${s.serial||'—'}</div></div>
+<div><div class="ik">${t('d.bios')}</div><div class="iv">${s.bios_version||'—'}</div></div>
+<div><div class="ik">${t('d.power')}</div><div class="iv">${s.power_state||'—'}</div></div>
+${ms.total_gib?`<div><div class="ik">${t('d.mem')}</div><div class="iv">${ms.total_gib} GiB</div></div>`:''}
+<div><div class="ik">${t('d.draw')}</div><div class="iv">${fmtW(s.power_consumed_watts)}</div></div>
+</div>`));
+  if((s.processors||[]).length){const rows=s.processors.map(p=>`<tr><td>${esc(p.name)}</td><td>${esc(p.model||'—')}</td><td>${p.cores??'—'}</td><td>${p.speed_ghz!=null?p.speed_ghz+' GHz':'—'}</td><td><span class="sdot ${sdot(p.health)}"></span>${p.health||'—'}</td></tr>`).join('');parts.push(sec(t('d.proc'),`<table><thead><tr><th>${t('d.name')}</th><th>${t('d.model')}</th><th>${t('d.cores')}</th><th>${t('d.freq')}</th><th>${t('t.health')}</th></tr></thead><tbody>${rows}</tbody></table>`));}
+  if((s.temperatures||[]).length){const rows=s.temperatures.map(tp=>`<tr><td>${esc(tp.name)}</td><td style="font-weight:600;color:${tCol(tp.health)}">${tp.reading_celsius} °C</td><td>${tp.upper_caution!=null?tp.upper_caution+' °C':'—'}</td><td>${tp.upper_critical!=null?tp.upper_critical+' °C':'—'}</td><td><span class="sdot ${sdot(tp.health)}"></span>${tp.health||'OK'}</td></tr>`).join('');parts.push(sec(t('d.temp'),`<table><thead><tr><th>${t('d.sensor')}</th><th>${t('d.current')}</th><th>${t('d.warn')}</th><th>${t('d.crit')}</th><th>${t('t.health')}</th></tr></thead><tbody>${rows}</tbody></table>`));}
+  if((s.fans||[]).length){const rows=s.fans.map(f=>`<tr><td>${esc(f.name)}</td><td>${f.reading!=null?f.reading+' '+(f.reading_units||'RPM'):'—'}</td><td><span class="sdot ${sdot(f.health)}"></span>${f.health||'—'}</td></tr>`).join('');parts.push(sec(t('d.fans'),`<table><thead><tr><th>${t('d.name')}</th><th>${t('d.speed')}</th><th>${t('t.health')}</th></tr></thead><tbody>${rows}</tbody></table>`));}
+  if((s.power_supplies||[]).length){const rows=s.power_supplies.map(p=>`<tr><td>${esc(p.name)}</td><td>${esc(p.model||'—')}</td><td>${p.line_input_voltage!=null?p.line_input_voltage+' V':'—'}</td><td>${p.power_output_watts!=null?p.power_output_watts+' W':'—'}</td><td><span class="sdot ${sdot(p.health)}"></span>${p.health||'—'}</td></tr>`).join('');parts.push(sec(t('d.psus'),`<table><thead><tr><th>${t('d.name')}</th><th>${t('d.model')}</th><th>${t('d.input_v')}</th><th>${t('d.output_w')}</th><th>${t('t.health')}</th></tr></thead><tbody>${rows}</tbody></table>`));}
+  if((s.storage||[]).length){const rows=s.storage.map(c=>`<tr><td>${esc(c.name)}</td><td>${c.drives_count??'—'}</td><td><span class="sdot ${sdot(c.health)}"></span>${c.health||'—'}</td></tr>`).join('');parts.push(sec(t('d.storage'),`<table><thead><tr><th>${t('d.name')}</th><th>${t('d.drives')}</th><th>${t('t.health')}</th></tr></thead><tbody>${rows}</tbody></table>`));}
+  if((s.alerts||[]).length)parts.push(sec(t('d.alerts'),`<div style="color:var(--warn);font-size:.8rem">${s.alerts.map(esc).join('<br>')}</div>`));
+  if(s.error)parts.push(sec(t('d.error'),`<div style="color:var(--crit);font-size:.77rem">${esc(s.error)}</div>`));
+  return parts.join('');
+}
 
-// ── Overlays ───────────────────────────────────────
-function openOverlay(id){if(id==='ov-settings')openSettingsModal();else if(id==='ov-users')openUsersModal();else if(id==='ov-subclusters')openSubclustersModal();else{$(id).classList.add('open');document.body.style.overflow='hidden';}}
+/* ── Overlays ──────────────────────────────────────────────── */
+function openOverlay(id){
+  if(id==='ov-cfg')openSettingsModal();
+  else if(id==='ov-users')openUsersModal();
+  else if(id==='ov-sc')openScModal();
+  else{$(id).classList.add('open');document.body.style.overflow='hidden';}
+}
 function closeOverlay(id){$(id).classList.remove('open');document.body.style.overflow='';}
 function closeOvBg(e,id){if(e.target===$(id))closeOverlay(id);}
 
-// ── Init ───────────────────────────────────────────
+/* ── Init ──────────────────────────────────────────────────── */
 applyTheme(localStorage.getItem('sm_theme')||'dark');
+applyI18n();
 checkAuth();
 </script>
+</body>
+</html>
+
 </body>
 </html>

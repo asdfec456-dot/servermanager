@@ -102,18 +102,19 @@ def verify_password(password: str, stored: str) -> bool:
         return False
 
 # ─── Session 管理 ─────────────────────────────────────────────────
-# token → {user_id, username, role, cluster_access, expires}
+# token → {user_id, username, role, cluster_access, machine_access, expires}
 
 _sessions: Dict[str, dict] = {}
 
 def create_session(user: dict) -> str:
     token = secrets.token_hex(32)
     _sessions[token] = {
-        "user_id":       user["id"],
-        "username":      user["username"],
-        "role":          user["role"],
-        "cluster_access": user.get("cluster_access"),  # None = 全部
-        "expires":       time.time() + 86400,
+        "user_id":        user["id"],
+        "username":       user["username"],
+        "role":           user["role"],
+        "cluster_access": user.get("cluster_access"),   # None = 全部
+        "machine_access": user.get("machine_access"),   # 单台机器权限
+        "expires":        time.time() + 86400,
     }
     return token
 
@@ -604,9 +605,11 @@ async def auth_logout(user: dict = Depends(get_current_user),
 async def auth_me(user: dict = Depends(get_current_user)):
     auth = load_auth()
     return {
-        "username": user["username"], "role": user["role"],
+        "username":       user["username"],
+        "role":           user["role"],
         "cluster_access": user["cluster_access"],
-        "cluster_name": auth.get("cluster_name", ""),
+        "machine_access": user.get("machine_access"),
+        "cluster_name":   auth.get("cluster_name", ""),
     }
 
 # ═══════════════════════════════════════════════════════════════════
@@ -618,17 +621,20 @@ async def list_users(admin: dict = Depends(require_admin)):
     auth = load_auth()
     return [
         {"id": u["id"], "username": u["username"], "role": u["role"],
-         "cluster_access": u.get("cluster_access"), "created_at": u.get("created_at")}
+         "cluster_access": u.get("cluster_access"),
+         "machine_access": u.get("machine_access", []),
+         "created_at": u.get("created_at")}
         for u in auth["users"]
     ]
 
 @app.post("/api/users")
 async def add_user(req: Request, admin: dict = Depends(require_admin)):
-    body     = await req.json()
-    username = (body.get("username") or "").strip()
-    password = body.get("password") or ""
-    role     = body.get("role", "viewer")
-    cluster_access = body.get("cluster_access")  # None or list of subcluster ids
+    body           = await req.json()
+    username       = (body.get("username") or "").strip()
+    password       = body.get("password") or ""
+    role           = body.get("role", "viewer")
+    cluster_access = body.get("cluster_access")   # 子集群 ID 列表
+    machine_access = body.get("machine_access")   # 单台机器 BMC IP 列表
 
     if not username or not password:
         raise HTTPException(400, "用户名和密码不能为空")
@@ -646,12 +652,14 @@ async def add_user(req: Request, admin: dict = Depends(require_admin)):
         "password_hash": hash_password(password),
         "role": role,
         "cluster_access": None if role == "admin" else (cluster_access or []),
+        "machine_access": None if role == "admin" else (machine_access or []),
         "created_at": int(time.time()),
     }
     auth["users"].append(user)
     save_auth(auth)
     return {"id": user["id"], "username": username, "role": role,
-            "cluster_access": user["cluster_access"]}
+            "cluster_access": user["cluster_access"],
+            "machine_access": user["machine_access"]}
 
 @app.put("/api/users/{user_id}")
 async def update_user(user_id: str, req: Request, admin: dict = Depends(require_admin)):
@@ -677,6 +685,8 @@ async def update_user(user_id: str, req: Request, admin: dict = Depends(require_
             user["cluster_access"] = None
     if "cluster_access" in body and user["role"] == "viewer":
         user["cluster_access"] = body["cluster_access"]
+    if "machine_access" in body and user["role"] == "viewer":
+        user["machine_access"] = body["machine_access"] or []
     if "username" in body and body["username"]:
         new_name = body["username"].strip()
         if new_name != user["username"] and any(u["username"] == new_name for u in auth["users"]):
@@ -685,11 +695,11 @@ async def update_user(user_id: str, req: Request, admin: dict = Depends(require_
 
     save_auth(auth)
 
-    # 让该用户的 session 在下次请求时因信息不一致而可被感知（或直接踢出）
     for token, sess in list(_sessions.items()):
         if sess["user_id"] == user_id:
             sess["role"]           = user["role"]
             sess["cluster_access"] = user.get("cluster_access")
+            sess["machine_access"] = user.get("machine_access")
             sess["username"]       = user["username"]
 
     return {"ok": True}
@@ -790,12 +800,13 @@ def _build_server_list(user: dict) -> dict:
     sc_data   = load_subclusters()
     all_scs   = sc_data.get("subclusters", [])
 
-    # 查看者：只显示有权限子集群内的机器
+    # 查看者：子集群权限 + 单台机器权限
     if user["role"] == "viewer" and user["cluster_access"] is not None:
-        allowed_scs  = [sc for sc in all_scs if sc["id"] in user["cluster_access"]]
-        allowed_ips  = set(ip for sc in allowed_scs for ip in sc.get("bmc_ips", []))
+        allowed_scs  = [sc for sc in all_scs if sc["id"] in (user["cluster_access"] or [])]
+        sc_ips       = set(ip for sc in allowed_scs for ip in sc.get("bmc_ips", []))
+        direct_ips   = set(user.get("machine_access") or [])
+        allowed_ips  = sc_ips | direct_ips
         visible_ips  = [ip for ip in all_ips if ip in allowed_ips]
-        # 也包含子集群里有但 all_ips 没有的（管理员手动指定）
         extra_ips    = allowed_ips - set(all_ips)
         visible_ips += [ip for ip in extra_ips]
         visible_scs  = allowed_scs
@@ -853,6 +864,17 @@ async def api_server_detail(bmc_ip_enc: str, user: dict = Depends(get_current_us
             for ip in sc.get("bmc_ips", [])
         )
         if bmc_ip not in allowed_ips:
+            raise HTTPException(403, "无权访问此服务器")
+    # 查看者权限检查（子集群 + 单台机器）
+    if user["role"] == "viewer" and user["cluster_access"] is not None:
+        sc_data = load_subclusters()
+        sc_ips = set(
+            ip for sc in sc_data.get("subclusters", [])
+            if sc["id"] in (user["cluster_access"] or [])
+            for ip in sc.get("bmc_ips", [])
+        )
+        direct_ips = set(user.get("machine_access") or [])
+        if bmc_ip not in (sc_ips | direct_ips):
             raise HTTPException(403, "无权访问此服务器")
     if bmc_ip not in _cache:
         raise HTTPException(404, "服务器未找到或尚未采集")
