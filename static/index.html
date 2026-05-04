@@ -449,7 +449,7 @@ tr:hover td{background:var(--sf2)}
   <div class="hdr-right">
     <div class="user-badge"><span id="hdr-uname"></span><span class="role-tag" id="hdr-role-tag"></span></div>
     <button class="sub-badge sub-inactive" id="sub-badge" onclick="openOverlay('ov-sub')" style="display:none">
-      <span id="sub-badge-text">未订阅</span>
+      <span id="sub-badge-text">开通会员</span>
     </button>
     <div class="lang-sw">
       <button class="lang-btn" data-lang="zh" onclick="setLang('zh')">中</button>
@@ -490,7 +490,7 @@ tr:hover td{background:var(--sf2)}
         <div class="dd-sep"></div>
         <button class="dd-item" onclick="ddOpen('ov-stripe')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-          <span id="dd-lbl-stripe">订阅设置</span>
+          <span id="dd-lbl-stripe">会员设置</span>
         </button>
       </div>
     </div>
@@ -645,7 +645,7 @@ tr:hover td{background:var(--sf2)}
 <div class="overlay" id="ov-sub" onclick="closeOvBg(event,'ov-sub')">
 <div class="modal">
   <div class="modal-hdr">
-    <div><div class="modal-title" id="sub-modal-title">订阅 Server Manager Pro</div><div class="modal-sub" id="sub-modal-sub">解锁全部功能，无限服务器监控</div></div>
+    <div><div class="modal-title" id="sub-modal-title">开通 Server Manager 会员</div><div class="modal-sub" id="sub-modal-sub">会员专属：无限服务器监控与全功能访问</div></div>
     <button class="mclose" onclick="closeOverlay('ov-sub')">✕</button>
   </div>
   <div class="modal-body">
@@ -657,26 +657,26 @@ tr:hover td{background:var(--sf2)}
         <div style="font-size:.82rem;color:var(--tx2);margin-top:6px" id="sub-active-detail"></div>
       </div>
       <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
-        <button class="btn" onclick="openPortal()">管理订阅 / 发票</button>
-        <button class="btn btn-danger" onclick="cancelSubscription()">取消订阅</button>
+        <button class="btn" onclick="openPortal()">管理会员 / 发票</button>
+        <button class="btn btn-danger" onclick="cancelSubscription()">取消会员</button>
       </div>
     </div>
     <!-- Checkout view -->
     <div id="sub-checkout-view">
       <ul class="sub-feature-list">
-        <li>无限服务器监控</li><li>多协议 Redfish / IPMI</li>
-        <li>报警通知</li><li>多用户权限管理</li>
-        <li>子集群分组</li><li>数据历史记录</li>
+        <li>无限服务器监控</li><li>Redfish / IPMI 双协议</li>
+        <li>报警通知（Telegram / 邮件 / 短信）</li><li>多用户与权限管理</li>
+        <li>子集群分组管理</li><li>BMC 密码远程修改</li>
       </ul>
       <div class="plan-cards">
         <div class="plan-card selected" id="plan-monthly" onclick="selectPlan('monthly')">
-          <div class="plan-name" id="lbl-plan-monthly">月付</div>
+          <div class="plan-name" id="lbl-plan-monthly">月付会员</div>
           <div class="plan-price" id="plan-monthly-price">¥980<span>/月</span></div>
         </div>
         <div class="plan-card" id="plan-annual" onclick="selectPlan('annual')">
-          <div class="plan-name" id="lbl-plan-annual">年付</div>
+          <div class="plan-name" id="lbl-plan-annual">年付会员</div>
           <div class="plan-price" id="plan-annual-price">¥8,800<span>/年</span></div>
-          <div class="plan-save" id="lbl-plan-save">节省 25%</div>
+          <div class="plan-save" id="lbl-plan-save">年付节省 30%</div>
         </div>
       </div>
       <div style="font-size:.75rem;color:var(--tx2);margin-bottom:10px" id="lbl-pay-methods">支付方式</div>
@@ -687,9 +687,9 @@ tr:hover td{background:var(--sf2)}
       </div>
       <div class="err-msg" id="sub-err"></div>
       <button class="btn btn-acc" id="btn-checkout" onclick="startCheckout()" style="width:100%;padding:10px;font-size:.9rem;justify-content:center;border:none">
-        <span id="btn-checkout-lbl">前往支付</span>
+        <span id="btn-checkout-lbl">立即开通会员</span>
       </button>
-      <div style="font-size:.68rem;color:var(--tx3);text-align:center;margin-top:8px" id="lbl-stripe-note">通过 Stripe 安全支付 · SSL 加密 · 随时可取消</div>
+      <div style="font-size:.68rem;color:var(--tx3);text-align:center;margin-top:8px" id="lbl-stripe-note">通过 Stripe 安全支付 · SSL 加密 · 随时可取消会员</div>
     </div>
   </div>
 </div>
@@ -699,7 +699,7 @@ tr:hover td{background:var(--sf2)}
 <div class="overlay" id="ov-stripe" onclick="closeOvBg(event,'ov-stripe')">
 <div class="modal">
   <div class="modal-hdr">
-    <div><div class="modal-title">订阅设置（Stripe）</div><div class="modal-sub">配置 Stripe API 密钥和定价</div></div>
+    <div><div class="modal-title">会员设置（Stripe）</div><div class="modal-sub">配置 Stripe API 密钥与会员定价</div></div>
     <button class="mclose" onclick="closeOverlay('ov-stripe')">✕</button>
   </div>
   <div class="modal-body">
@@ -754,7 +754,7 @@ tr:hover td{background:var(--sf2)}
         <input class="inp" id="stripe-amt-annual" type="number" value="8800"></div>
     </div>
     <div class="form-g2"><label>产品名称</label>
-      <input class="inp" id="stripe-product" type="text" placeholder="Server Manager Pro"></div>
+      <input class="inp" id="stripe-product" type="text" placeholder="Server Manager 会员"></div>
     <div class="err-msg" id="stripe-cfg-err"></div>
   </div>
   <div class="modal-footer">
@@ -1938,6 +1938,174 @@ async function loadHistoryTab(){
 async function clearAlertHistory(){
   if(!confirm(t('al.hist_confirm_clear'))) return;
   await api('DELETE','/api/alerts/history'); await loadHistoryTab();
+}
+
+
+/* ── Subscription / Membership ─────────────────────────────── */
+let _subInfo = null;
+let _selectedPlan = 'monthly';
+
+async function loadSubscription(){
+  if(!token) return;
+  const r = await api('GET','/api/subscription');
+  if(!r) return;
+  _subInfo = await r.json();
+  updateSubBadge();
+}
+
+function updateSubBadge(){
+  const badge = $('sub-badge');
+  if(!badge) return;
+  badge.style.display = '';
+  const s = _subInfo;
+  if(!s){ badge.style.display='none'; return; }
+  badge.className = 'sub-badge ';
+  let txt = '';
+  if(s.status === 'active'){
+    if(s.days_remaining != null && s.days_remaining <= 7){
+      badge.className += 'sub-expiring';
+      txt = `会员 · 还剩 ${s.days_remaining} 天`;
+    } else {
+      badge.className += 'sub-active';
+      txt = '会员';
+    }
+  } else if(s.status === 'past_due'){
+    badge.className += 'sub-past-due';
+    txt = '会员 · 续费失败';
+  } else {
+    badge.className += 'sub-inactive';
+    txt = '开通会员';
+  }
+  $('sub-badge-text').textContent = txt;
+}
+
+async function openSubModal(){
+  await loadSubscription();
+  const cfg_r = await api('GET','/api/stripe/config');
+  const cfg = cfg_r ? await cfg_r.json() : {};
+  const amt_m = cfg.amount_monthly || 980;
+  const amt_a = cfg.amount_annual  || 8800;
+  const cur = (cfg.currency||'jpy').toUpperCase();
+  const fmt = n => cur==='JPY' ? `¥${n.toLocaleString()}` : `${cur} ${n}`;
+  const pMonthly = $('plan-monthly-price');
+  const pAnnual  = $('plan-annual-price');
+  if(pMonthly) pMonthly.innerHTML = `${fmt(amt_m)}<span>/月</span>`;
+  if(pAnnual)  pAnnual.innerHTML  = `${fmt(amt_a)}<span>/年</span>`;
+  const pct = Math.round((1 - amt_a/(amt_m*12))*100);
+  const saveEl = $('lbl-plan-save');
+  if(saveEl && pct > 0) saveEl.textContent = `年付节省 ${pct}%`;
+  const s = _subInfo;
+  const isActive = s && (s.status==='active' || s.status==='past_due');
+  $('sub-active-view').style.display  = isActive ? '' : 'none';
+  $('sub-checkout-view').style.display = isActive ? 'none' : '';
+  if(isActive){
+    let detail = s.plan==='monthly' ? '月付会员' : '年付会员';
+    if(s.expires_at){
+      const d = new Date(s.expires_at*1000);
+      detail += ` · 有效期至 ${d.toLocaleDateString('zh-CN')}`;
+    }
+    if(s.status==='past_due') detail += ' · ⚠️ 续费失败，请更新付款方式';
+    $('sub-active-title').textContent = s.status==='active' ? '会员有效' : '续费异常';
+    $('sub-active-title').style.color = s.status==='active' ? 'var(--ok)' : 'var(--crit)';
+    $('sub-active-detail').textContent = detail;
+  }
+  if(!cfg.secret_key_set && currentUser?.role==='admin'){
+    $('sub-err').textContent = '⚠️ 尚未配置 Stripe，请先在「设置 → 会员设置」中填写 API Key';
+  } else {
+    $('sub-err').textContent = '';
+  }
+  $('ov-sub').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+
+function selectPlan(plan){
+  _selectedPlan = plan;
+  $('plan-monthly').classList.toggle('selected', plan==='monthly');
+  $('plan-annual').classList.toggle('selected', plan==='annual');
+}
+
+async function startCheckout(){
+  const btn = $('btn-checkout');
+  const lbl = $('btn-checkout-lbl');
+  btn.disabled = true; lbl.textContent = '开通中...';
+  $('sub-err').textContent = '';
+  try{
+    const r = await api('POST','/api/subscription/checkout',{plan:_selectedPlan});
+    if(!r){ btn.disabled=false; lbl.textContent='立即开通会员'; return; }
+    const d = await r.json();
+    if(r.ok && d.url){ window.location.href = d.url; }
+    else {
+      $('sub-err').textContent = d.detail || '创建结账失败';
+      btn.disabled=false; lbl.textContent='立即开通会员';
+    }
+  }catch(e){
+    $('sub-err').textContent = '网络错误：'+e;
+    btn.disabled=false; lbl.textContent='立即开通会员';
+  }
+}
+
+async function openPortal(){
+  const r = await api('POST','/api/subscription/portal',{});
+  if(!r) return;
+  const d = await r.json();
+  if(r.ok && d.url) window.open(d.url,'_blank');
+  else alert(d.detail||'无法打开管理页面');
+}
+
+async function cancelSubscription(){
+  if(!confirm('确认取消会员？取消后立即失效，剩余时间不退款。')) return;
+  const r = await api('POST','/api/subscription/cancel',{});
+  if(!r) return;
+  const d = await r.json();
+  if(r.ok){ await loadSubscription(); closeOverlay('ov-sub'); alert('已取消会员'); }
+  else alert(d.detail||'取消失败');
+}
+
+async function openStripeModal(){
+  const r = await api('GET','/api/stripe/config');
+  if(!r) return;
+  const c = await r.json();
+  $('stripe-mode').value = c.mode||'test';
+  $('stripe-currency').value = c.currency||'jpy';
+  $('stripe-pk').value = c.publishable_key||'';
+  $('stripe-sk').value = c.secret_key||'';
+  $('stripe-ws').value = c.webhook_secret||'';
+  $('stripe-price-monthly').value = c.price_monthly_id||'';
+  $('stripe-price-annual').value  = c.price_annual_id||'';
+  $('stripe-amt-monthly').value   = c.amount_monthly||980;
+  $('stripe-amt-annual').value    = c.amount_annual||8800;
+  $('stripe-product').value = c.product_name||'Server Manager 会员';
+  $('stripe-cfg-err').textContent = '';
+  $('ov-stripe').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+
+async function saveStripeConfig(){
+  const body = {
+    mode: $('stripe-mode').value,
+    currency: $('stripe-currency').value,
+    publishable_key: $('stripe-pk').value.trim(),
+    secret_key: $('stripe-sk').value.trim(),
+    webhook_secret: $('stripe-ws').value.trim(),
+    price_monthly_id: $('stripe-price-monthly').value.trim(),
+    price_annual_id:  $('stripe-price-annual').value.trim(),
+    amount_monthly: parseInt($('stripe-amt-monthly').value)||980,
+    amount_annual:  parseInt($('stripe-amt-annual').value)||8800,
+    product_name: $('stripe-product').value.trim()||'Server Manager 会员',
+  };
+  const r = await api('POST','/api/stripe/config', body);
+  if(!r) return;
+  const d = await r.json();
+  if(r.ok){ closeOverlay('ov-stripe'); }
+  else { $('stripe-cfg-err').textContent = d.detail||'保存失败'; }
+}
+
+function checkSubRedirect(){
+  const p = new URLSearchParams(window.location.search);
+  if(p.get('sub') === 'success'){
+    history.replaceState(null,'',window.location.pathname);
+    setTimeout(async()=>{ await loadSubscription(); openSubModal(); }, 1000);
+  }
 }
 
 /* ── Init ──────────────────────────────────────────────────── */
