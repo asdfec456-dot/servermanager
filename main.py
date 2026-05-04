@@ -1632,21 +1632,9 @@ async def api_get_stripe_config(admin: dict = Depends(require_admin)):
     safe["webhook_secret"] = ("••••" + ws[-4:]) if len(ws) > 8 else ("••••" if ws else "")
     return safe
 
-@app.post("/api/stripe/config")
-async def api_save_stripe_config(req: Request, admin: dict = Depends(require_admin)):
-    body = await req.json()
-    existing = load_stripe_config()
-    # Price ID 和金额不允许通过 API 修改（硬编码在代码中）
-    LOCKED = {"price_monthly_id", "price_annual_id", "amount_monthly",
-              "amount_annual", "currency", "product_name"}
-    for k, v in body.items():
-        if k in LOCKED:
-            continue
-        if k in ("secret_key", "webhook_secret") and str(v).startswith("••••"):
-            continue
-        existing[k] = v
-    save_stripe_config(existing)
-    return {"ok": True}
+# NOTE: Stripe config is managed via server-side environment variables only.
+# STRIPE_SK and STRIPE_WS must be set as env vars (e.g. in systemd service).
+# No API endpoint for modifying payment config — protecting CATNETWORK revenue.
 
 @app.post("/api/subscription/checkout")
 async def api_create_checkout(req: Request, admin: dict = Depends(require_admin)):

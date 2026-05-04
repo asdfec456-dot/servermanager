@@ -641,125 +641,49 @@ tr:hover td{background:var(--sf2)}
 <div class="overlay" id="ov-sub" onclick="closeOvBg(event,'ov-sub')">
 <div class="modal">
   <div class="modal-hdr">
-    <div><div class="modal-title" id="sub-modal-title">开通 Server Manager 会员</div><div class="modal-sub" id="sub-modal-sub">会员专属：无限服务器监控与全功能访问</div></div>
+    <div><div class="modal-title" id="sub-modal-title"></div><div class="modal-sub" id="sub-modal-sub"></div></div>
     <button class="mclose" onclick="closeOverlay('ov-sub')">✕</button>
   </div>
   <div class="modal-body">
-    <!-- Active subscription view -->
     <div id="sub-active-view" style="display:none">
       <div style="text-align:center;padding:10px 0 18px">
         <div style="font-size:2.5rem;margin-bottom:8px">✅</div>
-        <div style="font-size:1rem;font-weight:700;color:var(--ok)" id="sub-active-title">已订阅</div>
+        <div style="font-size:1rem;font-weight:700;color:var(--ok)" id="sub-active-title"></div>
         <div style="font-size:.82rem;color:var(--tx2);margin-top:6px" id="sub-active-detail"></div>
       </div>
       <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
-        <button class="btn" onclick="openPortal()">管理会员 / 发票</button>
-        <button class="btn btn-danger" onclick="cancelSubscription()">取消会员</button>
+        <button class="btn" id="btn-portal" onclick="openPortal()"></button>
+        <button class="btn btn-danger" id="btn-cancel-sub" onclick="cancelSubscription()"></button>
       </div>
     </div>
-    <!-- Checkout view -->
     <div id="sub-checkout-view">
-      <ul class="sub-feature-list">
-        <li>无限服务器监控</li><li>Redfish / IPMI 双协议</li>
-        <li>报警通知（Telegram / 邮件 / 短信）</li><li>多用户与权限管理</li>
-        <li>子集群分组管理</li><li>BMC 密码远程修改</li>
-      </ul>
+      <ul class="sub-feature-list" id="sub-feature-list"></ul>
       <div class="plan-cards">
         <div class="plan-card selected" id="plan-monthly" onclick="selectPlan('monthly')">
-          <div class="plan-name" id="lbl-plan-monthly">月付会员</div>
-          <div class="plan-price" id="plan-monthly-price">¥980<span>/月</span></div>
+          <div class="plan-name" id="lbl-plan-monthly"></div>
+          <div class="plan-price" id="plan-monthly-price"></div>
         </div>
         <div class="plan-card" id="plan-annual" onclick="selectPlan('annual')">
-          <div class="plan-name" id="lbl-plan-annual">年付会员</div>
-          <div class="plan-price" id="plan-annual-price">¥8,800<span>/年</span></div>
-          <div class="plan-save" id="lbl-plan-save">年付节省 30%</div>
+          <div class="plan-name" id="lbl-plan-annual"></div>
+          <div class="plan-price" id="plan-annual-price"></div>
+          <div class="plan-save" id="lbl-plan-save"></div>
         </div>
       </div>
-      <div style="font-size:.75rem;color:var(--tx2);margin-bottom:10px" id="lbl-pay-methods">支付方式</div>
+      <div style="font-size:.75rem;color:var(--tx2);margin-bottom:10px" id="lbl-pay-methods"></div>
       <div class="pay-methods">
-        <div class="pay-method"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg> 信用卡 / 借记卡</div>
-        <div class="pay-method"><svg viewBox="0 0 48 48" fill="currentColor"><text y="38" font-size="38">支</text></svg> 支付宝 QR</div>
-        <div class="pay-method"><svg viewBox="0 0 48 48" fill="currentColor"><text y="38" font-size="38">微</text></svg> 微信支付 QR</div>
+        <div class="pay-method"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg> <span id="pay-card-lbl"></span></div>
+        <div class="pay-method">&#25903; <span id="pay-alipay-lbl"></span></div>
+        <div class="pay-method">&#24494; <span id="pay-wechat-lbl"></span></div>
       </div>
       <div class="err-msg" id="sub-err"></div>
       <button class="btn btn-acc" id="btn-checkout" onclick="startCheckout()" style="width:100%;padding:10px;font-size:.9rem;justify-content:center;border:none">
-        <span id="btn-checkout-lbl">立即开通会员</span>
+        <span id="btn-checkout-lbl"></span>
       </button>
-      <div style="font-size:.68rem;color:var(--tx3);text-align:center;margin-top:8px" id="lbl-stripe-note">通过 Stripe 安全支付 · SSL 加密 · 随时可取消会员</div>
+      <div style="font-size:.68rem;color:var(--tx3);text-align:center;margin-top:8px" id="lbl-stripe-note"></div>
     </div>
   </div>
 </div>
 </div>
-
-<!-- STRIPE CONFIG MODAL -->
-<div class="overlay" id="ov-stripe" onclick="closeOvBg(event,'ov-stripe')">
-<div class="modal">
-  <div class="modal-hdr">
-    <div><div class="modal-title">会员设置（Stripe）</div><div class="modal-sub">配置 Stripe API 密钥与会员定价</div></div>
-    <button class="mclose" onclick="closeOverlay('ov-stripe')">✕</button>
-  </div>
-  <div class="modal-body">
-    <details style="margin-bottom:14px;background:rgba(56,189,248,.05);border:1px solid rgba(56,189,248,.15);border-radius:6px">
-      <summary style="padding:8px 12px;font-size:.75rem;color:var(--acc);cursor:pointer">ℹ️ 如何配置 Stripe</summary>
-      <div style="padding:10px 14px 12px;font-size:.72rem;color:var(--tx2);line-height:1.8">
-        <b>1. 注册账号：</b>stripe.com → 创建账户<br>
-        <b>2. 获取 API Keys：</b>Dashboard → Developers → API Keys → 复制 Publishable key 和 Secret key<br>
-        <b>3. 创建产品：</b>Dashboard → Products → Add product → 设置月付和年付价格 → 复制 Price ID（price_xxx）<br>
-        <b>4. 配置 Webhook：</b>Dashboard → Developers → Webhooks → Add endpoint<br>
-        &nbsp;&nbsp;&nbsp;URL：<code>https://sm.catnetwork.co.jp/api/subscription/webhook</code><br>
-        &nbsp;&nbsp;&nbsp;Events：checkout.session.completed, customer.subscription.*, invoice.*<br>
-        &nbsp;&nbsp;&nbsp;复制 Signing secret（whsec_xxx）填入下方<br>
-        <b>5. 测试：</b>先用 Test mode 的 key，用卡号 4242 4242 4242 4242 测试支付
-      </div>
-    </details>
-    <div class="form-row">
-      <div class="form-g2"><label>模式</label>
-        <select class="inp" id="stripe-mode">
-          <option value="test">测试模式 (test)</option>
-          <option value="live">生产模式 (live)</option>
-        </select>
-      </div>
-      <div class="form-g2"><label>货币</label>
-        <select class="inp" id="stripe-currency">
-          <option value="jpy">JPY 日元</option>
-          <option value="usd">USD 美元</option>
-          <option value="cny">CNY 人民币</option>
-        </select>
-      </div>
-    </div>
-    <div class="form-g2"><label>Publishable Key</label>
-      <input class="inp" id="stripe-pk" type="text" placeholder="pk_test_... 或 pk_live_..."></div>
-    <div class="form-g2"><label>Secret Key</label>
-      <input class="inp" id="stripe-sk" type="password" placeholder="sk_test_... 或 sk_live_..."></div>
-    <div class="form-g2"><label>Webhook Signing Secret</label>
-      <input class="inp" id="stripe-ws" type="password" placeholder="whsec_..."></div>
-    <div style="font-size:.7rem;color:var(--tx2);margin:10px 0 8px;padding-top:8px;border-top:1px solid var(--bd)">
-      产品定价（填入 Stripe Price ID，留空则使用下方自定义金额）
-    </div>
-    <div class="form-row">
-      <div class="form-g2"><label>月付 Price ID</label>
-        <input class="inp" id="stripe-price-monthly" type="text" placeholder="price_xxx（可选）"></div>
-      <div class="form-g2"><label>年付 Price ID</label>
-        <input class="inp" id="stripe-price-annual" type="text" placeholder="price_xxx（可选）"></div>
-    </div>
-    <div style="font-size:.7rem;color:var(--tx2);margin-bottom:6px">未填 Price ID 时的备用金额（按最小货币单位，JPY=直接填整数）</div>
-    <div class="form-row">
-      <div class="form-g2"><label>月付金额</label>
-        <input class="inp" id="stripe-amt-monthly" type="number" value="980"></div>
-      <div class="form-g2"><label>年付金额</label>
-        <input class="inp" id="stripe-amt-annual" type="number" value="8800"></div>
-    </div>
-    <div class="form-g2"><label>产品名称</label>
-      <input class="inp" id="stripe-product" type="text" placeholder="Server Manager 会员"></div>
-    <div class="err-msg" id="stripe-cfg-err"></div>
-  </div>
-  <div class="modal-footer">
-    <button class="btn" onclick="closeOverlay('ov-stripe')">取消</button>
-    <button class="btn btn-acc" onclick="saveStripeConfig()">保存配置</button>
-  </div>
-</div>
-</div>
-
 <!-- ALERTS MODAL -->
 <div class="overlay" id="ov-alerts" onclick="closeOvBg(event,'ov-alerts')">
 <div class="modal modal-wide">
@@ -920,7 +844,43 @@ zh:{
   'tr.health_critical':'健康状态：严重','tr.health_warning':'健康状态：警告',
   'tr.temp_critical':'温度传感器：严重','tr.fan_failed':'风扇故障',
   'tr.psu_failed':'电源模块故障','tr.power_off':'服务器关机','tr.hardware_missing':'硬件丢失',
-},
+},  // Subscription modal (full i18n)
+  'sub.modal_title':'开通 Server Manager 会员',
+  'sub.modal_sub':'会员专属：无限服务器监控与全功能访问',
+  'sub.f1':'无限服务器监控','sub.f2':'Redfish / IPMI 双协议',
+  'sub.f3':'报警通知（Telegram / 邮件 / 短信）','sub.f4':'多用户与权限管理',
+  'sub.f5':'子集群分组管理','sub.f6':'BMC 密码远程修改',
+  'sub.plan_monthly':'月付会员','sub.plan_annual':'年付会员',
+  'sub.save_pct':'年付节省 {pct}%',
+  'sub.pay_methods':'支付方式',
+  'sub.pay_card':'信用卡 / 借记卡',
+  'sub.pay_alipay':'支付宝 QR',
+  'sub.pay_wechat':'微信支付 QR',
+  'sub.checkout_btn':'立即开通会员','sub.checking':'开通中...',
+  'sub.secure_note':'通过 Stripe 安全支付 · SSL 加密 · 随时可取消会员',
+  'sub.manage_btn':'管理会员 / 发票','sub.cancel_btn':'取消会员',
+  'sub.active_title':'会员有效','sub.pastdue_title':'续费异常',
+  'sub.active_detail_m':'月付会员','sub.active_detail_a':'年付会员',
+  'sub.valid_until':'有效期至',
+  'sub.pastdue_warn':'⚠️ 续费失败，请更新付款方式',
+  'sub.confirm_cancel':'确认取消会员？取消后立即失效，剩余时间不退款。',
+  'sub.cancel_ok':'已取消会员',
+  'sub.not_configured':'⚠️ 支付系统配置中，请稍后再试或联系 CATNETWORK 客服',
+  'sub.monthly_price':'¥2,980','sub.annual_price':'¥24,800',
+  'sub.monthly_unit':'/月','sub.annual_unit':'/年',
+  // Confirm dialogs
+  'confirm.delete_user':'确认删除用户',
+  'confirm.delete_sc':'确认删除子集群',
+  'confirm.sc_note':'注意：机器本身不会被删除，仅移除分组。',
+  'confirm.delete_rule':'确认删除此规则？',
+  'confirm.clear_hist':'确认清空所有报警记录？',
+  'confirm.cancel_member':'确认取消会员？取消后立即失效，剩余时间不退款。',
+  'confirm.delete_bmc_pass':'确认将 BMC 密码修改为新密码？此操作直接写入硬件。',
+  // Portal error
+  'portal.error':'无法打开管理页面',
+  // Table no data
+  'tbl.no_data':'—',
+
 en:{
   'servers':'servers','online':'online','offline':'offline','collecting':'Collecting','refreshed':'Updated:',
   'filter':'Filter:','all':'All','ok':'OK','warning':'Warning','critical':'Critical',
@@ -996,7 +956,39 @@ en:{
   'tr.health_critical':'Health: Critical','tr.health_warning':'Health: Warning',
   'tr.temp_critical':'Temp Sensor: Critical','tr.fan_failed':'Fan Failed',
   'tr.psu_failed':'PSU Failed','tr.power_off':'Server Power Off','tr.hardware_missing':'Hardware Missing',
-},
+},  'sub.modal_title':'Join Server Manager',
+  'sub.modal_sub':'Member exclusive: unlimited server monitoring & full access',
+  'sub.f1':'Unlimited server monitoring','sub.f2':'Redfish & IPMI protocols',
+  'sub.f3':'Alert notifications (Telegram / Email / SMS)','sub.f4':'Multi-user access control',
+  'sub.f5':'Sub-cluster grouping','sub.f6':'Remote BMC password change',
+  'sub.plan_monthly':'Monthly Member','sub.plan_annual':'Annual Member',
+  'sub.save_pct':'Save {pct}% with annual',
+  'sub.pay_methods':'Payment methods',
+  'sub.pay_card':'Credit / Debit card',
+  'sub.pay_alipay':'Alipay QR',
+  'sub.pay_wechat':'WeChat Pay QR',
+  'sub.checkout_btn':'Subscribe Now','sub.checking':'Processing...',
+  'sub.secure_note':'Secure payment via Stripe · SSL encrypted · Cancel anytime',
+  'sub.manage_btn':'Manage Membership / Invoices','sub.cancel_btn':'Cancel Membership',
+  'sub.active_title':'Active Member','sub.pastdue_title':'Payment Issue',
+  'sub.active_detail_m':'Monthly plan','sub.active_detail_a':'Annual plan',
+  'sub.valid_until':'Valid until',
+  'sub.pastdue_warn':'⚠️ Payment failed, please update payment method',
+  'sub.confirm_cancel':'Cancel membership? Access ends immediately with no refund.',
+  'sub.cancel_ok':'Membership cancelled',
+  'sub.not_configured':'⚠️ Payment system is being configured. Please try later or contact CATNETWORK.',
+  'sub.monthly_price':'¥2,980','sub.annual_price':'¥24,800',
+  'sub.monthly_unit':'/month','sub.annual_unit':'/year',
+  'confirm.delete_user':'Confirm delete user',
+  'confirm.delete_sc':'Confirm delete subcluster',
+  'confirm.sc_note':'Note: machines will not be deleted, only the grouping.',
+  'confirm.delete_rule':'Confirm delete this rule?',
+  'confirm.clear_hist':'Clear all alert history?',
+  'confirm.cancel_member':'Cancel membership? Access ends immediately with no refund.',
+  'confirm.delete_bmc_pass':'Confirm BMC password change? This writes directly to hardware.',
+  'portal.error':'Cannot open management page',
+  'tbl.no_data':'—',
+
 ja:{
   'servers':'台','online':'オンライン','offline':'オフライン','collecting':'収集中','refreshed':'更新:',
   'filter':'フィルター：','all':'すべて','ok':'正常','warning':'警告','critical':'重大',
@@ -1072,7 +1064,40 @@ ja:{
   'tr.health_critical':'健全性：重大','tr.health_warning':'健全性：警告',
   'tr.temp_critical':'温度センサー：重大','tr.fan_failed':'ファン障害',
   'tr.psu_failed':'電源ユニット障害','tr.power_off':'サーバー電源オフ','tr.hardware_missing':'ハードウェア欠損',
-}};
+}
+  'sub.modal_title':'Server Manager に参加する',
+  'sub.modal_sub':'メンバー専用：無制限サーバー監視＆全機能アクセス',
+  'sub.f1':'無制限サーバー監視','sub.f2':'Redfish / IPMI プロトコル',
+  'sub.f3':'アラート通知（Telegram / メール / SMS）','sub.f4':'マルチユーザー権限管理',
+  'sub.f5':'サブクラスター分類','sub.f6':'BMC パスワードリモート変更',
+  'sub.plan_monthly':'月払いプラン','sub.plan_annual':'年払いプラン',
+  'sub.save_pct':'年払いで {pct}% 節約',
+  'sub.pay_methods':'お支払い方法',
+  'sub.pay_card':'クレジット / デビットカード',
+  'sub.pay_alipay':'Alipay QR',
+  'sub.pay_wechat':'WeChat Pay QR',
+  'sub.checkout_btn':'今すぐ加入','sub.checking':'処理中...',
+  'sub.secure_note':'Stripe による安全な支払い · SSL 暗号化 · いつでもキャンセル可',
+  'sub.manage_btn':'メンバーシップ管理 / 請求書','sub.cancel_btn':'メンバーシップをキャンセル',
+  'sub.active_title':'メンバーシップ有効','sub.pastdue_title':'支払い問題',
+  'sub.active_detail_m':'月払いプラン','sub.active_detail_a':'年払いプラン',
+  'sub.valid_until':'有効期限',
+  'sub.pastdue_warn':'⚠️ 支払いが失敗しました。お支払い方法を更新してください',
+  'sub.confirm_cancel':'メンバーシップをキャンセルしますか？即時失効、返金不可。',
+  'sub.cancel_ok':'メンバーシップをキャンセルしました',
+  'sub.not_configured':'⚠️ 決済システムを設定中です。後ほどお試しいただくか CATNETWORK にお問い合わせください。',
+  'sub.monthly_price':'¥2,980','sub.annual_price':'¥24,800',
+  'sub.monthly_unit':'/月','sub.annual_unit':'/年',
+  'confirm.delete_user':'ユーザーを削除しますか',
+  'confirm.delete_sc':'サブクラスターを削除しますか',
+  'confirm.sc_note':'注意：サーバー自体は削除されません。グループのみ削除されます。',
+  'confirm.delete_rule':'このルールを削除しますか？',
+  'confirm.clear_hist':'すべてのアラート履歴をクリアしますか？',
+  'confirm.cancel_member':'メンバーシップをキャンセルしますか？即時失効、返金不可。',
+  'confirm.delete_bmc_pass':'BMC パスワードを変更しますか？ハードウェアに直接書き込まれます。',
+  'portal.error':'管理ページを開けません',
+  'tbl.no_data':'—',
+};
 let currentLang=localStorage.getItem('sm_lang')||'zh';
 const t=k=>(LANG[currentLang]||LANG.zh)[k]||k;
 
@@ -1155,6 +1180,7 @@ function setLang(l){
   if($('ov-alerts').classList.contains('open')){
     applyAlertI18n();loadChannelsTab();loadRulesTab();
   }
+  if($('ov-sub').classList.contains('open')) openSubModal();
 }
 
 /* ── State ─────────────────────────────────────────────────── */
@@ -1664,7 +1690,6 @@ function openOverlay(id){
   else if(id==='ov-sc')openScModal();
   else if(id==='ov-alerts')openAlertsModal();
   else if(id==='ov-sub')openSubModal();
-  else if(id==='ov-stripe')openStripeModal();
   else{$(id).classList.add('open');document.body.style.overflow='hidden';}
 }
 function closeOverlay(id){$(id).classList.remove('open');document.body.style.overflow='';}
@@ -1977,39 +2002,54 @@ function updateSubBadge(){
 
 async function openSubModal(){
   await loadSubscription();
-  const cfg_r = await api('GET','/api/stripe/config');
-  const cfg = cfg_r ? await cfg_r.json() : {};
-  const amt_m = cfg.amount_monthly || 980;
-  const amt_a = cfg.amount_annual  || 8800;
-  const cur = (cfg.currency||'jpy').toUpperCase();
-  const fmt = n => cur==='JPY' ? `¥${n.toLocaleString()}` : `${cur} ${n}`;
-  const pMonthly = $('plan-monthly-price');
-  const pAnnual  = $('plan-annual-price');
-  if(pMonthly) pMonthly.innerHTML = `${fmt(amt_m)}<span>/月</span>`;
-  if(pAnnual)  pAnnual.innerHTML  = `${fmt(amt_a)}<span>/年</span>`;
-  const pct = Math.round((1 - amt_a/(amt_m*12))*100);
-  const saveEl = $('lbl-plan-save');
-  if(saveEl && pct > 0) saveEl.textContent = `年付节省 ${pct}%`;
+  // Apply i18n to all modal text
+  $('sub-modal-title').textContent = t('sub.modal_title');
+  $('sub-modal-sub').textContent   = t('sub.modal_sub');
+  // Feature list (language-aware)
+  const features = ['sub.f1','sub.f2','sub.f3','sub.f4','sub.f5','sub.f6'];
+  $('sub-feature-list').innerHTML = features.map(k=>`<li>${t(k)}</li>`).join('');
+  // Plan names
+  $('lbl-plan-monthly').textContent = t('sub.plan_monthly');
+  $('lbl-plan-annual').textContent  = t('sub.plan_annual');
+  // Prices (language-driven)
+  const mp = t('sub.monthly_price'), ap = t('sub.annual_price');
+  const mu = t('sub.monthly_unit'),  au = t('sub.annual_unit');
+  $('plan-monthly-price').innerHTML = `${mp}<span>${mu}</span>`;
+  $('plan-annual-price').innerHTML  = `${ap}<span>${au}</span>`;
+  // Savings %
+  const numM = parseInt(mp.replace(/[^0-9]/g,'')) || 2980;
+  const numA = parseInt(ap.replace(/[^0-9]/g,'')) || 24800;
+  const pct  = Math.round((1 - numA/(numM*12))*100);
+  $('lbl-plan-save').textContent = pct > 0 ? t('sub.save_pct').replace('{pct}', pct) : '';
+  // Payment methods
+  $('lbl-pay-methods').textContent = t('sub.pay_methods');
+  $('pay-card-lbl').textContent    = t('sub.pay_card');
+  $('pay-alipay-lbl').textContent  = t('sub.pay_alipay');
+  $('pay-wechat-lbl').textContent  = t('sub.pay_wechat');
+  // Checkout button & note
+  $('btn-checkout-lbl').textContent = t('sub.checkout_btn');
+  $('lbl-stripe-note').textContent  = t('sub.secure_note');
+  // Active/checkout state
   const s = _subInfo;
   const isActive = s && (s.status==='active' || s.status==='past_due');
   $('sub-active-view').style.display  = isActive ? '' : 'none';
   $('sub-checkout-view').style.display = isActive ? 'none' : '';
   if(isActive){
-    let detail = s.plan==='monthly' ? '月付会员' : '年付会员';
+    const planKey = s.plan==='monthly' ? 'sub.active_detail_m' : 'sub.active_detail_a';
+    let detail = t(planKey);
     if(s.expires_at){
       const d = new Date(s.expires_at*1000);
-      detail += ` · 有效期至 ${d.toLocaleDateString('zh-CN')}`;
+      const locale = currentLang==='ja'?'ja-JP':currentLang==='en'?'en-US':'zh-CN';
+      detail += ` · ${t('sub.valid_until')} ${d.toLocaleDateString(locale)}`;
     }
-    if(s.status==='past_due') detail += ' · ⚠️ 续费失败，请更新付款方式';
-    $('sub-active-title').textContent = s.status==='active' ? '会员有效' : '续费异常';
-    $('sub-active-title').style.color = s.status==='active' ? 'var(--ok)' : 'var(--crit)';
+    if(s.status==='past_due') detail += ' · ' + t('sub.pastdue_warn');
+    $('sub-active-title').textContent = t(s.status==='active'?'sub.active_title':'sub.pastdue_title');
+    $('sub-active-title').style.color = s.status==='active'?'var(--ok)':'var(--crit)';
     $('sub-active-detail').textContent = detail;
+    $('btn-portal').textContent    = t('sub.manage_btn');
+    $('btn-cancel-sub').textContent = t('sub.cancel_btn');
   }
-  if(!cfg.secret_key_set && currentUser?.role==='admin'){
-    $('sub-err').textContent = '⚠️ 尚未配置 Stripe，请先在「设置 → 会员设置」中填写 API Key';
-  } else {
-    $('sub-err').textContent = '';
-  }
+  $('sub-err').textContent = '';
   $('ov-sub').classList.add('open');
   document.body.style.overflow='hidden';
 }
@@ -2023,11 +2063,11 @@ function selectPlan(plan){
 async function startCheckout(){
   const btn = $('btn-checkout');
   const lbl = $('btn-checkout-lbl');
-  btn.disabled = true; lbl.textContent = '开通中...';
+  btn.disabled = true; lbl.textContent = t('sub.checking');
   $('sub-err').textContent = '';
   try{
     const r = await api('POST','/api/subscription/checkout',{plan:_selectedPlan});
-    if(!r){ btn.disabled=false; lbl.textContent='立即开通会员'; return; }
+    if(!r){ btn.disabled=false; lbl.textContent=t('sub.checkout_btn'); return; }
     const d = await r.json();
     if(r.ok && d.url){ window.location.href = d.url; }
     else {
@@ -2036,7 +2076,7 @@ async function startCheckout(){
     }
   }catch(e){
     $('sub-err').textContent = '网络错误：'+e;
-    btn.disabled=false; lbl.textContent='立即开通会员';
+    btn.disabled=false; lbl.textContent=t('sub.checkout_btn');
   }
 }
 
@@ -2045,55 +2085,16 @@ async function openPortal(){
   if(!r) return;
   const d = await r.json();
   if(r.ok && d.url) window.open(d.url,'_blank');
-  else alert(d.detail||'无法打开管理页面');
+  else alert(d.detail||t('portal.error'));
 }
 
 async function cancelSubscription(){
-  if(!confirm('确认取消会员？取消后立即失效，剩余时间不退款。')) return;
+  if(!confirm(t('confirm.cancel_member'))) return;
   const r = await api('POST','/api/subscription/cancel',{});
   if(!r) return;
   const d = await r.json();
-  if(r.ok){ await loadSubscription(); closeOverlay('ov-sub'); alert('已取消会员'); }
+  if(r.ok){ await loadSubscription(); closeOverlay('ov-sub'); alert(t('sub.cancel_ok')); }
   else alert(d.detail||'取消失败');
-}
-
-async function openStripeModal(){
-  const r = await api('GET','/api/stripe/config');
-  if(!r) return;
-  const c = await r.json();
-  $('stripe-mode').value = c.mode||'test';
-  $('stripe-currency').value = c.currency||'jpy';
-  $('stripe-pk').value = c.publishable_key||'';
-  $('stripe-sk').value = c.secret_key||'';
-  $('stripe-ws').value = c.webhook_secret||'';
-  $('stripe-price-monthly').value = c.price_monthly_id||'';
-  $('stripe-price-annual').value  = c.price_annual_id||'';
-  $('stripe-amt-monthly').value   = c.amount_monthly||980;
-  $('stripe-amt-annual').value    = c.amount_annual||8800;
-  $('stripe-product').value = c.product_name||'Server Manager 会员';
-  $('stripe-cfg-err').textContent = '';
-  $('ov-stripe').classList.add('open');
-  document.body.style.overflow='hidden';
-}
-
-async function saveStripeConfig(){
-  const body = {
-    mode: $('stripe-mode').value,
-    currency: $('stripe-currency').value,
-    publishable_key: $('stripe-pk').value.trim(),
-    secret_key: $('stripe-sk').value.trim(),
-    webhook_secret: $('stripe-ws').value.trim(),
-    price_monthly_id: $('stripe-price-monthly').value.trim(),
-    price_annual_id:  $('stripe-price-annual').value.trim(),
-    amount_monthly: parseInt($('stripe-amt-monthly').value)||980,
-    amount_annual:  parseInt($('stripe-amt-annual').value)||8800,
-    product_name: $('stripe-product').value.trim()||'Server Manager 会员',
-  };
-  const r = await api('POST','/api/stripe/config', body);
-  if(!r) return;
-  const d = await r.json();
-  if(r.ok){ closeOverlay('ov-stripe'); }
-  else { $('stripe-cfg-err').textContent = d.detail||'保存失败'; }
 }
 
 function checkSubRedirect(){
