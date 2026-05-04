@@ -117,18 +117,18 @@ def save_settings(data: dict) -> None:
 # ════════════════════════════════════════════════════════════════════
 
 DEFAULT_STRIPE_CONFIG = {
-    "mode": "test",                 # test | live
-    "publishable_key": "",          # pk_test_... or pk_live_...
-    "secret_key": "",               # sk_test_... or sk_live_...
+    "mode": "live",                 # test | live
+    "publishable_key": "",          # pk_live_... （在 Web 界面「会员设置」中填写）
+    "secret_key": "",               # sk_live_...
     "webhook_secret": "",           # whsec_...
-    "price_monthly_id": "",         # Stripe Price ID for monthly plan
-    "price_annual_id": "",          # Stripe Price ID for annual plan
+    "price_monthly_id": "price_1TTDjURqL7k7pWSVvEGvcPzR",   # 月付 ¥2,980
+    "price_annual_id":  "price_1TTDjURqL7k7pWSVMCVISuHl",   # 年付 ¥24,800
     "currency": "jpy",
-    "amount_monthly": 980,          # JPY
-    "amount_annual": 8800,          # JPY
-    "product_name": "Server Manager Pro",
-    "success_url": "",              # 支付成功跳转 URL（留空自动推断）
-    "cancel_url": "",               # 取消支付跳转 URL
+    "amount_monthly": 2980,
+    "amount_annual":  24800,
+    "product_name": "Server Manager 会員",
+    "success_url": "",              # 留空自动推断
+    "cancel_url": "",
 }
 
 def load_stripe_config() -> dict:

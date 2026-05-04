@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Server Manager v1.2.0 — 安装 / 升级 / 卸载 / 代理配置
+# Server Manager v1.3.0 — 安装 / 升级 / 卸载 / 代理配置
 # © CATNETWORK  https://github.com/asdfec456-dot/servermanager
 #
 # 安装:      curl -fsSL https://asdfec456-dot.github.io/servermanager/get.sh | bash
@@ -10,13 +10,17 @@
 # 非交互模式（--yes 跳过所有确认）：
 #   curl ... | bash -s install --yes
 #
-# 非交互代理配置（通过环境变量）：
+# 非交互会员配置（通过环境变量）：
+#   STRIPE_PK=pk_live_xxx STRIPE_SK=sk_live_xxx \
+#     curl ... | bash -s install --yes
+#
+# 非交互代理配置：
 #   DOMAIN=sm.example.com PROXY_PORT=80 PUBLIC_IP=1.2.3.4 \
 #     curl ... | bash -s install --yes
 
 set -euo pipefail
 
-VERSION="1.2.0"
+VERSION="1.3.0"
 REPO_URL="https://github.com/asdfec456-dot/servermanager.git"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/servermanager}"
 SERVICE_NAME="servermanager"
@@ -30,6 +34,11 @@ PROXY_CONFIG_FILE="$INSTALL_DIR/data/.proxy"
 DOMAIN="${DOMAIN:-}"
 PROXY_PORT="${PROXY_PORT:-80}"
 PUBLIC_IP="${PUBLIC_IP:-}"
+
+# 会员配置（通过环境变量注入，也可交互输入）
+STRIPE_PK="${STRIPE_PK:-}"
+STRIPE_SK="${STRIPE_SK:-}"
+STRIPE_WS="${STRIPE_WS:-}"
 
 # ── 参数解析 ──────────────────────────────────────────────────────
 ACTION="${1:-install}"
@@ -181,6 +190,142 @@ setup_service(){
       warn "当前用户无法执行 sudo，服务未自动配置。请用 sudo 权限用户运行：sudo bash $INSTALL_DIR/get.sh install --yes"
     fi
   fi
+}
+
+# ════════════════════════════════════════════════════════════════════
+# 会员 / Stripe 配置
+# ════════════════════════════════════════════════════════════════════
+
+# Price IDs（CATNETWORK 官方产品）
+_STRIPE_PRICE_MONTHLY="price_1TTDjURqL7k7pWSVvEGvcPzR"   # ¥2,980/月
+_STRIPE_PRICE_ANNUAL="price_1TTDjURqL7k7pWSVMCVISuHl"    # ¥24,800/年
+
+_write_stripe_config(){
+  local pk="$1" sk="$2" ws="${3:-}" mode="live"
+  [[ "$pk" == pk_test_* || "$sk" == sk_test_* ]] && mode="test"
+  mkdir -p "$INSTALL_DIR/data"
+  cat > "$INSTALL_DIR/data/stripe_config.json" << EOF
+{
+  "mode": "$mode",
+  "publishable_key": "$pk",
+  "secret_key": "$sk",
+  "webhook_secret": "$ws",
+  "price_monthly_id": "$_STRIPE_PRICE_MONTHLY",
+  "price_annual_id": "$_STRIPE_PRICE_ANNUAL",
+  "currency": "jpy",
+  "amount_monthly": 2980,
+  "amount_annual": 24800,
+  "product_name": "Server Manager 会員"
+}
+EOF
+}
+
+_update_stripe_price_ids(){
+  # 升级时：只更新 Price ID 和金额，保留用户已有的 API Key
+  local cfg="$INSTALL_DIR/data/stripe_config.json"
+  [ -f "$cfg" ] || return
+  command -v python3 &>/dev/null || return
+  python3 - "$cfg" "$_STRIPE_PRICE_MONTHLY" "$_STRIPE_PRICE_ANNUAL" << 'PYEOF'
+import json, sys
+path, pm, pa = sys.argv[1], sys.argv[2], sys.argv[3]
+with open(path) as f: c = json.load(f)
+c['price_monthly_id'] = pm
+c['price_annual_id']  = pa
+c['amount_monthly']   = 2980
+c['amount_annual']    = 24800
+c.setdefault('product_name', 'Server Manager 会員')
+with open(path, 'w') as f: json.dump(c, f, indent=2, ensure_ascii=False)
+PYEOF
+  ok "Price ID 已同步"
+}
+
+setup_membership(){
+  echo
+  sep
+  info "会员配置（Stripe 支付）"
+  sep
+  echo "  月付 Price ID: $_STRIPE_PRICE_MONTHLY  (¥2,980/月)"
+  echo "  年付 Price ID: $_STRIPE_PRICE_ANNUAL  (¥24,800/年)"
+  echo
+
+  # 情形1：环境变量已提供 Key（非交互 CI/脚本模式）
+  if [ -n "$STRIPE_SK" ] && [ -n "$STRIPE_PK" ]; then
+    info "使用环境变量中的 Stripe API Key..."
+    _write_stripe_config "$STRIPE_PK" "$STRIPE_SK" "$STRIPE_WS"
+    ok "Stripe 配置完成（Price ID 已预置）"
+    _print_webhook_tip
+    return
+  fi
+
+  # 情形2：配置文件已存在且有 Key（重装场景）
+  local existing_cfg="$INSTALL_DIR/data/stripe_config.json"
+  if [ -f "$existing_cfg" ]; then
+    local existing_sk
+    existing_sk=$(python3 -c "import json; print(json.load(open('$existing_cfg')).get('secret_key',''))" 2>/dev/null || echo "")
+    if [ -n "$existing_sk" ] && [ "$existing_sk" != '""' ]; then
+      info "检测到已有 Stripe 配置，仅更新 Price ID..."
+      _update_stripe_price_ids
+      return
+    fi
+  fi
+
+  # 情形3：交互式配置
+  if ! is_interactive; then
+    # 非交互且无 Key：写入仅含 Price ID 的配置，Key 留空
+    _write_stripe_config "" "" ""
+    warn "Stripe API Key 未配置，请安装完成后在 Web 界面「设置 → 会员设置」中填写。"
+    return
+  fi
+
+  echo "  支持信用卡 / 支付宝 QR / 微信支付 QR"
+  echo
+  read -rp "  是否现在配置 Stripe API Key？[Y/n] " yn
+  yn="${yn:-Y}"
+  if [[ ! "$yn" =~ ^[Yy]$ ]]; then
+    # 写入仅含 Price ID 的配置
+    _write_stripe_config "" "" ""
+    info "已跳过。安装完成后在 Web 界面「设置 → 会员设置」中填写 API Key 即可开通会员功能。"
+    return
+  fi
+
+  echo
+  echo "  请前往 Stripe Dashboard → Developers → API Keys 获取以下信息："
+  echo "  （测试时用 pk_test_ / sk_test_ 前缀的 Key）"
+  echo
+  read -rp "  Publishable Key (pk_live_... / pk_test_...): " _pk
+  _pk="${_pk// /}"
+  read -rsp "  Secret Key     (sk_live_... / sk_test_...): " _sk; echo
+  _sk="${_sk// /}"
+  read -rp "  Webhook Secret (whsec_..., 留空可稍后配置): " _ws
+  _ws="${_ws// /}"
+
+  if [ -z "$_pk" ] || [ -z "$_sk" ]; then
+    warn "Key 为空，已写入 Price ID，API Key 请稍后在 Web 界面配置。"
+    _write_stripe_config "" "" ""
+    return
+  fi
+
+  _write_stripe_config "$_pk" "$_sk" "$_ws"
+  ok "Stripe 配置完成！"
+  _print_webhook_tip
+}
+
+_print_webhook_tip(){
+  echo
+  info "Webhook 配置（可选，用于实时同步会员状态）："
+  echo "  1. 前往 Stripe Dashboard → Developers → Webhooks → Add endpoint"
+  local _base_url
+  if [ -f "$PROXY_CONFIG_FILE" ]; then
+    # shellcheck disable=SC1090
+    source "$PROXY_CONFIG_FILE" 2>/dev/null || true
+    _base_url="https://${SM_DOMAIN:-$(local_ip)}"
+  else
+    _base_url="http://$(local_ip):${PORT}"
+  fi
+  echo "  2. Endpoint URL: ${_base_url}/api/subscription/webhook"
+  echo "  3. Events: checkout.session.completed, customer.subscription.*, invoice.*"
+  echo "  4. 复制 Signing secret → 填入「设置 → 会员设置 → Webhook Secret」"
+  echo
 }
 
 # ════════════════════════════════════════════════════════════════════
@@ -590,6 +735,9 @@ do_install(){
   # systemd 服务
   setup_service
 
+  # 会员 / Stripe 配置
+  setup_membership
+
   echo
   ok "安装完成！"
   echo
@@ -600,6 +748,7 @@ do_install(){
     echo "  代理地址：http://${SM_DOMAIN}:${SM_PROXY_PORT}"
   fi
   echo "  配置入口：右上角「设置」→ 填写 BMC IP 范围和凭据"
+  echo "  开通会员：右上角「开通会员」按钮 → 填写 Stripe Key 后即可购买"
   echo
 }
 
@@ -623,6 +772,9 @@ do_upgrade(){
   pip install --upgrade pip -q
   pip install -r requirements.txt -q
   ok "依赖更新完成"
+
+  # 同步 Price ID（保留已有 API Key）
+  _update_stripe_price_ids
 
   if service_active; then
     if can_sudo; then
@@ -729,6 +881,9 @@ case "$ACTION" in
     echo
     echo "选项："
     echo "  --yes / -y   自动确认所有提示"
+    echo
+    echo "会员配置环境变量（非交互模式）："
+    echo "  STRIPE_PK=pk_live_...  STRIPE_SK=sk_live_...  STRIPE_WS=whsec_..."
     echo
     echo "代理配置环境变量（非交互模式）："
     echo "  DOMAIN=example.com  PROXY_PORT=80  PUBLIC_IP=1.2.3.4"
