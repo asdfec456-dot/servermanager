@@ -183,10 +183,15 @@ def _get_stripe_client():
     if not STRIPE_AVAILABLE:
         raise HTTPException(503, "stripe 库未安装，请运行 pip install stripe")
     cfg = load_stripe_config()
-    key = cfg.get("secret_key", "")
+    # 优先使用环境变量（CATNETWORK 服务器端配置，不暴露给用户）
+    import os
+    key = os.environ.get("STRIPE_SK") or cfg.get("secret_key", "")
     if not key:
-        raise HTTPException(400, "Stripe Secret Key 未配置")
+        raise HTTPException(400, "会员功能暂未开通，请联系 CATNETWORK 客服")
     _stripe.api_key = key
+    # 同步 webhook secret（env 优先）
+    ws = os.environ.get("STRIPE_WS") or cfg.get("webhook_secret", "")
+    cfg["_webhook_secret"] = ws
     return cfg
 
 def _infer_base_url(req: Request) -> str:
@@ -1631,9 +1636,14 @@ async def api_get_stripe_config(admin: dict = Depends(require_admin)):
 async def api_save_stripe_config(req: Request, admin: dict = Depends(require_admin)):
     body = await req.json()
     existing = load_stripe_config()
+    # Price ID 和金额不允许通过 API 修改（硬编码在代码中）
+    LOCKED = {"price_monthly_id", "price_annual_id", "amount_monthly",
+              "amount_annual", "currency", "product_name"}
     for k, v in body.items():
-        if k in ("secret_key", "webhook_secret") and v.startswith("••••"):
-            continue   # 不覆盖占位符
+        if k in LOCKED:
+            continue
+        if k in ("secret_key", "webhook_secret") and str(v).startswith("••••"):
+            continue
         existing[k] = v
     save_stripe_config(existing)
     return {"ok": True}
@@ -1697,11 +1707,12 @@ async def api_create_checkout(req: Request, admin: dict = Depends(require_admin)
 @app.post("/api/subscription/webhook")
 async def api_stripe_webhook(req: Request):
     """接收 Stripe Webhook 事件"""
+    import os
     cfg = load_stripe_config()
     if not STRIPE_AVAILABLE:
         raise HTTPException(503, "stripe 未安装")
-    _stripe.api_key = cfg.get("secret_key", "")
-    webhook_secret = cfg.get("webhook_secret", "")
+    _stripe.api_key = os.environ.get("STRIPE_SK") or cfg.get("secret_key", "")
+    webhook_secret = os.environ.get("STRIPE_WS") or cfg.get("webhook_secret", "")
 
     payload = await req.body()
     sig     = req.headers.get("stripe-signature", "")
