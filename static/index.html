@@ -449,7 +449,7 @@ tr:hover td{background:var(--sf2)}
   <div class="hdr-right">
     <div class="user-badge"><span id="hdr-uname"></span><span class="role-tag" id="hdr-role-tag"></span></div>
     <button class="sub-badge sub-inactive" id="sub-badge" onclick="openOverlay('ov-sub')" style="display:none">
-      <span id="sub-badge-text">开通会员</span>
+      <span id="sub-badge-text"></span>
     </button>
     <div class="lang-sw">
       <button class="lang-btn" data-lang="zh" onclick="setLang('zh')">中</button>
@@ -865,6 +865,10 @@ zh:{
   'sub.pastdue_warn':'⚠️ 续费失败，请更新付款方式',
   'sub.confirm_cancel':'确认取消会员？取消后立即失效，剩余时间不退款。',
   'sub.cancel_ok':'已取消会员',
+  'sub.badge_inactive':'开通会员',
+  'sub.badge_active':'会员',
+  'sub.badge_expiring':'会员 · 还剩 {n} 天',
+  'sub.badge_pastdue':'会员 · 续费失败',
   'sub.not_configured':'⚠️ 支付系统配置中，请稍后再试或联系 CATNETWORK 客服',
   'sub.monthly_price':'¥2,980','sub.annual_price':'¥24,800',
   'sub.monthly_unit':'/月','sub.annual_unit':'/年',
@@ -976,6 +980,10 @@ en:{
   'sub.pastdue_warn':'⚠️ Payment failed, please update payment method',
   'sub.confirm_cancel':'Cancel membership? Access ends immediately with no refund.',
   'sub.cancel_ok':'Membership cancelled',
+  'sub.badge_inactive':'Join Member',
+  'sub.badge_active':'Member',
+  'sub.badge_expiring':'Member · {n} days left',
+  'sub.badge_pastdue':'Member · Payment failed',
   'sub.not_configured':'⚠️ Payment system is being configured. Please try later or contact CATNETWORK.',
   'sub.monthly_price':'¥2,980','sub.annual_price':'¥24,800',
   'sub.monthly_unit':'/month','sub.annual_unit':'/year',
@@ -1084,6 +1092,10 @@ ja:{
   'sub.pastdue_warn':'⚠️ 支払いが失敗しました。お支払い方法を更新してください',
   'sub.confirm_cancel':'メンバーシップをキャンセルしますか？即時失効、返金不可。',
   'sub.cancel_ok':'メンバーシップをキャンセルしました',
+  'sub.badge_inactive':'メンバーになる',
+  'sub.badge_active':'メンバー',
+  'sub.badge_expiring':'メンバー · 残り{n}日',
+  'sub.badge_pastdue':'メンバー · 支払い失敗',
   'sub.not_configured':'⚠️ 決済システムを設定中です。後ほどお試しいただくか CATNETWORK にお問い合わせください。',
   'sub.monthly_price':'¥2,980','sub.annual_price':'¥24,800',
   'sub.monthly_unit':'/月','sub.annual_unit':'/年',
@@ -1181,6 +1193,7 @@ function setLang(l){
     applyAlertI18n();loadChannelsTab();loadRulesTab();
   }
   if($('ov-sub').classList.contains('open')) openSubModal();
+  updateSubBadge();
 }
 
 /* ── State ─────────────────────────────────────────────────── */
@@ -1985,24 +1998,24 @@ function updateSubBadge(){
   if(s.status === 'active'){
     if(s.days_remaining != null && s.days_remaining <= 7){
       badge.className += 'sub-expiring';
-      txt = `会员 · 还剩 ${s.days_remaining} 天`;
+      txt = t('sub.badge_expiring').replace('{n}', s.days_remaining);
     } else {
       badge.className += 'sub-active';
-      txt = '会员';
+      txt = t('sub.badge_active');
     }
   } else if(s.status === 'past_due'){
     badge.className += 'sub-past-due';
-    txt = '会员 · 续费失败';
+    txt = t('sub.badge_pastdue');
   } else {
     badge.className += 'sub-inactive';
-    txt = '开通会员';
+    txt = t('sub.badge_inactive');
   }
   $('sub-badge-text').textContent = txt;
 }
 
 async function openSubModal(){
   await loadSubscription();
-  // Apply i18n to all modal text
+  // Apply i18n to all modal text (prices from LANG only — no API call needed)
   $('sub-modal-title').textContent = t('sub.modal_title');
   $('sub-modal-sub').textContent   = t('sub.modal_sub');
   // Feature list (language-aware)
@@ -2072,7 +2085,7 @@ async function startCheckout(){
     if(r.ok && d.url){ window.location.href = d.url; }
     else {
       $('sub-err').textContent = d.detail || '创建结账失败';
-      btn.disabled=false; lbl.textContent='立即开通会员';
+      btn.disabled=false; lbl.textContent=t('sub.checkout_btn');
     }
   }catch(e){
     $('sub-err').textContent = '网络错误：'+e;
