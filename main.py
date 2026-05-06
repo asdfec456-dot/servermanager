@@ -61,6 +61,7 @@ SUBCLUSTERS_FILE   = DATA_DIR / "subclusters.json"
 STRIPE_CONFIG_FILE = DATA_DIR / "stripe_config.json"
 SUBSCRIPTION_FILE  = DATA_DIR / "subscription.json"
 LICENSE_FILE       = DATA_DIR / "license.json"
+ALIASES_FILE       = DATA_DIR / "aliases.json"
 ALERT_RULES_FILE   = DATA_DIR / "alert_rules.json"
 ALERT_CHANNELS_FILE= DATA_DIR / "alert_channels.json"
 ALERT_STATE_FILE   = DATA_DIR / "alert_state.json"
@@ -167,6 +168,19 @@ _LICENSE_PUBLIC_KEY_PEM = b"""-----BEGIN PUBLIC KEY-----
 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEND82GS6grJtbdXjrYM5TJyRH5S8X
 WfqS7yLzbEQfMblnYweyQbJkTsz5Z1UtnCfHwuo/GYl9jf5MkUMzY0Tvdg==
 -----END PUBLIC KEY-----"""
+
+def load_aliases() -> dict:
+    DATA_DIR.mkdir(exist_ok=True)
+    if ALIASES_FILE.exists():
+        try:
+            return json.loads(ALIASES_FILE.read_text())
+        except Exception:
+            pass
+    return {}
+
+def save_aliases(data: dict) -> None:
+    DATA_DIR.mkdir(exist_ok=True)
+    ALIASES_FILE.write_text(json.dumps(data, ensure_ascii=False))
 
 def load_license() -> dict:
     DATA_DIR.mkdir(exist_ok=True)
@@ -1116,6 +1130,7 @@ async def collect_server(bmc_ip: str, settings: dict) -> dict:
 # ─── 缓存与后台刷新 ───────────────────────────────────────────────
 
 _cache: Dict[str, dict] = {}
+_first_seen: Dict[str, float] = {}   # ip → 首次发现时间戳
 _collecting = False
 _last_full_refresh: float = 0.0
 
@@ -1138,7 +1153,10 @@ async def refresh_cache() -> None:
         t0 = time.time()
         results = await asyncio.gather(*[bounded(ip) for ip in ips])
         for r in results:
-            _cache[r["bmc_ip"]] = r
+            ip = r["bmc_ip"]
+            if ip not in _first_seen:
+                _first_seen[ip] = time.time()
+            _cache[ip] = r
         _last_full_refresh = time.time()
         online = sum(1 for r in results if r["status"] == "online")
         logger.info("完成 %.1fs | 在线 %d/%d", time.time() - t0, online, len(ips))
@@ -1454,11 +1472,16 @@ def _build_server_list(user: dict) -> dict:
         for ip in sc.get("bmc_ips", []):
             ip_to_scs.setdefault(ip, []).append(sc["id"])
 
+    aliases = load_aliases()
     data = []
     for ip in visible_ips:
+        alias = aliases.get(ip, "")
         cached = _cache.get(ip)
         if cached:
-            entry = {**cached, "subcluster_ids": ip_to_scs.get(ip, [])}
+            entry = {**cached,
+                     "subcluster_ids": ip_to_scs.get(ip, []),
+                     "alias": alias,
+                     "first_seen": _first_seen.get(ip)}
         else:
             entry = {
                 "name": ip, "bmc_ip": ip, "status": "pending", "health": "Unknown",
@@ -1468,6 +1491,8 @@ def _build_server_list(user: dict) -> dict:
                 "processors": [], "memory_summary": {}, "storage": [],
                 "alerts": [], "last_updated": None, "error": None,
                 "subcluster_ids": ip_to_scs.get(ip, []),
+                "alias": alias,
+                "first_seen": _first_seen.get(ip),
             }
         data.append(entry)
 
@@ -1545,6 +1570,20 @@ async def api_parse_ranges(req: Request, admin: dict = Depends(require_admin)):
 # ═══════════════════════════════════════════════════════════════════
 # BMC 密码修改 API
 # ═══════════════════════════════════════════════════════════════════
+
+@app.put("/api/servers/{bmc_ip_enc}/alias")
+async def api_set_alias(bmc_ip_enc: str, req: Request,
+                        admin: dict = Depends(require_admin)):
+    bmc_ip = bmc_ip_enc.replace("-", ".")
+    body   = await req.json()
+    alias  = (body.get("alias") or "").strip()
+    aliases = load_aliases()
+    if alias:
+        aliases[bmc_ip] = alias
+    else:
+        aliases.pop(bmc_ip, None)
+    save_aliases(aliases)
+    return {"ok": True, "alias": alias}
 
 @app.post("/api/servers/{bmc_ip_enc}/change_password")
 async def api_change_bmc_password(bmc_ip_enc: str, req: Request,

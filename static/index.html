@@ -97,10 +97,19 @@ main{padding:16px;min-height:60vh}
 .sdot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:3px;vertical-align:middle}
 .s-ok{background:var(--ok)}.s-warn{background:var(--warn)}.s-crit{background:var(--crit)}.s-unk{background:var(--unk)}
 /* Grid views */
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
-.grid-wide{display:grid;grid-template-columns:repeat(auto-fill,minmax(460px,1fr));gap:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-items:start}
+.grid-wide{display:grid;grid-template-columns:repeat(auto-fill,minmax(460px,1fr));gap:13px;align-items:start}
 .card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .15s}
 .card:hover{transform:translateY(-2px);border-color:var(--acc);box-shadow:0 4px 16px var(--shadow)}
+/* Offline compact card */
+.card-offline{display:flex;align-items:center;gap:9px;padding:9px 13px}
+.card-offline:hover{transform:none;box-shadow:none}
+/* New machine animation */
+@keyframes new-pulse{0%,100%{box-shadow:0 0 0 2px rgba(56,189,248,.25)}50%{box-shadow:0 0 0 5px rgba(56,189,248,.5)}}
+.card-new{animation:new-pulse 2s ease-in-out infinite;border-color:var(--acc)!important}
+.new-badge{background:var(--acc);color:#fff;font-size:.55rem;font-weight:700;padding:1px 6px;border-radius:999px;letter-spacing:.04em;vertical-align:middle;margin-left:4px}
+/* Alias row in detail */
+.alias-row{display:flex;align-items:flex-end;gap:8px;padding:10px 13px;background:var(--sf2);border-bottom:1px solid var(--bd)}
 .card-head{padding:11px 13px 9px;display:flex;align-items:flex-start;justify-content:space-between;gap:7px}
 .card-title{flex:1;min-width:0}
 .card-name{font-size:.88rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -837,6 +846,7 @@ zh:{
   'al.rule_btn_add':'添加规则','al.rule_btn_save':'保存修改','al.rule_btn_cancel':'取消',
   'al.rule_btn_edit':'编辑','al.rule_btn_del':'删除','al.rule_confirm_del':'确认删除此规则？',
   'al.hist_empty':'暂无报警记录','al.hist_clear':'清空记录','al.hist_confirm_clear':'确认清空所有报警记录？',
+  'd.alias':'别名','d.alias_ph':'自定义名称（可留空）','d.alias_save':'保存','d.alias_saved':'已保存',
   'bmc.change_pw':'修改 BMC 密码','bmc.new_pw':'新密码（至少 6 位）','bmc.confirm_pw':'确认新密码',
   'bmc.submit':'应用到此服务器','bmc.submitting':'修改中...','bmc.warn':'⚠️ 修改完成后，请立即在右上角「设置」中更新全局密码，否则采集将失败。',
   'bmc.note_title':'操作说明','bmc.note':'此操作通过 Redfish / IPMI 将新密码直接写入 BMC 硬件。修改仅针对当前服务器，若所有服务器使用相同密码，则需要逐台修改，并最终更新全局设置。',
@@ -976,6 +986,7 @@ en:{
   'sub.plan_monthly':'Monthly Member','sub.plan_annual':'Annual Member',
   'sub.save_pct':'Save {pct}% with annual',
   'sub.pay_methods':'Payment methods',
+  'd.alias':'Alias','d.alias_ph':'Custom name (optional)','d.alias_save':'Save','d.alias_saved':'Saved',
   'sub.pay_card':'Credit / Debit card',
   'sub.pay_alipay':'Alipay QR',
   'sub.pay_wechat':'WeChat Pay QR',
@@ -1096,6 +1107,7 @@ ja:{
   'sub.plan_monthly':'月払いプラン','sub.plan_annual':'年払いプラン',
   'sub.save_pct':'年払いで {pct}% 節約',
   'sub.pay_methods':'お支払い方法',
+  'd.alias':'エイリアス','d.alias_ph':'カスタム名（省略可）','d.alias_save':'保存','d.alias_saved':'保存済み',
   'sub.pay_card':'クレジット / デビットカード',
   'sub.pay_alipay':'Alipay QR',
   'sub.pay_wechat':'WeChat Pay QR',
@@ -1361,20 +1373,39 @@ function sArr(c){return sortCol!==c?'<span class="sort-arr">↕</span>':sortDir=
 /* ── Card/List/Table rendering ─────────────────────────────── */
 function renderCardHtml(s,wide){
   const[hcls,hlbl]=hbadge(s),ms=s.memory_summary||{},procs=s.processors||[];
+  const key=s.bmc_ip.replace(/\./g,'-');
+  const displayName=s.alias||s.name;
+  const isNew=s.first_seen&&(Date.now()/1000-s.first_seen<86400);
+  const newBadge=isNew?`<span class="new-badge">NEW</span>`:'';
+  const newCls=isNew?' card-new':'';
+
+  // 离线/无法连接 → 紧凑单行卡片
+  if(s.status==='offline'||s.status==='pending'){
+    const dot=s.status==='offline'?'var(--crit)':'var(--unk)';
+    const errTxt=s.error?`<span style="flex:1;font-size:.65rem;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${esc(s.error)}</span>`:'';
+    return`<div class="card card-offline${newCls}" onclick="openDetail('${key}')">
+<span style="width:7px;height:7px;border-radius:50%;background:${dot};flex-shrink:0"></span>
+<span style="font-size:.82rem;font-weight:600;white-space:nowrap">${esc(displayName)}${newBadge}</span>
+<span style="font-size:.67rem;color:var(--tx3);font-family:monospace;white-space:nowrap">${s.bmc_ip}</span>
+${errTxt}
+<span class="hbadge ${hcls}" style="flex-shrink:0">${hlbl}</span>
+</div>`;
+  }
+
+  // 在线 → 正常完整卡片
   const proto=s.protocol_used?`<span class="proto-tag">${s.protocol_used}</span>`:'';
   const topT=[...(s.temperatures||[])].sort((a,b)=>{const p=h=>h==='Critical'?2:h==='Warning'?1:0;return p(b.health)-p(a.health)||b.reading_celsius-a.reading_celsius;}).slice(0,wide?6:4);
   const chips=topT.map(tp=>{const c=tp.health==='Critical'?'tchip-crit':tp.health==='Warning'?'tchip-warn':'tchip-ok';const n=tp.name.replace(/temperature/i,'').replace(/\s+/g,' ').trim()||tp.name;return`<span class="tchip ${c}"><span class="tdot" style="background:${tCol(tp.health)}"></span>${esc(n)}: ${tp.reading_celsius}°C</span>`;}).join('');
   const pct=s.power_consumed_watts?Math.min(100,s.power_consumed_watts/2000*100):0;
-  const pbar=s.status==='online'&&s.power_consumed_watts!=null?`<div class="pbar-wrap"><div class="pbar-row"><span>${t('c.power')}</span><span>${fmtW(s.power_consumed_watts)}</span></div><div class="pbar-track"><div class="pbar-fill" style="width:${pct}%"></div></div></div>`:'';
+  const pbar=s.power_consumed_watts!=null?`<div class="pbar-wrap"><div class="pbar-row"><span>${t('c.power')}</span><span>${fmtW(s.power_consumed_watts)}</span></div><div class="pbar-track"><div class="pbar-fill" style="width:${pct}%"></div></div></div>`:'';
   const err=s.error?`<div class="card-err"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${esc(s.error)}</div>`:'';
   const scTags=currentUser?.role==='admin'&&(s.subcluster_ids||[]).length?`<div class="sc-tags">${(s.subcluster_ids||[]).map(id=>{const sc=subclusters.find(x=>x.id===id);return sc?`<span class="sc-tag">${esc(sc.name)}</span>`:''}).join('')}</div>`:'';
-  const pwr=s.status==='online'?(s.power_state==='On'?t('c.on'):s.power_state==='Off'?t('c.off'):s.power_state||'—'):'—';
-  const key=s.bmc_ip.replace(/\./g,'-');
-  return`<div class="card" onclick="openDetail('${key}')">
-<div class="card-head"><div class="card-title"><div class="card-name">${esc(s.name)}${proto}</div><div class="card-sub">${s.bmc_ip} · ${s.model||t('c.unknown_model')}</div></div><span class="hbadge ${hcls}">${hlbl}</span></div>
+  const pwr=s.power_state==='On'?t('c.on'):s.power_state==='Off'?t('c.off'):s.power_state||'—';
+  return`<div class="card${newCls}" onclick="openDetail('${key}')">
+<div class="card-head"><div class="card-title"><div class="card-name">${esc(displayName)}${newBadge}${proto}</div><div class="card-sub">${s.bmc_ip} · ${s.model||t('c.unknown_model')}</div></div><span class="hbadge ${hcls}">${hlbl}</span></div>
 <div class="card-div"></div>
 <div class="card-metrics">
-<div><div class="ml">${t('c.power')}</div><div class="mv ${s.status==='online'?'mv-ok':'mv-off'}">${pwr}</div></div>
+<div><div class="ml">${t('c.power')}</div><div class="mv mv-ok">${pwr}</div></div>
 <div><div class="ml">${t('c.memory')}</div><div class="mv ${ms.health==='OK'?'mv-ok':'mv-off'}">${ms.total_gib?ms.total_gib+' GiB':'—'}</div></div>
 <div><div class="ml">${t('c.fans')}</div><div class="mv ${fanCls(s)}">${fanSum(s)}</div></div>
 <div><div class="ml">${t('c.psu')}</div><div class="mv ${(s.power_supplies||[]).some(p=>p.health!=='OK')?'mv-crit':'mv-ok'}">${psuSum(s)}</div></div>
@@ -1391,7 +1422,7 @@ function renderDetailListHtml(s){
   const chips=topT.map(tp=>{const c=tp.health==='Critical'?'tchip-crit':tp.health==='Warning'?'tchip-warn':'tchip-ok';const n=tp.name.replace(/temperature/i,'').replace(/\s+/g,' ').trim()||tp.name;return`<span class="tchip ${c}"><span class="tdot" style="background:${tCol(tp.health)}"></span>${esc(n)}: ${tp.reading_celsius}°C</span>`;}).join('');
   const key=s.bmc_ip.replace(/\./g,'-');
   return`<div class="dl-item" onclick="openDetail('${key}')">
-<div class="dl-head"><div><div class="dl-name">${esc(s.name)}${proto}</div><div class="dl-sub">${s.bmc_ip}${s.manufacturer?' · '+esc(s.manufacturer):''}${s.model?' · '+esc(s.model):''}</div></div><span class="hbadge ${hcls}">${hlbl}</span></div>
+<div class="dl-head"><div><div class="dl-name">${esc(s.alias||s.name)}${proto}</div><div class="dl-sub">${s.bmc_ip}${s.manufacturer?' · '+esc(s.manufacturer):''}${s.model?' · '+esc(s.model):''}</div></div><span class="hbadge ${hcls}">${hlbl}</span></div>
 <div class="dl-body">
 <div class="dl-field"><div class="dl-lbl">${t('c.power')}</div><div class="dl-val mv-ok">${s.power_state||'—'}</div></div>
 <div class="dl-field"><div class="dl-lbl">${t('c.memory')}</div><div class="dl-val">${ms.total_gib?ms.total_gib+' GiB':'—'}</div></div>
@@ -1414,7 +1445,7 @@ function renderSimpleListHtml(s){
   return`<div class="sl-item" onclick="openDetail('${key}')">
 <span style="width:7px;height:7px;border-radius:50%;background:${dot};flex-shrink:0"></span>
 <span class="sl-ip">${s.bmc_ip}</span>
-<span class="sl-name">${esc(s.name)}${proto}</span>
+<span class="sl-name">${esc(s.alias||s.name)}${proto}</span>
 <span class="hbadge ${hcls}" style="font-size:.58rem">${hlbl}</span>
 <span class="sl-sep">·</span><span class="sl-m" title="${t('sl.power')}">⚡${pwr}</span>
 <span class="sl-sep">·</span><span class="sl-m" title="${t('sl.temp')}" style="color:${mt!=null&&mt>=70?'var(--crit)':mt!=null&&mt>=60?'var(--warn)':'inherit'}">🌡${mt!=null?mt+'°C':'—'}</span>
@@ -1436,7 +1467,7 @@ function renderTableRow(s){
   const tc=mt!=null?mt>=70?'td-hot':mt>=60?'td-warm':'':'';
   return`<tr class="trow" onclick="openDetail('${key}')">
 <td class="td-ip"><span style="display:inline-flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:${dot};flex-shrink:0"></span>${s.bmc_ip}</span></td>
-<td>${esc(s.name)}</td><td><span class="hbadge ${hcls}" style="font-size:.58rem">${hlbl}</span></td>
+<td>${esc(s.alias||s.name)}</td><td><span class="hbadge ${hcls}" style="font-size:.58rem">${hlbl}</span></td>
 <td>${s.health||'—'}</td><td>${s.protocol_used||'—'}</td><td>${esc(s.manufacturer||'—')}</td>
 <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis">${esc(s.model||'—')}</td>
 <td class="td-r">${ms.total_gib!=null?ms.total_gib:'—'}</td>
@@ -1666,7 +1697,7 @@ async function deleteSc(id,name){
 function openDetail(key){
   const ip=key.replace(/-/g,'.');const s=servers.find(x=>x.bmc_ip===ip);if(!s)return;
   const[hcls,hlbl]=hbadge(s);
-  $('det-title').textContent=s.name;
+  $('det-title').textContent=s.alias||s.name;
   $('det-sub').textContent=`BMC: ${s.bmc_ip}  ·  ${t('d.serial')}: ${s.serial||'—'}  ·  ${t('t.proto')}: ${s.protocol_used||'—'}`;
   $('det-badge').innerHTML=`<span class="hbadge ${hcls}">${hlbl}</span>`;
   $('det-body').innerHTML=buildDetail(s);
@@ -1675,6 +1706,16 @@ function openDetail(key){
 function buildDetail(s){
   const sec=(title,body)=>`<div style="margin-bottom:16px"><div class="sec-title">${title}</div>${body}</div>`;
   const ms=s.memory_summary||{};const parts=[];
+  const key=s.bmc_ip.replace(/\./g,'-');
+  // 别名编辑（仅管理员）
+  if(currentUser?.role==='admin'){
+    parts.push(`<div class="alias-row">
+<div style="flex:1"><label style="font-size:.72rem;color:var(--tx2);display:block;margin-bottom:4px">${t('d.alias')}</label>
+<input class="inp" id="alias-${key}" type="text" value="${esc(s.alias||'')}" placeholder="${t('d.alias_ph')}" style="font-size:.82rem"></div>
+<button class="btn btn-acc" onclick="saveAlias('${key}')" style="border:none;font-size:.78rem;align-self:flex-end">${t('d.alias_save')}</button>
+<span id="alias-ok-${key}" style="font-size:.72rem;color:var(--ok);align-self:flex-end;min-width:40px"></span>
+</div>`);
+  }
   parts.push(sec(t('d.sysinfo'),`<div class="info-grid">
 <div><div class="ik">${t('d.hostname')}</div><div class="iv">${s.hostname||'—'}</div></div>
 <div><div class="ik">${t('d.mfr')}</div><div class="iv">${s.manufacturer||'—'}</div></div>
@@ -1695,7 +1736,6 @@ ${ms.total_gib?`<div><div class="ik">${t('d.mem')}</div><div class="iv">${ms.tot
 
   // BMC 密码修改区块（仅管理员 + 在线服务器）
   if(currentUser?.role==='admin' && s.status==='online'){
-    const key=s.bmc_ip.replace(/\./g,'-');
     parts.push(`<div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--bd)">
 <div class="sec-title">${t('bmc.change_pw')}</div>
 <details style="background:rgba(56,189,248,.05);border:1px solid rgba(56,189,248,.15);border-radius:6px;padding:0;margin-bottom:10px">
@@ -1717,6 +1757,23 @@ ${ms.total_gib?`<div><div class="ik">${t('d.mem')}</div><div class="iv">${ms.tot
   }
 
   return parts.join('');
+}
+
+async function saveAlias(key){
+  const ip=key.replace(/-/g,'.');
+  const alias=($(`alias-${key}`)?.value||'').trim();
+  const r=await api('PUT',`/api/servers/${key}/alias`,{alias});
+  if(!r)return;
+  const d=await r.json();
+  if(d.ok){
+    const ok=$(`alias-ok-${key}`);
+    if(ok){ok.textContent=t('d.alias_saved');setTimeout(()=>{ok.textContent='';},2000);}
+    // 更新本地缓存的 alias 和标题
+    const sv=servers.find(x=>x.bmc_ip===ip);
+    if(sv){sv.alias=alias;}
+    $('det-title').textContent=alias||sv?.name||ip;
+    renderGrid();
+  }
 }
 
 /* ── Overlays ──────────────────────────────────────────────── */
