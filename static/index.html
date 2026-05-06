@@ -870,7 +870,7 @@ zh:{
   'sub.badge_expiring':'会员 · 还剩 {n} 天',
   'sub.badge_pastdue':'会员 · 续费失败',
   'sub.not_configured':'⚠️ 支付系统配置中，请稍后再试或联系 CATNETWORK 客服',
-  'sub.monthly_price':'¥2,980','sub.annual_price':'¥24,800',
+  'sub.monthly_price':'¥148','sub.annual_price':'¥1,188',
   'sub.monthly_unit':'/月','sub.annual_unit':'/年',
   'sub.goto_payment':'前往付款页面',
   'lic.section_title':'已完成付款？输入激活码',
@@ -993,7 +993,7 @@ en:{
   'sub.badge_expiring':'Member · {n} days left',
   'sub.badge_pastdue':'Member · Payment failed',
   'sub.not_configured':'⚠️ Payment system is being configured. Please try later or contact CATNETWORK.',
-  'sub.monthly_price':'¥2,980','sub.annual_price':'¥24,800',
+  'sub.monthly_price':'$19.80','sub.annual_price':'$165',
   'sub.monthly_unit':'/month','sub.annual_unit':'/year',
   'sub.goto_payment':'Go to Payment Page',
   'lic.section_title':'Already paid? Enter your license key',
@@ -2053,8 +2053,8 @@ async function openSubModal(){
   $('plan-monthly-price').innerHTML = `${mp}<span>${mu}</span>`;
   $('plan-annual-price').innerHTML  = `${ap}<span>${au}</span>`;
   // Savings %
-  const numM = parseInt(mp.replace(/[^0-9]/g,'')) || 2980;
-  const numA = parseInt(ap.replace(/[^0-9]/g,'')) || 24800;
+  const numM = parseFloat(mp.replace(/[^0-9.]/g,'')) || 1;
+  const numA = parseFloat(ap.replace(/[^0-9.]/g,'')) || 1;
   const pct  = Math.round((1 - numA/(numM*12))*100);
   $('lbl-plan-save').textContent = pct > 0 ? t('sub.save_pct').replace('{pct}', pct) : '';
   // Payment methods
