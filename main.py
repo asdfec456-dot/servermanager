@@ -14,13 +14,13 @@ try:
     from cryptography.hazmat.primitives.asymmetric.ec import ECDSA as _ECDSA
     from cryptography.hazmat.primitives import hashes as _hashes, serialization as _serialization
     from cryptography.exceptions import InvalidSignature as _InvalidSignature
-    import base64 as _b64m
     CRYPTO_AVAILABLE = True
 except ImportError:
     CRYPTO_AVAILABLE = False
 
 import asyncio
 import aiohttp
+import base64 as _b64m
 import ssl
 import json
 import re
@@ -38,13 +38,18 @@ from typing import Optional, List, Dict
 from contextlib import asynccontextmanager
 from datetime import datetime
 
+import urllib.parse
+
 from fastapi import FastAPI, BackgroundTasks, Request, Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("servermanager")
+
+# CATNETWORK's public server URL — used as the Stripe callback host.
+CATNETWORK_BASE_URL = "https://sm.catnetwork.co.jp"
 
 BASE_DIR   = Path(__file__).parent
 STATIC_DIR = BASE_DIR / "static"
@@ -1863,6 +1868,128 @@ async def api_cancel_subscription(admin: dict = Depends(require_admin)):
         return {"ok": True}
     except Exception as e:
         raise HTTPException(500, f"取消失败：{e}")
+
+@app.get("/activate")
+async def activate_redirect(session: str, return_url: str = "", plan: str = "monthly"):
+    """
+    CATNETWORK-only callback: verifies Stripe session, signs license token,
+    redirects the browser back to the customer's Server Manager.
+    Requires STRIPE_SK and LICENSE_SK_PATH env vars.
+    """
+    import os
+    sk = os.environ.get("STRIPE_SK") or load_stripe_config().get("secret_key", "")
+    if not sk or not STRIPE_AVAILABLE:
+        raise HTTPException(503, "Payment service not configured on this server")
+
+    _stripe.api_key = sk
+    try:
+        sess = _stripe.checkout.Session.retrieve(session)
+    except Exception as e:
+        raise HTTPException(400, f"Session lookup failed: {e}")
+
+    if sess.payment_status not in ("paid", "no_payment_required"):
+        fail_url = (return_url or CATNETWORK_BASE_URL) + "?sub=failed"
+        return RedirectResponse(url=fail_url)
+
+    if not CRYPTO_AVAILABLE:
+        raise HTTPException(503, "Crypto library not available on this server")
+
+    sk_path = os.environ.get("LICENSE_SK_PATH",
+                             os.path.expanduser("~/.catnetwork/license_private_key.pem"))
+    if not os.path.exists(sk_path):
+        raise HTTPException(503, "License signing key not found")
+
+    private_key = _serialization.load_pem_private_key(open(sk_path, "rb").read(), password=None)
+    exp = int(time.time()) + (31 if plan == "monthly" else 366) * 86400
+    payload = json.dumps({"plan": plan, "exp": exp}, separators=(",", ":"))
+    p_b64   = _b64m.urlsafe_b64encode(payload.encode()).rstrip(b"=").decode()
+    sig     = private_key.sign(p_b64.encode(), _ECDSA(_hashes.SHA256()))
+    s_b64   = _b64m.urlsafe_b64encode(sig).rstrip(b"=").decode()
+    token   = p_b64 + "." + s_b64
+
+    dest = (return_url or CATNETWORK_BASE_URL) + "?sub=activate&token=" + urllib.parse.quote(token, safe="")
+    return RedirectResponse(url=dest)
+
+
+@app.post("/api/payment/create-for")
+async def api_payment_create_for(req: Request):
+    """
+    CATNETWORK-only: creates a Stripe Checkout Session for a customer's server.
+    Called by customer servers that don't have STRIPE_SK.
+    Requires STRIPE_SK env var.
+    """
+    import os
+    sk = os.environ.get("STRIPE_SK") or load_stripe_config().get("secret_key", "")
+    if not sk or not STRIPE_AVAILABLE:
+        raise HTTPException(503, "Payment service not configured on this server")
+
+    body       = await req.json()
+    plan       = body.get("plan", "monthly")
+    return_url = body.get("return_url", "")
+    if not return_url:
+        raise HTTPException(400, "return_url is required")
+
+    _stripe.api_key = sk
+    price_id = DEFAULT_STRIPE_CONFIG.get(f"price_{plan}_id", "")
+    enc_return = urllib.parse.quote(return_url, safe="")
+
+    try:
+        session = _stripe.checkout.Session.create(
+            mode="subscription",
+            line_items=[{"price": price_id, "quantity": 1}],
+            success_url=f"{CATNETWORK_BASE_URL}/activate?session={{CHECKOUT_SESSION_ID}}&return={enc_return}&plan={plan}",
+            cancel_url=f"{return_url}?sub=cancel",
+            payment_method_types=["card"],
+        )
+        return {"url": session.url}
+    except Exception as e:
+        raise HTTPException(500, f"Stripe error: {e}")
+
+
+@app.post("/api/payment/create")
+async def api_payment_create(req: Request, admin: dict = Depends(require_admin)):
+    """
+    Customer endpoint: creates a Stripe Checkout Session.
+    If STRIPE_SK is available locally, creates directly.
+    Otherwise, proxies to CATNETWORK's /api/payment/create-for.
+    """
+    import os
+    body = await req.json()
+    plan = body.get("plan", "monthly")
+    base = _infer_base_url(req)
+
+    sk = os.environ.get("STRIPE_SK") or load_stripe_config().get("secret_key", "")
+    if sk and STRIPE_AVAILABLE:
+        # Running on CATNETWORK's server — create directly
+        _stripe.api_key = sk
+        price_id   = DEFAULT_STRIPE_CONFIG.get(f"price_{plan}_id", "")
+        enc_return = urllib.parse.quote(base, safe="")
+        try:
+            session = _stripe.checkout.Session.create(
+                mode="subscription",
+                line_items=[{"price": price_id, "quantity": 1}],
+                success_url=f"{CATNETWORK_BASE_URL}/activate?session={{CHECKOUT_SESSION_ID}}&return={enc_return}&plan={plan}",
+                cancel_url=f"{base}?sub=cancel",
+                payment_method_types=["card"],
+            )
+            return {"url": session.url}
+        except Exception as e:
+            raise HTTPException(500, f"Stripe error: {e}")
+
+    # Running on a customer server — proxy to CATNETWORK
+    try:
+        async with aiohttp.ClientSession() as http:
+            async with http.post(
+                f"{CATNETWORK_BASE_URL}/api/payment/create-for",
+                json={"plan": plan, "return_url": base},
+                timeout=aiohttp.ClientTimeout(total=15),
+            ) as r:
+                if r.status != 200:
+                    raise HTTPException(502, f"支付服务暂时不可用，请稍后再试（{r.status}）")
+                return await r.json()
+    except aiohttp.ClientError as e:
+        raise HTTPException(502, f"无法连接到支付服务：{e}")
+
 
 @app.post("/api/license/activate")
 async def api_activate_license(req: Request, admin: dict = Depends(require_admin)):

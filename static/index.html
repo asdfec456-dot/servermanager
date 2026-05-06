@@ -680,19 +680,6 @@ tr:hover td{background:var(--sf2)}
         <span id="btn-checkout-lbl"></span>
       </button>
       <div style="font-size:.68rem;color:var(--tx3);text-align:center;margin-top:8px" id="lbl-stripe-note"></div>
-      <!-- License key activation -->
-      <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--bd)">
-        <div style="font-size:.78rem;font-weight:600;color:var(--tx2);margin-bottom:8px" id="lbl-lic-section"></div>
-        <div style="display:flex;gap:7px">
-          <input class="inp" id="lic-key-input" type="text"
-            style="flex:1;font-size:.72rem;font-family:monospace;padding:7px 10px">
-          <button class="btn btn-acc" id="btn-lic-activate" onclick="activateLicense()"
-            style="white-space:nowrap;border:none;padding:7px 14px;font-size:.8rem">
-            <span id="btn-lic-lbl"></span>
-          </button>
-        </div>
-        <div class="err-msg" id="lic-err" style="margin-top:5px"></div>
-      </div>
     </div>
   </div>
 </div>
@@ -2078,11 +2065,6 @@ async function openSubModal(){
   // Checkout button & note
   $('btn-checkout-lbl').textContent = t('sub.checkout_btn');
   $('lbl-stripe-note').textContent  = t('sub.secure_note');
-  // License section
-  $('lbl-lic-section').textContent  = t('lic.section_title');
-  $('lic-key-input').placeholder    = t('lic.placeholder');
-  $('btn-lic-lbl').textContent      = t('lic.btn');
-  $('lic-err').textContent          = '';
   // Active/checkout state
   const s = _subInfo;
   const isActive = s && (s.status==='active' || s.status==='past_due');
@@ -2116,45 +2098,42 @@ function selectPlan(plan){
   $('plan-annual').classList.toggle('selected', plan==='annual');
 }
 
-// Stripe Payment Links — replace these URLs with your actual Payment Link URLs from Stripe Dashboard
-const _PAYMENT_LINKS = {
-  monthly: 'https://buy.stripe.com/REPLACE_MONTHLY',  // TODO: Stripe Payment Link for ¥2,980/月
-  annual:  'https://buy.stripe.com/REPLACE_ANNUAL',   // TODO: Stripe Payment Link for ¥24,800/年
-};
-
-function startCheckout(){
-  const url = _PAYMENT_LINKS[_selectedPlan];
-  if(!url || url.includes('REPLACE')){
-    $('sub-err').textContent = t('sub.not_configured');
-    return;
+async function startCheckout(){
+  const btn = $('btn-checkout');
+  const lbl = $('btn-checkout-lbl');
+  btn.disabled = true; lbl.textContent = t('sub.checking');
+  $('sub-err').textContent = '';
+  try{
+    const r = await api('POST','/api/payment/create',{plan:_selectedPlan});
+    if(!r){ btn.disabled=false; lbl.textContent=t('sub.checkout_btn'); return; }
+    const d = await r.json();
+    if(r.ok && d.url){ window.location.href = d.url; return; }
+    $('sub-err').textContent = d.detail || t('sub.not_configured');
+    btn.disabled=false; lbl.textContent=t('sub.checkout_btn');
+  }catch(e){
+    $('sub-err').textContent = '网络错误：'+e;
+    btn.disabled=false; lbl.textContent=t('sub.checkout_btn');
   }
-  window.open(url, '_blank');
 }
 
-async function activateLicense(){
-  const key = $('lic-key-input').value.trim();
-  if(!key){ $('lic-err').textContent = t('lic.err_empty'); return; }
-  const btn = $('btn-lic-activate');
-  const lbl = $('btn-lic-lbl');
-  btn.disabled = true; lbl.textContent = t('lic.activating');
-  $('lic-err').textContent = '';
-  try{
-    const r = await api('POST','/api/license/activate',{key});
-    if(!r){ btn.disabled=false; lbl.textContent=t('lic.btn'); return; }
-    const d = await r.json();
-    if(r.ok){
-      _subInfo = d;
-      updateSubBadge();
-      closeOverlay('ov-sub');
-      setTimeout(()=>openSubModal(), 150);
-    } else {
-      $('lic-err').textContent = d.detail || t('lic.err_invalid');
-      btn.disabled=false; lbl.textContent=t('lic.btn');
-    }
-  }catch(e){
-    $('lic-err').textContent = '网络错误：'+e;
-    btn.disabled=false; lbl.textContent=t('lic.btn');
+async function autoActivateFromToken(token){
+  const r = await api('POST','/api/license/activate',{key: token});
+  if(!r) return;
+  const d = await r.json();
+  if(r.ok){
+    _subInfo = d; updateSubBadge();
+    showToast(t('lic.success'));
+  } else {
+    showToast(d.detail || t('lic.err_invalid'), 'err');
   }
+}
+
+function showToast(msg, type='ok'){
+  const el = document.createElement('div');
+  el.style.cssText = `position:fixed;bottom:24px;right:24px;background:var(--${type==='ok'?'ok':'crit'});color:#fff;padding:10px 18px;border-radius:8px;font-size:.85rem;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.3);transition:opacity .3s`;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; setTimeout(()=>el.remove(),300); }, 3000);
 }
 
 async function openPortal(){
@@ -2180,7 +2159,11 @@ async function cancelSubscription(){
 
 function checkSubRedirect(){
   const p = new URLSearchParams(window.location.search);
-  if(p.get('sub') === 'success'){
+  const sub = p.get('sub');
+  if(sub === 'activate' && p.get('token')){
+    history.replaceState(null,'',window.location.pathname);
+    autoActivateFromToken(p.get('token'));
+  } else if(sub === 'success'){
     history.replaceState(null,'',window.location.pathname);
     setTimeout(async()=>{ await loadSubscription(); openSubModal(); }, 1000);
   }
@@ -2191,8 +2174,5 @@ applyTheme(localStorage.getItem('sm_theme')||'dark');
 applyI18n();
 checkAuth();
 </script>
-</body>
-</html>
-
 </body>
 </html>
