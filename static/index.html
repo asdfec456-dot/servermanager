@@ -76,6 +76,7 @@ header{background:var(--sf);border-bottom:1px solid var(--bd);height:56px;paddin
 .fl-btn,.fl-sc{padding:3px 9px;border-radius:20px;border:1px solid var(--bd);background:transparent;color:var(--tx2);cursor:pointer;font-size:.7rem;transition:all .15s}
 .fl-btn:hover,.fl-btn.act{border-color:var(--acc);color:var(--acc);background:rgba(56,189,248,.08)}
 .fl-sc:hover,.fl-sc.act{border-color:var(--warn);color:var(--warn);background:rgba(245,158,11,.07)}
+.fl-sep{width:1px;height:14px;background:var(--bd2);margin:0 3px;align-self:center;flex-shrink:0}
 .tsep{width:1px;height:16px;background:var(--bd);margin:0 2px;flex-shrink:0}
 .search{background:var(--sf2);border:1px solid var(--bd);border-radius:6px;padding:4px 9px;color:var(--tx);font-size:.76rem;width:160px;outline:none}
 .search:focus{border-color:var(--acc)}.search::placeholder{color:var(--tx3)}
@@ -512,12 +513,13 @@ tr:hover td{background:var(--sf2)}
 </header>
 
 <div class="toolbar">
-  <span style="font-size:.7rem;color:var(--tx2)" id="lbl-filter">筛选：</span>
-  <button class="fl-btn act" onclick="setFilter('all',this)" id="fl-all">全部</button>
-  <button class="fl-btn" onclick="setFilter('ok',this)" id="fl-ok">正常</button>
-  <button class="fl-btn" onclick="setFilter('warning',this)" id="fl-warn">警告</button>
-  <button class="fl-btn" onclick="setFilter('critical',this)" id="fl-crit">严重</button>
-  <button class="fl-btn" onclick="setFilter('offline',this)" id="fl-off">离线</button>
+  <button class="fl-btn act" onclick="clearAllFilters()" id="fl-all">全部</button>
+  <span class="fl-sep"></span>
+  <button class="fl-btn" onclick="toggleStatusFilter('online')" id="fl-s-online">在线</button>
+  <button class="fl-btn" onclick="toggleStatusFilter('auth_failed')" id="fl-s-auth">认证失败</button>
+  <button class="fl-btn" onclick="toggleStatusFilter('reachable')" id="fl-s-reach">BMC不可达</button>
+  <button class="fl-btn" onclick="toggleStatusFilter('pending')" id="fl-s-pend">采集中</button>
+  <button class="fl-btn" onclick="toggleStatusFilter('offline')" id="fl-s-off">离线</button>
   <span id="sc-filter-btns"></span>
   <div class="tsep"></div>
   <div class="view-sw">
@@ -1185,7 +1187,7 @@ function applyI18n(){
   // Static labels map: element-id → translation-key
   const M={
     'lbl-servers':'servers','lbl-online':'online','lbl-offline':'offline','lbl-collecting':'collecting',
-    'lbl-filter':'filter','fl-all':'all','fl-ok':'ok','fl-warn':'warning','fl-crit':'critical','fl-off':'offline',
+    'fl-all':'all','fl-s-online':'online','fl-s-auth':'h.auth_failed','fl-s-reach':'h.reachable','fl-s-pend':'collecting','fl-s-off':'offline',
     'lbl-refresh':'btn.refresh','lbl-settings':'btn.settings','lbl-logout':'btn.logout',
     'dd-lbl-cfg':'cfg.title','dd-lbl-sc':'sc.title','dd-lbl-users':'u.title','dd-lbl-alerts':'al.title',
     'lbl-setup-title':'setup.title','lbl-setup-sub':'setup.sub','lbl-cluster':'setup.cluster',
@@ -1265,7 +1267,9 @@ function setLang(l){
 /* ── State ─────────────────────────────────────────────────── */
 let token=localStorage.getItem('sm_token')||'';
 let currentUser=null;
-let servers=[],subclusters=[],filter='all',scFilter=null;
+let servers=[],subclusters=[];
+let statusFilter=new Set();   // 选中的状态类型，空=全部
+let scFilters   =new Set();   // 选中的子集群 ID，空=全部
 let viewMode=localStorage.getItem('sm_view')||'grid';
 let cfgProto='auto',_pollTimer=null;
 let sortCol='bmc_ip',sortDir=1;
@@ -1382,19 +1386,57 @@ document.addEventListener('keydown',e=>{
 });
 
 /* ── Filter & Sort ─────────────────────────────────────────── */
-function setFilter(f,el){filter=f;scFilter=null;document.querySelectorAll('.fl-btn,.fl-sc').forEach(b=>b.classList.remove('act'));el.classList.add('act');renderGrid();}
-function setScFilter(id,el){scFilter=id;filter='all';document.querySelectorAll('.fl-btn,.fl-sc').forEach(b=>b.classList.remove('act'));el.classList.add('act');renderGrid();}
-function renderScFilterBtns(){$('sc-filter-btns').innerHTML=subclusters.map(sc=>`<button class="fl-sc${scFilter===sc.id?' act':''}" onclick="setScFilter('${sc.id}',this)">${esc(sc.name)}</button>`).join('');}
+// ── 状态排序权重 ────────────────────────────────────────────────
+const STATUS_ORDER={online:0,auth_failed:1,reachable:2,pending:3,offline:4};
+function statusRank(s){return STATUS_ORDER[s.status]??3;}
+
+// ── 筛选逻辑 ────────────────────────────────────────────────────
+function clearAllFilters(){
+  statusFilter.clear(); scFilters.clear(); updateFilterUI(); renderGrid();
+}
+function toggleStatusFilter(st){
+  statusFilter.has(st)?statusFilter.delete(st):statusFilter.add(st);
+  updateFilterUI(); renderGrid();
+}
+function toggleScFilter(id){
+  scFilters.has(id)?scFilters.delete(id):scFilters.add(id);
+  updateFilterUI(); renderGrid();
+}
+function updateFilterUI(){
+  const noFilter=statusFilter.size===0&&scFilters.size===0;
+  $('fl-all').classList.toggle('act',noFilter);
+  ['online','auth_failed','reachable','pending','offline'].forEach((st,i)=>{
+    const ids=['fl-s-online','fl-s-auth','fl-s-reach','fl-s-pend','fl-s-off'];
+    const el=$(ids[i]); if(el)el.classList.toggle('act',statusFilter.has(st));
+  });
+  document.querySelectorAll('.fl-sc').forEach(b=>{
+    b.classList.toggle('act',scFilters.has(b.dataset.scid));
+  });
+}
+function renderScFilterBtns(){
+  if(!subclusters.length){$('sc-filter-btns').innerHTML='';return;}
+  const sep='<span class="fl-sep"></span>';
+  $('sc-filter-btns').innerHTML=sep+subclusters.map(sc=>
+    `<button class="fl-sc${scFilters.has(sc.id)?' act':''}" data-scid="${sc.id}" onclick="toggleScFilter('${sc.id}')">${esc(sc.name)}</button>`
+  ).join('');
+}
 function matchFilter(s){
-  const q=$('search').value.toLowerCase();
-  if(q&&!s.name.toLowerCase().includes(q)&&!s.bmc_ip.includes(q))return false;
-  if(scFilter!==null)return(s.subcluster_ids||[]).includes(scFilter);
-  if(filter==='all')return true;
-  if(filter==='offline')return s.status!=='online';
-  if(filter==='ok')return s.status==='online'&&s.health==='OK';
-  if(filter==='warning')return s.status==='online'&&s.health==='Warning';
-  if(filter==='critical')return s.status==='online'&&s.health==='Critical';
+  const q=($('search').value||'').toLowerCase();
+  const dn=(s.alias||s.name).toLowerCase();
+  if(q&&!dn.includes(q)&&!s.bmc_ip.includes(q))return false;
+  // 状态筛选（OR）
+  if(statusFilter.size>0){
+    if(!statusFilter.has(s.status))return false;
+  }
+  // 子集群筛选（OR）
+  if(scFilters.size>0){
+    if(![...(s.subcluster_ids||[])].some(id=>scFilters.has(id)))return false;
+  }
   return true;
+}
+function sortedServers(arr){
+  const gv=(s,c)=>{switch(c){case'bmc_ip':return s.bmc_ip;case'name':return s.alias||s.name;case'status':return s.status;case'health':return s.health;case'proto':return s.protocol_used||'';case'mfr':return s.manufacturer||'';case'model':return s.model||'';case'memory':return(s.memory_summary||{}).total_gib;case'cpu':return(s.processors||[])[0]?.model||'';case'cores':return(s.processors||[])[0]?.cores;case'power':return s.power_consumed_watts;case'temp':return maxTemp(s);default:return null;}};
+  return[...arr].sort((a,b)=>{let av=gv(a,sortCol),bv=gv(b,sortCol);if(typeof av==='string'&&typeof bv==='string')return av.localeCompare(bv)*sortDir;av=av??-Infinity;bv=bv??-Infinity;return(av-bv)*sortDir;});
 }
 function sortedServers(arr){
   const gv=(s,c)=>{switch(c){case'bmc_ip':return s.bmc_ip;case'name':return s.name;case'status':return s.status;case'health':return s.health;case'proto':return s.protocol_used||'';case'mfr':return s.manufacturer||'';case'model':return s.model||'';case'memory':return(s.memory_summary||{}).total_gib;case'cpu':return(s.processors||[])[0]?.model||'';case'cores':return(s.processors||[])[0]?.cores;case'power':return s.power_consumed_watts;case'temp':return maxTemp(s);default:return null;}};
@@ -1529,8 +1571,11 @@ function renderTableRow(s){
 function renderGrid(){
   const vis=servers.filter(matchFilter),el=$('main');
   if(!vis.length){el.innerHTML=`<div class="empty"><div style="color:var(--tx3)">${t('e.no_match')}</div></div>`;return;}
-  const isViewerGroup=currentUser?.role==='viewer'&&!scFilter&&filter==='all'&&(viewMode==='grid'||viewMode==='grid-wide');
-  const sorted=viewMode==='table'?sortedServers(vis):vis;
+  const isViewerGroup=currentUser?.role==='viewer'&&scFilters.size===0&&statusFilter.size===0&&(viewMode==='grid'||viewMode==='grid-wide');
+  // 非表格视图按状态优先级排序
+  const sorted=viewMode==='table'
+    ?sortedServers(vis)
+    :[...vis].sort((a,b)=>statusRank(a)-statusRank(b)||(a.alias||a.name).localeCompare(b.alias||b.name));
   switch(viewMode){
     case'grid':case'grid-wide':{
       const cls=viewMode==='grid-wide'?'grid-wide':'grid';
