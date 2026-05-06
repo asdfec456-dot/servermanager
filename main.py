@@ -83,6 +83,7 @@ DEFAULT_SETTINGS: dict = {
     "ip_ranges": "", "username": "admin", "password": "",
     "protocol": "auto", "refresh_interval": 60,
     "collection_timeout": 15, "max_concurrent": 10,
+    "try_common_on_auth_fail": False,   # 认证失败时自动尝试厂商默认密码
 }
 
 # ─── 认证数据 ─────────────────────────────────────────────────────
@@ -1191,6 +1192,32 @@ async def collect_server(bmc_ip: str, settings: dict) -> dict:
         else:
             base["error"]      = f"无法连接（已尝试 {' + '.join(tried)}）"
             base["error_type"] = _bmc_error_type.get(bmc_ip, "connection")
+            # 认证失败时自动尝试厂商常用凭据
+            if base["error_type"] == "auth" and settings.get("try_common_on_auth_fail", False):
+                mc_all = load_machine_creds()
+                for c_user, c_pass in COMMON_BMC_CREDS:
+                    if c_user == username and c_pass == password:
+                        continue   # 跳过已试过的
+                    _bmc_error_type.pop(bmc_ip, None)
+                    c_data = None
+                    try:
+                        if protocol in ("auto", "redfish"):
+                            c_data = await collect_redfish(bmc_ip, c_user, c_pass, timeout)
+                        if c_data is None and protocol in ("auto", "ipmi"):
+                            c_data = await collect_ipmi(bmc_ip, c_user, c_pass, timeout)
+                    except Exception:
+                        pass
+                    if c_data:
+                        base.update(c_data)
+                        base["status"]       = "online"
+                        base["last_updated"] = time.time()
+                        base["error"]        = None
+                        base["error_type"]   = None
+                        # 自动保存发现的凭据
+                        mc_all[bmc_ip] = {"username": c_user, "password": c_pass, "source": "auto"}
+                        save_machine_creds(mc_all)
+                        logger.info("自动发现 BMC 凭据 %s → user=%s", bmc_ip, c_user)
+                        break
     except Exception as e:
         logger.exception("collect_server %s", bmc_ip)
         base["error"] = str(e)

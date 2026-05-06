@@ -77,6 +77,13 @@ header{background:var(--sf);border-bottom:1px solid var(--bd);height:56px;paddin
 .fl-btn:hover,.fl-btn.act{border-color:var(--acc);color:var(--acc);background:rgba(56,189,248,.08)}
 .fl-sc:hover,.fl-sc.act{border-color:var(--warn);color:var(--warn);background:rgba(245,158,11,.07)}
 .fl-sep{width:1px;height:14px;background:var(--bd2);margin:0 3px;align-self:center;flex-shrink:0}
+/* Subcluster dropdown */
+.sc-dropdown{position:relative;display:inline-flex;align-items:center;gap:3px}
+.sc-dd-panel{position:absolute;top:calc(100%+5px);left:0;min-width:168px;max-height:220px;overflow-y:auto;background:var(--sf);border:1px solid var(--bd);border-radius:8px;padding:4px;z-index:200;box-shadow:0 4px 20px var(--shadow);display:none}
+.sc-dd-panel.open{display:block}
+.sc-dd-item{display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:5px;font-size:.78rem;cursor:pointer;user-select:none;width:100%;color:var(--tx1)}
+.sc-dd-item:hover{background:var(--sf2)}
+.sc-dd-item input[type=checkbox]{width:14px;height:14px;accent-color:var(--warn);cursor:pointer;flex-shrink:0}
 .tsep{width:1px;height:16px;background:var(--bd);margin:0 2px;flex-shrink:0}
 .search{background:var(--sf2);border:1px solid var(--bd);border-radius:6px;padding:4px 9px;color:var(--tx);font-size:.76rem;width:160px;outline:none}
 .search:focus{border-color:var(--acc)}.search::placeholder{color:var(--tx3)}
@@ -520,7 +527,14 @@ tr:hover td{background:var(--sf2)}
   <button class="fl-btn" onclick="toggleStatusFilter('reachable')" id="fl-s-reach">BMC不可达</button>
   <button class="fl-btn" onclick="toggleStatusFilter('pending')" id="fl-s-pend">采集中</button>
   <button class="fl-btn" onclick="toggleStatusFilter('offline')" id="fl-s-off">离线</button>
-  <span id="sc-filter-btns"></span>
+  <span id="sc-dd-wrap" style="display:none" class="sc-dropdown">
+    <span class="fl-sep"></span>
+    <button class="fl-btn" id="sc-dd-btn" onclick="toggleScDropdown(event)" style="display:flex;align-items:center;gap:5px">
+      <span id="sc-dd-label">全部分组</span>
+      <svg width="8" height="5" viewBox="0 0 8 5" fill="currentColor"><path d="M0 0l4 5 4-5z"/></svg>
+    </button>
+    <div class="sc-dd-panel" id="sc-dd-panel"></div>
+  </span>
   <div class="tsep"></div>
   <div class="view-sw">
     <button class="vbtn act" data-mode="grid" onclick="setView(this)" title="卡片"><svg width="13" height="13" viewBox="0 0 13 13" fill="currentColor"><rect x="0" y="0" width="5.5" height="5.5" rx="1"/><rect x="7.5" y="0" width="5.5" height="5.5" rx="1"/><rect x="0" y="7.5" width="5.5" height="5.5" rx="1"/><rect x="7.5" y="7.5" width="5.5" height="5.5" rx="1"/></svg></button>
@@ -558,6 +572,10 @@ tr:hover td{background:var(--sf2)}
         </div>
       </div>
     </div>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:8px;cursor:pointer;font-size:.78rem;color:var(--tx1)">
+      <input type="checkbox" id="cfg-try-common" style="width:15px;height:15px;accent-color:var(--acc);cursor:pointer">
+      <span id="lbl-cfg-try-common">认证失败时自动尝试厂商默认密码</span>
+    </label>
     <div style="margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <button class="btn" id="btn-try-global" onclick="tryGlobalCreds()" type="button" style="font-size:.76rem">🔍 <span id="lbl-try-global">尝试常用密码</span></button>
       <span id="try-global-note" style="font-size:.67rem;color:var(--tx3)"></span>
@@ -822,6 +840,8 @@ zh:{
   'sc.title':'子集群管理','sc.sub':'同一台机器可属于多个子集群','sc.list':'已有子集群',
   'sc.new':'新建子集群','sc.edit':'编辑子集群','sc.name':'名称','sc.desc':'描述（可选）','sc.machines':'包含的机器',
   'sc.cancel':'取消','sc.create':'创建','sc.save':'保存修改','sc.edit_btn':'编辑','sc.del':'删除',
+  'sc.all_groups':'全部分组','sc.n_groups':'{n} 个分组',
+  'cfg.try_common_fallback':'认证失败时自动尝试厂商默认密码',
   'sc.no_list':'暂无子集群','sc.no_mach':'暂无机器','sc.scan_first':'请先配置 IP 范围并等待扫描',
   'sc.err_name':'请输入名称','sc.count_unit':'台','sc.confirm_del':'确认删除子集群',
   'sc.confirm_note':'注意：机器本身不会被删除，仅移除分组。',
@@ -954,6 +974,8 @@ en:{
   'sc.title':'Subcluster Management','sc.sub':'A machine can belong to multiple subclusters','sc.list':'Existing Subclusters',
   'sc.new':'New Subcluster','sc.edit':'Edit Subcluster','sc.name':'Name','sc.desc':'Description (optional)','sc.machines':'Member Machines',
   'sc.cancel':'Cancel','sc.create':'Create','sc.save':'Save Changes','sc.edit_btn':'Edit','sc.del':'Delete',
+  'sc.all_groups':'All Groups','sc.n_groups':'{n} groups',
+  'cfg.try_common_fallback':'Auto-try vendor default passwords on auth failure',
   'sc.no_list':'No subclusters yet','sc.no_mach':'No machines assigned','sc.scan_first':'Configure IP ranges and wait for scan first',
   'sc.err_name':'Please enter a name','sc.count_unit':'machines','sc.confirm_del':'Confirm delete subcluster',
   'sc.confirm_note':'Note: machines will not be deleted, only the grouping.',
@@ -1082,6 +1104,8 @@ ja:{
   'sc.title':'サブクラスター管理','sc.sub':'同じサーバーを複数のサブクラスターに追加できます','sc.list':'既存のサブクラスター',
   'sc.new':'サブクラスター作成','sc.edit':'サブクラスター編集','sc.name':'名前','sc.desc':'説明（オプション）','sc.machines':'所属サーバー',
   'sc.cancel':'キャンセル','sc.create':'作成','sc.save':'変更を保存','sc.edit_btn':'編集','sc.del':'削除',
+  'sc.all_groups':'全グループ','sc.n_groups':'{n} グループ',
+  'cfg.try_common_fallback':'認証失敗時にベンダーデフォルトパスワードを自動試行',
   'sc.no_list':'サブクラスターなし','sc.no_mach':'サーバー未設定','sc.scan_first':'IP範囲を設定してスキャン完了後に設定できます',
   'sc.err_name':'名前を入力してください','sc.count_unit':'台','sc.confirm_del':'サブクラスターを削除しますか',
   'sc.confirm_note':'注意：サーバー自体は削除されません。グループのみ削除されます。',
@@ -1392,7 +1416,8 @@ function statusRank(s){return STATUS_ORDER[s.status]??3;}
 
 // ── 筛选逻辑 ────────────────────────────────────────────────────
 function clearAllFilters(){
-  statusFilter.clear(); scFilters.clear(); updateFilterUI(); renderGrid();
+  statusFilter.clear(); scFilters.clear();
+  updateFilterUI(); updateScDdLabel(); renderGrid();
 }
 function toggleStatusFilter(st){
   statusFilter.has(st)?statusFilter.delete(st):statusFilter.add(st);
@@ -1400,8 +1425,28 @@ function toggleStatusFilter(st){
 }
 function toggleScFilter(id){
   scFilters.has(id)?scFilters.delete(id):scFilters.add(id);
-  updateFilterUI(); renderGrid();
+  // 只更新复选框和标签，不重建下拉
+  const cb=document.querySelector(`.sc-dd-item[data-scid="${id}"] input`);
+  if(cb) cb.checked=scFilters.has(id);
+  updateScDdLabel(); updateFilterUI(); renderGrid();
 }
+function updateScDdLabel(){
+  const lbl=$('sc-dd-label'); if(!lbl) return;
+  if(scFilters.size===0) lbl.textContent=t('sc.all_groups');
+  else if(scFilters.size===1){
+    const sc=subclusters.find(x=>scFilters.has(x.id));
+    lbl.textContent=sc?esc(sc.name):t('sc.n_groups').replace('{n}',1);
+  } else lbl.textContent=t('sc.n_groups').replace('{n}',scFilters.size);
+}
+function toggleScDropdown(e){
+  e && e.stopPropagation();
+  $('sc-dd-panel').classList.toggle('open');
+}
+document.addEventListener('click',function(e){
+  const panel=$('sc-dd-panel'), btn=$('sc-dd-btn');
+  if(panel&&panel.classList.contains('open')&&!btn?.contains(e.target)&&!panel.contains(e.target))
+    panel.classList.remove('open');
+});
 function updateFilterUI(){
   const noFilter=statusFilter.size===0&&scFilters.size===0;
   $('fl-all').classList.toggle('act',noFilter);
@@ -1409,16 +1454,28 @@ function updateFilterUI(){
     const ids=['fl-s-online','fl-s-auth','fl-s-reach','fl-s-pend','fl-s-off'];
     const el=$(ids[i]); if(el)el.classList.toggle('act',statusFilter.has(st));
   });
-  document.querySelectorAll('.fl-sc').forEach(b=>{
-    b.classList.toggle('act',scFilters.has(b.dataset.scid));
+  // 更新下拉内复选框
+  document.querySelectorAll('.sc-dd-item').forEach(item=>{
+    const cb=item.querySelector('input');
+    if(cb) cb.checked=scFilters.has(item.dataset.scid);
   });
+  updateScDdLabel();
 }
 function renderScFilterBtns(){
-  if(!subclusters.length){$('sc-filter-btns').innerHTML='';return;}
-  const sep='<span class="fl-sep"></span>';
-  $('sc-filter-btns').innerHTML=sep+subclusters.map(sc=>
-    `<button class="fl-sc${scFilters.has(sc.id)?' act':''}" data-scid="${sc.id}" onclick="toggleScFilter('${sc.id}')">${esc(sc.name)}</button>`
+  const wrap=$('sc-dd-wrap');
+  if(!subclusters.length){if(wrap)wrap.style.display='none';return;}
+  if(wrap)wrap.style.display='';
+  const panel=$('sc-dd-panel'); if(!panel) return;
+  panel.innerHTML=subclusters.map(sc=>
+    `<label class="sc-dd-item" data-scid="${sc.id}">
+      <input type="checkbox" ${scFilters.has(sc.id)?'checked':''}>
+      <span>${esc(sc.name)}</span>
+    </label>`
   ).join('');
+  panel.querySelectorAll('.sc-dd-item').forEach(item=>{
+    item.querySelector('input').addEventListener('change',()=>toggleScFilter(item.dataset.scid));
+  });
+  updateScDdLabel();
 }
 function matchFilter(s){
   const q=($('search').value||'').toLowerCase();
@@ -1631,9 +1688,11 @@ async function openSettingsModal(){
   cfgProto=s.protocol||'auto';
   document.querySelectorAll('.proto-opt').forEach(b=>b.classList.toggle('sel',b.dataset.v===cfgProto));
   updateProtoHint();updateIpCount();
+  if($('cfg-try-common')) $('cfg-try-common').checked=!!s.try_common_on_auth_fail;
   $('try-global-result').textContent='';
   $('try-global-note').textContent=t('cfg.try_note').replace('{n}',16);
   $('lbl-try-global').textContent=t('cfg.try_creds');
+  if($('lbl-cfg-try-common')) $('lbl-cfg-try-common').textContent=t('cfg.try_common_fallback');
   $('ov-cfg').classList.add('open');document.body.style.overflow='hidden';
 }
 function selProto(el){document.querySelectorAll('.proto-opt').forEach(b=>b.classList.remove('sel'));el.classList.add('sel');cfgProto=el.dataset.v;updateProtoHint();}
@@ -1641,7 +1700,7 @@ function updateProtoHint(){const h={auto:t('cfg.hint_auto'),redfish:t('cfg.hint_
 function countIps(tx){let n=0;for(const e of tx.split(/[\n,;]+/)){const s=e.trim();if(!s||s.startsWith('#'))continue;try{if(s.includes('/')){const b=parseInt(s.split('/')[1]);n+=Math.pow(2,32-b)-2;}else if(s.includes('-')){const[l,r]=s.split('-',2);const ip=o=>o.split('.').reduce((a,x)=>(a<<8)+parseInt(x),0)>>>0;const ei=(r.includes('.')?r:l.split('.').slice(0,3).join('.')+'.'+r);n+=Math.max(0,ip(ei)-ip(l)+1);}else n+=1;}catch(e){}}return n;}
 function updateIpCount(){const n=countIps($('cfg-ip').value);const b=$('ip-cnt-badge');if(n>0){b.style.display='inline-flex';$('ip-cnt-text').textContent=t('cfg.ip_count').replace('{n}',n);}else b.style.display='none';}
 function toggleAdv(){$('adv-toggle').classList.toggle('open');$('adv-body').classList.toggle('open');}
-async function saveSettings(){const b=$('btn-save-cfg');b.disabled=true;$('lbl-cfg-save').textContent=t('cfg.saving');try{await api('POST','/api/settings',{ip_ranges:$('cfg-ip').value,username:$('cfg-user').value,password:$('cfg-pw').value,protocol:cfgProto,refresh_interval:parseInt($('cfg-ri').value)||60,collection_timeout:parseInt($('cfg-to').value)||15,max_concurrent:parseInt($('cfg-cc').value)||10});closeOverlay('ov-cfg');startPolling();}finally{b.disabled=false;$('lbl-cfg-save').textContent=t('cfg.save');}}
+async function saveSettings(){const b=$('btn-save-cfg');b.disabled=true;$('lbl-cfg-save').textContent=t('cfg.saving');try{await api('POST','/api/settings',{ip_ranges:$('cfg-ip').value,username:$('cfg-user').value,password:$('cfg-pw').value,protocol:cfgProto,refresh_interval:parseInt($('cfg-ri').value)||60,collection_timeout:parseInt($('cfg-to').value)||15,max_concurrent:parseInt($('cfg-cc').value)||10,try_common_on_auth_fail:!!($('cfg-try-common')?.checked)});closeOverlay('ov-cfg');startPolling();}finally{b.disabled=false;$('lbl-cfg-save').textContent=t('cfg.save');}}
 
 /* ── User Modal (inline edit, no prompt dialogs) ───────────── */
 async function openUsersModal(){
