@@ -944,7 +944,11 @@ async def _rf_get(session, bmc_ip, path, auth):
         ) as resp:
             if resp.status == 200:
                 return await resp.json(content_type=None)
+            if resp.status in (401, 403):
+                _bmc_error_type[bmc_ip] = "auth"   # 凭据被拒
     except Exception as e:
+        if _bmc_error_type.get(bmc_ip) != "auth":
+            _bmc_error_type[bmc_ip] = "connection"
         logger.debug("Redfish %s%s: %s", bmc_ip, path, e)
     return None
 
@@ -1161,13 +1165,14 @@ async def collect_server(bmc_ip: str, settings: dict) -> dict:
     password = mc.get("password") or settings.get("password", "")
     protocol = settings.get("protocol", "auto")
     timeout  = settings.get("collection_timeout", 15)
+    _bmc_error_type.pop(bmc_ip, None)   # 每次采集前重置
     base = {
         "name": bmc_ip, "bmc_ip": bmc_ip, "status": "offline", "health": "Unknown",
         "protocol_used": None, "power_state": "Unknown",
         "model": "", "manufacturer": "", "serial": "", "bios_version": "", "hostname": "",
         "temperatures": [], "fans": [], "power_supplies": [], "power_consumed_watts": None,
         "processors": [], "memory_summary": {}, "storage": [], "alerts": [],
-        "last_updated": None, "error": None,
+        "last_updated": None, "error": None, "error_type": None,
     }
     data = None
     tried = []
@@ -1182,8 +1187,10 @@ async def collect_server(bmc_ip: str, settings: dict) -> dict:
             base.update(data)
             base["status"]       = "online"
             base["last_updated"] = time.time()
+            base["error_type"]   = None
         else:
-            base["error"] = f"无法连接（已尝试 {' + '.join(tried)}）"
+            base["error"]      = f"无法连接（已尝试 {' + '.join(tried)}）"
+            base["error_type"] = _bmc_error_type.get(bmc_ip, "connection")
     except Exception as e:
         logger.exception("collect_server %s", bmc_ip)
         base["error"] = str(e)
@@ -1192,9 +1199,10 @@ async def collect_server(bmc_ip: str, settings: dict) -> dict:
 # ─── 缓存与后台刷新 ───────────────────────────────────────────────
 
 _cache: Dict[str, dict] = {}
-_first_seen:  Dict[str, float] = {}   # ip → 首次发现时间戳
-_ping_alive:  Dict[str, bool]  = {}   # ip → 最新 ping 结果
-_flap_tracker: Dict[str, list] = {}   # ip → [状态切换时间戳]
+_first_seen:    Dict[str, float] = {}   # ip → 首次发现时间戳
+_ping_alive:    Dict[str, bool]  = {}   # ip → 最新 ping 结果
+_flap_tracker:  Dict[str, list]  = {}   # ip → [状态切换时间戳]
+_bmc_error_type: Dict[str, str]  = {}   # ip → "auth" | "connection"（最近一次采集的失败原因）
 _collecting = False
 _last_full_refresh: float = 0.0
 
@@ -1629,14 +1637,28 @@ def _build_server_list(user: dict) -> dict:
         cached = _cache.get(ip)
         if cached:
             entry = {**cached, **extra}
+            # 合并 ICMP：ICMP 或 BMC 任一可达即为非离线
+            if entry.get("status") == "offline":
+                if ping_alive is True:
+                    entry["status"] = "auth_failed" if entry.get("error_type") == "auth" else "reachable"
+                elif ping_alive is False:
+                    entry["status"] = "offline"     # ICMP 也不通，确认离线
+                # ping_alive is None → 尚未 ping，保持原状
         else:
+            # 未采集过：仅凭 ICMP 判断
+            if ping_alive is True:
+                init_status = "reachable"
+            elif ping_alive is False:
+                init_status = "offline"
+            else:
+                init_status = "pending"
             entry = {
-                "name": ip, "bmc_ip": ip, "status": "pending", "health": "Unknown",
+                "name": ip, "bmc_ip": ip, "status": init_status, "health": "Unknown",
                 "protocol_used": None, "power_state": "Unknown",
                 "model": "", "manufacturer": "", "serial": "", "bios_version": "", "hostname": "",
                 "temperatures": [], "fans": [], "power_supplies": [], "power_consumed_watts": None,
                 "processors": [], "memory_summary": {}, "storage": [],
-                "alerts": [], "last_updated": None, "error": None,
+                "alerts": [], "last_updated": None, "error": None, "error_type": None,
                 **extra,
             }
         data.append(entry)
@@ -1648,7 +1670,7 @@ def _build_server_list(user: dict) -> dict:
         "collecting":   _collecting,
         "total":        len(data),
         "online":       sum(1 for d in data if d["status"] == "online"),
-        "offline":      sum(1 for d in data if d["status"] == "offline"),
+        "offline":      sum(1 for d in data if d["status"] in ("offline", "reachable", "auth_failed")),
         "configured":   bool(settings.get("ip_ranges", "").strip()),
     }
 

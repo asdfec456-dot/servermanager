@@ -92,6 +92,8 @@ main{padding:16px;min-height:60vh}
 .hb-crit{background:rgba(239,68,68,.13);color:var(--crit);border:1px solid rgba(239,68,68,.3)}
 .hb-unk{background:rgba(100,116,139,.12);color:var(--unk);border:1px solid rgba(100,116,139,.25)}
 .hb-pend{background:rgba(59,130,246,.12);color:var(--pend);border:1px solid rgba(59,130,246,.3)}
+.hb-auth{background:rgba(245,158,11,.18);color:var(--warn);border:1px solid rgba(245,158,11,.45)}
+.hb-reach{background:rgba(124,58,237,.12);color:#8b5cf6;border:1px solid rgba(124,58,237,.3)}
 .proto-tag{font-size:.58rem;padding:1px 4px;border-radius:3px;background:rgba(56,189,248,.1);color:var(--acc);border:1px solid rgba(56,189,248,.2);margin-left:4px;vertical-align:middle}
 .sc-tag{font-size:.6rem;padding:1px 5px;border-radius:3px;background:rgba(245,158,11,.1);color:var(--warn);border:1px solid rgba(245,158,11,.25)}
 .sdot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:3px;vertical-align:middle}
@@ -792,6 +794,7 @@ zh:{
   'role.admin':'管理员','role.viewer':'查看者',
   'btn.refresh':'刷新','btn.settings':'设置','btn.subclusters':'子集群','btn.users':'用户','btn.logout':'登出',
   'h.ok':'正常','h.warning':'警告','h.critical':'严重','h.unknown':'未知','h.offline':'离线','h.collecting':'采集中',
+  'h.auth_failed':'认证失败','h.reachable':'BMC不可达',
   'c.power':'电源状态','c.memory':'内存','c.fans':'风扇','c.psu':'电源模块',
   'c.on':'⚡ 开机','c.off':'○ 关机','c.anomaly':'异常','c.normal':'正常','c.unknown_model':'型号未知',
   'sl.power':'功耗','sl.temp':'温度','sl.fans':'风扇','sl.memory':'内存','ungrouped':'未分组',
@@ -923,6 +926,7 @@ en:{
   'role.admin':'Admin','role.viewer':'Viewer',
   'btn.refresh':'Refresh','btn.settings':'Settings','btn.subclusters':'Subclusters','btn.users':'Users','btn.logout':'Logout',
   'h.ok':'OK','h.warning':'Warning','h.critical':'Critical','h.unknown':'Unknown','h.offline':'Offline','h.collecting':'Collecting',
+  'h.auth_failed':'Auth Failed','h.reachable':'BMC Offline',
   'c.power':'Power','c.memory':'Memory','c.fans':'Fans','c.psu':'PSUs',
   'c.on':'⚡ On','c.off':'○ Off','c.anomaly':'failed','c.normal':'OK','c.unknown_model':'Unknown model',
   'sl.power':'Power','sl.temp':'Temp','sl.fans':'Fans','sl.memory':'Mem','ungrouped':'Ungrouped',
@@ -1050,6 +1054,7 @@ ja:{
   'role.admin':'管理者','role.viewer':'閲覧者',
   'btn.refresh':'更新','btn.settings':'設定','btn.subclusters':'サブクラスター','btn.users':'ユーザー','btn.logout':'ログアウト',
   'h.ok':'正常','h.warning':'警告','h.critical':'重大','h.unknown':'不明','h.offline':'オフライン','h.collecting':'収集中',
+  'h.auth_failed':'認証失敗','h.reachable':'BMC到達不可',
   'c.power':'電源状態','c.memory':'メモリ','c.fans':'ファン','c.psu':'電源ユニット',
   'c.on':'⚡ 起動中','c.off':'○ 停止','c.anomaly':'異常','c.normal':'正常','c.unknown_model':'モデル不明',
   'sl.power':'電力','sl.temp':'温度','sl.fans':'ファン','sl.memory':'メモリ','ungrouped':'グループなし',
@@ -1287,8 +1292,10 @@ function psuSum(s){const p=s.power_supplies||[],b=p.filter(x=>x.health!=='OK').l
 function fanCls(s){const f=s.fans||[];if(f.some(x=>x.health==='Critical'))return'mv-crit';if(f.some(x=>x.health==='Warning'))return'mv-warn';return'mv-ok';}
 function sdot(h){return{OK:'s-ok',Warning:'s-warn',Critical:'s-crit'}[h]||'s-unk';}
 function hbadge(s){
-  if(s.status==='offline')return['hb-unk',t('h.offline')];
-  if(s.status==='pending')return['hb-pend',t('h.collecting')];
+  if(s.status==='offline')     return['hb-unk',  t('h.offline')];
+  if(s.status==='auth_failed') return['hb-auth', t('h.auth_failed')];
+  if(s.status==='reachable')   return['hb-reach', t('h.reachable')];
+  if(s.status==='pending')     return['hb-pend', t('h.collecting')];
   const m={OK:['hb-ok',t('h.ok')],Warning:['hb-warn',t('h.warning')],Critical:['hb-crit',t('h.critical')]};
   return m[s.health]||['hb-unk',t('h.unknown')];
 }
@@ -1405,15 +1412,27 @@ function renderCardHtml(s,wide){
   const flapBadge = s.flapping  ? `<span class="flap-badge">${t('d.flapping')}</span>` : '';
   const newCls    = s.is_new    ? ' card-new' : '';
 
-  // 离线/无法连接 → 紧凑单行卡片
-  if(s.status==='offline'||s.status==='pending'){
-    const dot=s.status==='offline'?'var(--crit)':'var(--unk)';
-    const errTxt=s.error?`<span style="flex:1;font-size:.65rem;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${esc(s.error)}</span>`:'';
-    return`<div class="card card-offline${newCls}" onclick="openDetail('${key}')">
+  // 非在线状态 → 紧凑单行卡片（差异化颜色）
+  if(s.status!=='online'){
+    let dot, accent, prefix, note;
+    if(s.status==='auth_failed'){
+      dot='var(--warn)'; accent='rgba(245,158,11,.07)'; prefix='🔑 ';
+      note=`<span style="flex:1;font-size:.65rem;color:var(--warn);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${t('h.auth_failed')} — ${t('d.creds')}</span>`;
+    } else if(s.status==='reachable'){
+      dot='#8b5cf6'; accent='rgba(124,58,237,.06)'; prefix='📡 ';
+      note=`<span style="flex:1;font-size:.65rem;color:#8b5cf6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${t('h.reachable')}</span>`;
+    } else if(s.status==='offline'){
+      dot='var(--crit)'; accent=''; prefix='';
+      note=s.error?`<span style="flex:1;font-size:.65rem;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${esc(s.error)}</span>`:'';
+    } else {
+      dot='var(--unk)'; accent=''; prefix=''; note='';
+    }
+    const bgStyle=accent?`background:${accent};`:'';
+    return`<div class="card card-offline${newCls}" style="${bgStyle}" onclick="openDetail('${key}')">
 <span style="width:7px;height:7px;border-radius:50%;background:${dot};flex-shrink:0"></span>
-<span style="font-size:.82rem;font-weight:600;white-space:nowrap">${esc(displayName)}${newBadge}${flapBadge}</span>
+<span style="font-size:.82rem;font-weight:600;white-space:nowrap">${prefix}${esc(displayName)}${newBadge}${flapBadge}</span>
 <span style="font-size:.67rem;color:var(--tx3);font-family:monospace;white-space:nowrap">${s.bmc_ip}</span>
-${errTxt}
+${note}
 <span class="hbadge ${hcls}" style="flex-shrink:0">${hlbl}</span>
 </div>`;
   }
