@@ -10,6 +10,15 @@ try:
 except ImportError:
     STRIPE_AVAILABLE = False
 
+try:
+    from cryptography.hazmat.primitives.asymmetric.ec import ECDSA as _ECDSA
+    from cryptography.hazmat.primitives import hashes as _hashes, serialization as _serialization
+    from cryptography.exceptions import InvalidSignature as _InvalidSignature
+    import base64 as _b64m
+    CRYPTO_AVAILABLE = True
+except ImportError:
+    CRYPTO_AVAILABLE = False
+
 import asyncio
 import aiohttp
 import ssl
@@ -46,6 +55,7 @@ AUTH_FILE          = DATA_DIR / "auth.json"
 SUBCLUSTERS_FILE   = DATA_DIR / "subclusters.json"
 STRIPE_CONFIG_FILE = DATA_DIR / "stripe_config.json"
 SUBSCRIPTION_FILE  = DATA_DIR / "subscription.json"
+LICENSE_FILE       = DATA_DIR / "license.json"
 ALERT_RULES_FILE   = DATA_DIR / "alert_rules.json"
 ALERT_CHANNELS_FILE= DATA_DIR / "alert_channels.json"
 ALERT_STATE_FILE   = DATA_DIR / "alert_state.json"
@@ -131,6 +141,46 @@ DEFAULT_STRIPE_CONFIG = {
     "cancel_url": "",
 }
 
+# ECDSA P-256 public key — used for offline license key verification.
+# The matching private key is kept at CATNETWORK and never distributed.
+_LICENSE_PUBLIC_KEY_PEM = b"""-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEND82GS6grJtbdXjrYM5TJyRH5S8X
+WfqS7yLzbEQfMblnYweyQbJkTsz5Z1UtnCfHwuo/GYl9jf5MkUMzY0Tvdg==
+-----END PUBLIC KEY-----"""
+
+def load_license() -> dict:
+    DATA_DIR.mkdir(exist_ok=True)
+    if LICENSE_FILE.exists():
+        try:
+            return json.loads(LICENSE_FILE.read_text())
+        except Exception:
+            pass
+    return {}
+
+def save_license(data: dict) -> None:
+    DATA_DIR.mkdir(exist_ok=True)
+    LICENSE_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+
+def verify_license_key(key: str) -> dict:
+    """Verify ECDSA-signed license key. Returns payload dict or raises HTTPException."""
+    if not CRYPTO_AVAILABLE:
+        raise HTTPException(503, "cryptography 库未安装，请运行 pip install cryptography")
+    try:
+        parts = key.strip().split('.')
+        if len(parts) != 2:
+            raise ValueError("格式无效")
+        p_b64, s_b64 = parts
+        sig_bytes = _b64m.urlsafe_b64decode(s_b64 + '==')
+        pub_key   = _serialization.load_pem_public_key(_LICENSE_PUBLIC_KEY_PEM)
+        pub_key.verify(sig_bytes, p_b64.encode(), _ECDSA(_hashes.SHA256()))
+        return json.loads(_b64m.urlsafe_b64decode(p_b64 + '=='))
+    except _InvalidSignature:
+        raise HTTPException(400, "激活码无效或已被篡改")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(400, f"激活码解析失败：{e}")
+
 def load_stripe_config() -> dict:
     DATA_DIR.mkdir(exist_ok=True)
     if STRIPE_CONFIG_FILE.exists():
@@ -159,24 +209,40 @@ def save_subscription(data: dict) -> None:
     SUBSCRIPTION_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False))
 
 def get_subscription_info() -> dict:
-    """返回当前订阅状态，含到期天数"""
-    sub = load_subscription()
+    """返回当前订阅状态，含到期天数。优先使用 Stripe 订阅，回退到离线 License。"""
+    sub    = load_subscription()
+    lic    = load_license()
     status = sub.get("status", "inactive")
     expires_at = sub.get("expires_at")
+    plan   = sub.get("plan")
     days_remaining = None
+
     if expires_at:
         diff = expires_at - time.time()
         days_remaining = max(0, int(diff / 86400))
         if diff <= 0:
             status = "expired"
+
+    # Merge offline license if Stripe subscription is not active
+    license_active = False
+    if lic.get("expires_at") and lic["expires_at"] > time.time():
+        license_active = True
+        if status not in ("active",):
+            status     = "active"
+            expires_at = lic["expires_at"]
+            plan       = lic.get("plan", plan)
+            diff       = expires_at - time.time()
+            days_remaining = max(0, int(diff / 86400))
+
     return {
         "status": status,           # active | inactive | expired | past_due
-        "plan": sub.get("plan"),
+        "plan": plan,
         "expires_at": expires_at,
         "days_remaining": days_remaining,
         "customer_id": sub.get("customer_id"),
         "subscription_id": sub.get("subscription_id"),
         "stripe_available": STRIPE_AVAILABLE,
+        "license_active": license_active,
     }
 
 def _get_stripe_client():
@@ -1797,6 +1863,45 @@ async def api_cancel_subscription(admin: dict = Depends(require_admin)):
         return {"ok": True}
     except Exception as e:
         raise HTTPException(500, f"取消失败：{e}")
+
+@app.post("/api/license/activate")
+async def api_activate_license(req: Request, admin: dict = Depends(require_admin)):
+    """用离线激活码激活会员（ECDSA 签名验证）"""
+    body = await req.json()
+    key  = body.get("key", "").strip()
+    if not key:
+        raise HTTPException(400, "请输入激活码")
+
+    payload = verify_license_key(key)
+
+    exp  = payload.get("exp", 0)
+    plan = payload.get("plan", "")
+    if exp < time.time():
+        raise HTTPException(400, "激活码已过期")
+    if plan not in ("monthly", "annual"):
+        raise HTTPException(400, "激活码格式无效（plan 字段）")
+
+    lic = {
+        "key":          key,
+        "plan":         plan,
+        "expires_at":   int(exp),
+        "email":        payload.get("em", ""),
+        "activated_at": int(time.time()),
+    }
+    save_license(lic)
+    return get_subscription_info()
+
+@app.post("/api/license/deactivate")
+async def api_deactivate_license(admin: dict = Depends(require_admin)):
+    """移除离线激活码"""
+    if LICENSE_FILE.exists():
+        LICENSE_FILE.unlink()
+    # Also clear Stripe subscription status if needed
+    sub = load_subscription()
+    if sub.get("status") == "active" and not sub.get("subscription_id"):
+        sub["status"] = "inactive"
+        save_subscription(sub)
+    return get_subscription_info()
 
 if __name__ == "__main__":
     import uvicorn

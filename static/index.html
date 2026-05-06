@@ -680,6 +680,19 @@ tr:hover td{background:var(--sf2)}
         <span id="btn-checkout-lbl"></span>
       </button>
       <div style="font-size:.68rem;color:var(--tx3);text-align:center;margin-top:8px" id="lbl-stripe-note"></div>
+      <!-- License key activation -->
+      <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--bd)">
+        <div style="font-size:.78rem;font-weight:600;color:var(--tx2);margin-bottom:8px" id="lbl-lic-section"></div>
+        <div style="display:flex;gap:7px">
+          <input class="inp" id="lic-key-input" type="text"
+            style="flex:1;font-size:.72rem;font-family:monospace;padding:7px 10px">
+          <button class="btn btn-acc" id="btn-lic-activate" onclick="activateLicense()"
+            style="white-space:nowrap;border:none;padding:7px 14px;font-size:.8rem">
+            <span id="btn-lic-lbl"></span>
+          </button>
+        </div>
+        <div class="err-msg" id="lic-err" style="margin-top:5px"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -872,6 +885,13 @@ zh:{
   'sub.not_configured':'⚠️ 支付系统配置中，请稍后再试或联系 CATNETWORK 客服',
   'sub.monthly_price':'¥2,980','sub.annual_price':'¥24,800',
   'sub.monthly_unit':'/月','sub.annual_unit':'/年',
+  'sub.goto_payment':'前往付款页面',
+  'lic.section_title':'已完成付款？输入激活码',
+  'lic.placeholder':'激活码（付款后通过邮件获得）',
+  'lic.btn':'激活','lic.activating':'激活中...',
+  'lic.success':'激活成功！','lic.err_empty':'请输入激活码',
+  'lic.err_invalid':'激活码无效，请检查后重试',
+  'lic.contact':'联系客服',
   // Confirm dialogs
   'confirm.delete_user':'确认删除用户',
   'confirm.delete_sc':'确认删除子集群',
@@ -988,6 +1008,13 @@ en:{
   'sub.not_configured':'⚠️ Payment system is being configured. Please try later or contact CATNETWORK.',
   'sub.monthly_price':'¥2,980','sub.annual_price':'¥24,800',
   'sub.monthly_unit':'/month','sub.annual_unit':'/year',
+  'sub.goto_payment':'Go to Payment Page',
+  'lic.section_title':'Already paid? Enter your license key',
+  'lic.placeholder':'License key (sent to you by email after payment)',
+  'lic.btn':'Activate','lic.activating':'Activating...',
+  'lic.success':'Activated!','lic.err_empty':'Please enter a license key',
+  'lic.err_invalid':'Invalid license key, please check and try again',
+  'lic.contact':'Contact Support',
   'confirm.delete_user':'Confirm delete user',
   'confirm.delete_sc':'Confirm delete subcluster',
   'confirm.sc_note':'Note: machines will not be deleted, only the grouping.',
@@ -1101,6 +1128,13 @@ ja:{
   'sub.not_configured':'⚠️ 決済システムを設定中です。後ほどお試しいただくか CATNETWORK にお問い合わせください。',
   'sub.monthly_price':'¥2,980','sub.annual_price':'¥24,800',
   'sub.monthly_unit':'/月','sub.annual_unit':'/年',
+  'sub.goto_payment':'お支払いページへ',
+  'lic.section_title':'お支払い済みですか？ライセンスキーを入力',
+  'lic.placeholder':'ライセンスキー（支払い後メールで送付）',
+  'lic.btn':'認証','lic.activating':'認証中...',
+  'lic.success':'認証成功！','lic.err_empty':'ライセンスキーを入力してください',
+  'lic.err_invalid':'ライセンスキーが無効です。確認して再度お試しください',
+  'lic.contact':'サポートに連絡',
   'confirm.delete_user':'ユーザーを削除しますか',
   'confirm.delete_sc':'サブクラスターを削除しますか',
   'confirm.sc_note':'注意：サーバー自体は削除されません。グループのみ削除されます。',
@@ -2044,10 +2078,16 @@ async function openSubModal(){
   // Checkout button & note
   $('btn-checkout-lbl').textContent = t('sub.checkout_btn');
   $('lbl-stripe-note').textContent  = t('sub.secure_note');
+  // License section
+  $('lbl-lic-section').textContent  = t('lic.section_title');
+  $('lic-key-input').placeholder    = t('lic.placeholder');
+  $('btn-lic-lbl').textContent      = t('lic.btn');
+  $('lic-err').textContent          = '';
   // Active/checkout state
   const s = _subInfo;
   const isActive = s && (s.status==='active' || s.status==='past_due');
-  $('sub-active-view').style.display  = isActive ? '' : 'none';
+  const isLicenseOnly = s && s.license_active && !s.customer_id;
+  $('sub-active-view').style.display   = isActive ? '' : 'none';
   $('sub-checkout-view').style.display = isActive ? 'none' : '';
   if(isActive){
     const planKey = s.plan==='monthly' ? 'sub.active_detail_m' : 'sub.active_detail_a';
@@ -2061,7 +2101,8 @@ async function openSubModal(){
     $('sub-active-title').textContent = t(s.status==='active'?'sub.active_title':'sub.pastdue_title');
     $('sub-active-title').style.color = s.status==='active'?'var(--ok)':'var(--crit)';
     $('sub-active-detail').textContent = detail;
-    $('btn-portal').textContent    = t('sub.manage_btn');
+    $('btn-portal').textContent     = isLicenseOnly ? t('lic.contact') : t('sub.manage_btn');
+    $('btn-cancel-sub').style.display = isLicenseOnly ? 'none' : '';
     $('btn-cancel-sub').textContent = t('sub.cancel_btn');
   }
   $('sub-err').textContent = '';
@@ -2075,27 +2116,52 @@ function selectPlan(plan){
   $('plan-annual').classList.toggle('selected', plan==='annual');
 }
 
-async function startCheckout(){
-  const btn = $('btn-checkout');
-  const lbl = $('btn-checkout-lbl');
-  btn.disabled = true; lbl.textContent = t('sub.checking');
-  $('sub-err').textContent = '';
+// Stripe Payment Links — replace these URLs with your actual Payment Link URLs from Stripe Dashboard
+const _PAYMENT_LINKS = {
+  monthly: 'https://buy.stripe.com/REPLACE_MONTHLY',  // TODO: Stripe Payment Link for ¥2,980/月
+  annual:  'https://buy.stripe.com/REPLACE_ANNUAL',   // TODO: Stripe Payment Link for ¥24,800/年
+};
+
+function startCheckout(){
+  const url = _PAYMENT_LINKS[_selectedPlan];
+  if(!url || url.includes('REPLACE')){
+    $('sub-err').textContent = t('sub.not_configured');
+    return;
+  }
+  window.open(url, '_blank');
+}
+
+async function activateLicense(){
+  const key = $('lic-key-input').value.trim();
+  if(!key){ $('lic-err').textContent = t('lic.err_empty'); return; }
+  const btn = $('btn-lic-activate');
+  const lbl = $('btn-lic-lbl');
+  btn.disabled = true; lbl.textContent = t('lic.activating');
+  $('lic-err').textContent = '';
   try{
-    const r = await api('POST','/api/subscription/checkout',{plan:_selectedPlan});
-    if(!r){ btn.disabled=false; lbl.textContent=t('sub.checkout_btn'); return; }
+    const r = await api('POST','/api/license/activate',{key});
+    if(!r){ btn.disabled=false; lbl.textContent=t('lic.btn'); return; }
     const d = await r.json();
-    if(r.ok && d.url){ window.location.href = d.url; }
-    else {
-      $('sub-err').textContent = d.detail || '创建结账失败';
-      btn.disabled=false; lbl.textContent=t('sub.checkout_btn');
+    if(r.ok){
+      _subInfo = d;
+      updateSubBadge();
+      closeOverlay('ov-sub');
+      setTimeout(()=>openSubModal(), 150);
+    } else {
+      $('lic-err').textContent = d.detail || t('lic.err_invalid');
+      btn.disabled=false; lbl.textContent=t('lic.btn');
     }
   }catch(e){
-    $('sub-err').textContent = '网络错误：'+e;
-    btn.disabled=false; lbl.textContent=t('sub.checkout_btn');
+    $('lic-err').textContent = '网络错误：'+e;
+    btn.disabled=false; lbl.textContent=t('lic.btn');
   }
 }
 
 async function openPortal(){
+  if(_subInfo && _subInfo.license_active && !_subInfo.customer_id){
+    window.location.href = 'mailto:support@catnetwork.co.jp?subject=Server+Manager+License';
+    return;
+  }
   const r = await api('POST','/api/subscription/portal',{});
   if(!r) return;
   const d = await r.json();
