@@ -132,19 +132,34 @@ def save_settings(data: dict) -> None:
 # ════════════════════════════════════════════════════════════════════
 
 DEFAULT_STRIPE_CONFIG = {
-    "mode": "live",                 # test | live
-    "publishable_key": "",          # pk_live_... （在 Web 界面「会员设置」中填写）
-    "secret_key": "",               # sk_live_...
-    "webhook_secret": "",           # whsec_...
-    "price_monthly_id": "price_1TTDjURqL7k7pWSVvEGvcPzR",   # 月付 ¥2,980
-    "price_annual_id":  "price_1TTDjURqL7k7pWSVMCVISuHl",   # 年付 ¥24,800
-    "currency": "jpy",
-    "amount_monthly": 2980,
-    "amount_annual":  24800,
+    "mode": "live",
+    "publishable_key": "",
+    "secret_key": "",
+    "webhook_secret": "",
     "product_name": "Server Manager 会員",
-    "success_url": "",              # 留空自动推断
+    "success_url": "",
     "cancel_url": "",
 }
+
+# 按语言选择对应货币的 Price ID
+STRIPE_PRICES = {
+    "zh": {
+        "monthly": "price_1TTx5pRqL7k7pWSVifmV5P1h",  # CNY ¥148/月
+        "annual":  "price_1TTx6VRqL7k7pWSVe4rt63Rw",  # CNY ¥1,188/年
+    },
+    "en": {
+        "monthly": "price_1TTxi2RqL7k7pWSVrI5nLqTD",  # USD $19.80/month
+        "annual":  "price_1TTxjhRqL7k7pWSVvglmTr5r",  # USD $165/year
+    },
+    "ja": {
+        "monthly": "price_1TTxmwRqL7k7pWSVuGJtW6dQ",  # JPY ¥2,980/月
+        "annual":  "price_1TTxoCRqL7k7pWSVL3rsAuGz",  # JPY ¥24,800/年
+    },
+}
+
+def get_price_id(lang: str, plan: str) -> str:
+    prices = STRIPE_PRICES.get(lang) or STRIPE_PRICES["ja"]
+    return prices.get(plan, "")
 
 # ECDSA P-256 public key — used for offline license key verification.
 # The matching private key is kept at CATNETWORK and never distributed.
@@ -1925,12 +1940,13 @@ async def api_payment_create_for(req: Request):
 
     body       = await req.json()
     plan       = body.get("plan", "monthly")
+    lang       = body.get("lang", "ja")
     return_url = body.get("return_url", "")
     if not return_url:
         raise HTTPException(400, "return_url is required")
 
     _stripe.api_key = sk
-    price_id = DEFAULT_STRIPE_CONFIG.get(f"price_{plan}_id", "")
+    price_id   = get_price_id(lang, plan)
     enc_return = urllib.parse.quote(return_url, safe="")
 
     try:
@@ -1956,13 +1972,14 @@ async def api_payment_create(req: Request, admin: dict = Depends(require_admin))
     import os
     body = await req.json()
     plan = body.get("plan", "monthly")
+    lang = body.get("lang", "ja")
     base = _infer_base_url(req)
 
     sk = os.environ.get("STRIPE_SK") or load_stripe_config().get("secret_key", "")
     if sk and STRIPE_AVAILABLE:
         # Running on CATNETWORK's server — create directly
         _stripe.api_key = sk
-        price_id   = DEFAULT_STRIPE_CONFIG.get(f"price_{plan}_id", "")
+        price_id   = get_price_id(lang, plan)
         enc_return = urllib.parse.quote(base, safe="")
         try:
             session = _stripe.checkout.Session.create(
@@ -1981,7 +1998,7 @@ async def api_payment_create(req: Request, admin: dict = Depends(require_admin))
         async with aiohttp.ClientSession() as http:
             async with http.post(
                 f"{CATNETWORK_BASE_URL}/api/payment/create-for",
-                json={"plan": plan, "return_url": base},
+                json={"plan": plan, "lang": lang, "return_url": base},
                 timeout=aiohttp.ClientTimeout(total=15),
             ) as r:
                 if r.status != 200:

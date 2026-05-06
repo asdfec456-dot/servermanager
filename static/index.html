@@ -2104,7 +2104,7 @@ async function startCheckout(){
   btn.disabled = true; lbl.textContent = t('sub.checking');
   $('sub-err').textContent = '';
   try{
-    const r = await api('POST','/api/payment/create',{plan:_selectedPlan});
+    const r = await api('POST','/api/payment/create',{plan:_selectedPlan,lang:currentLang});
     if(!r){ btn.disabled=false; lbl.textContent=t('sub.checkout_btn'); return; }
     const d = await r.json();
     if(r.ok && d.url){ window.location.href = d.url; return; }
