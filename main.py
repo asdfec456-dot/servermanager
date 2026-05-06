@@ -63,6 +63,7 @@ STRIPE_CONFIG_FILE = DATA_DIR / "stripe_config.json"
 SUBSCRIPTION_FILE  = DATA_DIR / "subscription.json"
 LICENSE_FILE       = DATA_DIR / "license.json"
 ALIASES_FILE       = DATA_DIR / "aliases.json"
+MACHINE_CREDS_FILE = DATA_DIR / "machine_creds.json"
 ALERT_RULES_FILE   = DATA_DIR / "alert_rules.json"
 ALERT_CHANNELS_FILE= DATA_DIR / "alert_channels.json"
 ALERT_STATE_FILE   = DATA_DIR / "alert_state.json"
@@ -169,6 +170,63 @@ _LICENSE_PUBLIC_KEY_PEM = b"""-----BEGIN PUBLIC KEY-----
 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEND82GS6grJtbdXjrYM5TJyRH5S8X
 WfqS7yLzbEQfMblnYweyQbJkTsz5Z1UtnCfHwuo/GYl9jf5MkUMzY0Tvdg==
 -----END PUBLIC KEY-----"""
+
+def load_machine_creds() -> dict:
+    DATA_DIR.mkdir(exist_ok=True)
+    if MACHINE_CREDS_FILE.exists():
+        try:
+            return json.loads(MACHINE_CREDS_FILE.read_text())
+        except Exception:
+            pass
+    return {}
+
+def save_machine_creds(data: dict) -> None:
+    DATA_DIR.mkdir(exist_ok=True)
+    MACHINE_CREDS_FILE.write_text(json.dumps(data, ensure_ascii=False))
+
+# 各品牌 BMC 常用默认凭据（按使用频率排序）
+COMMON_BMC_CREDS = [
+    ("admin",         "admin"),
+    ("Administrator", "administrator"),
+    ("Administrator", "Admin"),
+    ("Administrator", "Passw0rd"),
+    ("admin",         "password"),
+    ("admin",         "Admin"),
+    ("admin",         "Admin1234"),
+    ("root",          "calvin"),        # Dell iDRAC
+    ("root",          "root"),
+    ("root",          "Admin1234"),
+    ("ADMIN",         "ADMIN"),         # Supermicro
+    ("ADMIN",         "PASSWORD"),
+    ("USERID",        "PASSW0RD"),      # IBM/Lenovo
+    ("admin",         "1234"),
+    ("admin",         "123456"),
+    ("admin",         "Passw0rd"),
+]
+
+async def _test_redfish_cred(bmc_ip: str, username: str, password: str) -> bool:
+    """Return True if credentials successfully access a protected Redfish endpoint."""
+    try:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode    = ssl.CERT_NONE
+        auth = aiohttp.BasicAuth(username, password)
+        async with aiohttp.ClientSession(auth=auth) as session:
+            for path in ("/redfish/v1/Systems", "/redfish/v1/Managers"):
+                try:
+                    async with session.get(
+                        f"https://{bmc_ip}{path}", ssl=ctx,
+                        timeout=aiohttp.ClientTimeout(total=5)
+                    ) as r:
+                        if r.status == 200:
+                            return True
+                        if r.status == 401:
+                            return False
+                except Exception:
+                    break
+    except Exception:
+        pass
+    return False
 
 def load_aliases() -> dict:
     DATA_DIR.mkdir(exist_ok=True)
@@ -1097,8 +1155,10 @@ async def change_bmc_password(bmc_ip: str, username: str, current_pw: str,
 # ─── 统一采集入口 ─────────────────────────────────────────────────
 
 async def collect_server(bmc_ip: str, settings: dict) -> dict:
-    username = settings.get("username", "")
-    password = settings.get("password", "")
+    # 独立凭据优先，没有则用全局
+    mc       = load_machine_creds().get(bmc_ip, {})
+    username = mc.get("username") or settings.get("username", "")
+    password = mc.get("password") or settings.get("password", "")
     protocol = settings.get("protocol", "auto")
     timeout  = settings.get("collection_timeout", 15)
     base = {
@@ -1535,8 +1595,9 @@ def _build_server_list(user: dict) -> dict:
         for ip in sc.get("bmc_ips", []):
             ip_to_scs.setdefault(ip, []).append(sc["id"])
 
-    aliases     = load_aliases()
-    last_logout = user.get("last_logout", 0)
+    aliases      = load_aliases()
+    machine_creds_map = load_machine_creds()
+    last_logout  = user.get("last_logout", 0)
     data = []
     for ip in visible_ips:
         alias      = aliases.get(ip, "")
@@ -1546,12 +1607,13 @@ def _build_server_list(user: dict) -> dict:
         flapping   = is_flapping(ip)
         ping_alive = _ping_alive.get(ip)   # None = 尚未 ping
         extra = {
-            "subcluster_ids": ip_to_scs.get(ip, []),
-            "alias":      alias,
-            "first_seen": first_seen,
-            "is_new":     is_new,
-            "flapping":   flapping,
-            "ping_alive": ping_alive,
+            "subcluster_ids":   ip_to_scs.get(ip, []),
+            "alias":            alias,
+            "first_seen":       first_seen,
+            "is_new":           is_new,
+            "flapping":         flapping,
+            "ping_alive":       ping_alive,
+            "has_custom_creds": ip in machine_creds_map,
         }
         cached = _cache.get(ip)
         if cached:
@@ -1656,6 +1718,50 @@ async def api_set_alias(bmc_ip_enc: str, req: Request,
         aliases.pop(bmc_ip, None)
     save_aliases(aliases)
     return {"ok": True, "alias": alias}
+
+@app.put("/api/servers/{bmc_ip_enc}/credentials")
+async def api_set_machine_creds(bmc_ip_enc: str, req: Request,
+                                 admin: dict = Depends(require_admin)):
+    """保存单台机器的独立 BMC 凭据。"""
+    bmc_ip   = bmc_ip_enc.replace("-", ".")
+    body     = await req.json()
+    username = (body.get("username") or "").strip()
+    password = body.get("password") or ""
+    if not username:
+        raise HTTPException(400, "用户名不能为空")
+    creds = load_machine_creds()
+    creds[bmc_ip] = {"username": username, "password": password}
+    save_machine_creds(creds)
+    return {"ok": True}
+
+@app.delete("/api/servers/{bmc_ip_enc}/credentials")
+async def api_del_machine_creds(bmc_ip_enc: str,
+                                 admin: dict = Depends(require_admin)):
+    """删除单台机器的独立凭据，恢复使用全局设置。"""
+    bmc_ip = bmc_ip_enc.replace("-", ".")
+    creds  = load_machine_creds()
+    creds.pop(bmc_ip, None)
+    save_machine_creds(creds)
+    return {"ok": True}
+
+@app.post("/api/servers/{bmc_ip_enc}/try_credentials")
+async def api_try_credentials(bmc_ip_enc: str,
+                               admin: dict = Depends(require_admin)):
+    """并发测试常用品牌默认凭据，返回第一个有效组合。"""
+    bmc_ip = bmc_ip_enc.replace("-", ".")
+
+    async def test_one(username: str, password: str):
+        ok = await _test_redfish_cred(bmc_ip, username, password)
+        return {"username": username, "password": password} if ok else None
+
+    results = await asyncio.gather(
+        *[test_one(u, p) for u, p in COMMON_BMC_CREDS],
+        return_exceptions=True,
+    )
+    found = [r for r in results if isinstance(r, dict)]
+    if found:
+        return {"found": True,  "username": found[0]["username"], "password": found[0]["password"]}
+    return {"found": False}
 
 @app.post("/api/servers/{bmc_ip_enc}/change_password")
 async def api_change_bmc_password(bmc_ip_enc: str, req: Request,

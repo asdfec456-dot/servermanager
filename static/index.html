@@ -851,6 +851,11 @@ zh:{
   'al.hist_empty':'暂无报警记录','al.hist_clear':'清空记录','al.hist_confirm_clear':'确认清空所有报警记录？',
   'd.alias':'别名','d.alias_ph':'自定义名称（可留空）','d.alias_save':'保存','d.alias_saved':'已保存',
   'd.new':'新发现','d.flapping':'连接不稳定',
+  'd.creds':'独立凭据','d.creds_user':'用户名','d.creds_pass':'密码',
+  'd.creds_save':'保存凭据','d.creds_clear':'恢复全局凭据','d.creds_saved':'已保存',
+  'd.creds_active':'✓ 使用独立凭据','d.creds_global':'使用全局凭据',
+  'd.try_creds':'尝试常用密码','d.try_creds_trying':'测试中 {n}/{total}...',
+  'd.try_creds_found':'✓ 找到可用凭据：{u} / {p}','d.try_creds_none':'未找到可用的默认凭据',
   'bmc.change_pw':'修改 BMC 密码','bmc.new_pw':'新密码（至少 6 位）','bmc.confirm_pw':'确认新密码',
   'bmc.submit':'应用到此服务器','bmc.submitting':'修改中...','bmc.warn':'⚠️ 修改完成后，请立即在右上角「设置」中更新全局密码，否则采集将失败。',
   'bmc.note_title':'操作说明','bmc.note':'此操作通过 Redfish / IPMI 将新密码直接写入 BMC 硬件。修改仅针对当前服务器，若所有服务器使用相同密码，则需要逐台修改，并最终更新全局设置。',
@@ -992,6 +997,11 @@ en:{
   'sub.pay_methods':'Payment methods',
   'd.alias':'Alias','d.alias_ph':'Custom name (optional)','d.alias_save':'Save','d.alias_saved':'Saved',
   'd.new':'New','d.flapping':'Unstable',
+  'd.creds':'Custom Credentials','d.creds_user':'Username','d.creds_pass':'Password',
+  'd.creds_save':'Save Credentials','d.creds_clear':'Use Global','d.creds_saved':'Saved',
+  'd.creds_active':'✓ Custom credentials active','d.creds_global':'Using global credentials',
+  'd.try_creds':'Try common passwords','d.try_creds_trying':'Testing {n}/{total}...',
+  'd.try_creds_found':'✓ Found: {u} / {p}','d.try_creds_none':'No common credentials worked',
   'sub.pay_card':'Credit / Debit card',
   'sub.pay_alipay':'Alipay QR',
   'sub.pay_wechat':'WeChat Pay QR',
@@ -1114,6 +1124,11 @@ ja:{
   'sub.pay_methods':'お支払い方法',
   'd.alias':'エイリアス','d.alias_ph':'カスタム名（省略可）','d.alias_save':'保存','d.alias_saved':'保存済み',
   'd.new':'新規','d.flapping':'不安定',
+  'd.creds':'独自認証','d.creds_user':'ユーザー名','d.creds_pass':'パスワード',
+  'd.creds_save':'保存','d.creds_clear':'グローバルに戻す','d.creds_saved':'保存済み',
+  'd.creds_active':'✓ 独自認証使用中','d.creds_global':'グローバル認証使用',
+  'd.try_creds':'一般的なパスワードを試す','d.try_creds_trying':'テスト中 {n}/{total}...',
+  'd.try_creds_found':'✓ 認証成功：{u} / {p}','d.try_creds_none':'有効なデフォルト認証なし',
   'sub.pay_card':'クレジット / デビットカード',
   'sub.pay_alipay':'Alipay QR',
   'sub.pay_wechat':'WeChat Pay QR',
@@ -1713,13 +1728,40 @@ function buildDetail(s){
   const sec=(title,body)=>`<div style="margin-bottom:16px"><div class="sec-title">${title}</div>${body}</div>`;
   const ms=s.memory_summary||{};const parts=[];
   const key=s.bmc_ip.replace(/\./g,'-');
-  // 别名编辑（仅管理员）
+  // 别名 + 独立凭据（仅管理员）
   if(currentUser?.role==='admin'){
-    parts.push(`<div class="alias-row">
-<div style="flex:1"><label style="font-size:.72rem;color:var(--tx2);display:block;margin-bottom:4px">${t('d.alias')}</label>
-<input class="inp" id="alias-${key}" type="text" value="${esc(s.alias||'')}" placeholder="${t('d.alias_ph')}" style="font-size:.82rem"></div>
-<button class="btn btn-acc" onclick="saveAlias('${key}')" style="border:none;font-size:.78rem;align-self:flex-end">${t('d.alias_save')}</button>
-<span id="alias-ok-${key}" style="font-size:.72rem;color:var(--ok);align-self:flex-end;min-width:40px"></span>
+    const credsActive = s.has_custom_creds;
+    const credsSrc = credsActive
+      ? `<span style="color:var(--ok);font-size:.7rem">${t('d.creds_active')}</span>`
+      : `<span style="color:var(--tx3);font-size:.7rem">${t('d.creds_global')}</span>`;
+    parts.push(`<div class="alias-row" style="flex-wrap:wrap;gap:10px">
+<div style="flex:1;min-width:160px">
+  <label style="font-size:.72rem;color:var(--tx2);display:block;margin-bottom:4px">${t('d.alias')}</label>
+  <input class="inp" id="alias-${key}" type="text" value="${esc(s.alias||'')}" placeholder="${t('d.alias_ph')}" style="font-size:.82rem">
+</div>
+<div style="display:flex;gap:5px;align-items:flex-end">
+  <button class="btn btn-acc" onclick="saveAlias('${key}')" style="border:none;font-size:.78rem">${t('d.alias_save')}</button>
+  <span id="alias-ok-${key}" style="font-size:.72rem;color:var(--ok);min-width:36px"></span>
+</div>
+</div>
+<div style="padding:12px 14px;background:var(--sf2);border-bottom:1px solid var(--bd)">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <span style="font-size:.78rem;font-weight:600">${t('d.creds')}</span>${credsSrc}
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+    <div><label style="font-size:.68rem;color:var(--tx2)">${t('d.creds_user')}</label>
+      <input class="inp" id="mc-u-${key}" type="text" style="margin-top:3px;font-size:.82rem" placeholder="admin"></div>
+    <div><label style="font-size:.68rem;color:var(--tx2)">${t('d.creds_pass')}</label>
+      <input class="inp" id="mc-p-${key}" type="password" style="margin-top:3px;font-size:.82rem" placeholder="••••••">
+      <label style="display:flex;align-items:center;gap:4px;font-size:.65rem;color:var(--tx3);margin-top:4px;cursor:pointer">
+        <input type="checkbox" onchange="toggleMcPw('${key}',this.checked)"> 显示密码</label></div>
+  </div>
+  <div style="display:flex;gap:7px;flex-wrap:wrap">
+    <button class="btn btn-acc" onclick="saveMachineCreds('${key}')" style="border:none;font-size:.77rem">${t('d.creds_save')}</button>
+    <button class="btn" onclick="clearMachineCreds('${key}')" style="font-size:.77rem">${t('d.creds_clear')}</button>
+    <button class="btn" id="btn-try-${key}" onclick="tryCommonCreds('${key}')" style="font-size:.77rem">${t('d.try_creds')}</button>
+  </div>
+  <div id="mc-result-${key}" style="margin-top:8px;font-size:.75rem;min-height:18px"></div>
 </div>`);
   }
   parts.push(sec(t('d.sysinfo'),`<div class="info-grid">
@@ -1763,6 +1805,64 @@ ${ms.total_gib?`<div><div class="ik">${t('d.mem')}</div><div class="iv">${ms.tot
   }
 
   return parts.join('');
+}
+
+function toggleMcPw(key, show){
+  const el=$(`mc-p-${key}`);
+  if(el) el.type = show ? 'text' : 'password';
+}
+
+async function saveMachineCreds(key){
+  const u=($(`mc-u-${key}`)?.value||'').trim();
+  const p=$(`mc-p-${key}`)?.value||'';
+  if(!u){ $(`mc-result-${key}`).textContent='请输入用户名'; return; }
+  const r=await api('PUT',`/api/servers/${key}/credentials`,{username:u,password:p});
+  if(!r) return;
+  const d=await r.json();
+  const res=$(`mc-result-${key}`);
+  if(d.ok){
+    res.style.color='var(--ok)'; res.textContent=t('d.creds_saved');
+    const sv=servers.find(x=>x.bmc_ip===key.replace(/-/g,'.'));
+    if(sv) sv.has_custom_creds=true;
+    setTimeout(()=>{res.textContent='';},2000);
+  } else { res.style.color='var(--crit)'; res.textContent=d.detail||'保存失败'; }
+}
+
+async function clearMachineCreds(key){
+  const r=await api('DELETE',`/api/servers/${key}/credentials`);
+  if(!r) return;
+  const d=await r.json();
+  const res=$(`mc-result-${key}`);
+  if(d.ok){
+    res.style.color='var(--tx2)'; res.textContent=t('d.creds_global');
+    const sv=servers.find(x=>x.bmc_ip===key.replace(/-/g,'.'));
+    if(sv) sv.has_custom_creds=false;
+    if($(`mc-u-${key}`)) $(`mc-u-${key}`).value='';
+    if($(`mc-p-${key}`)) $(`mc-p-${key}`).value='';
+    setTimeout(()=>{res.textContent='';},2000);
+  }
+}
+
+async function tryCommonCreds(key){
+  const btn=$(`btn-try-${key}`);
+  const res=$(`mc-result-${key}`);
+  if(btn) btn.disabled=true;
+  res.style.color='var(--tx2)';
+  res.textContent=t('d.try_creds_trying').replace('{n}','…').replace('{total}','16');
+  const r=await api('POST',`/api/servers/${key}/try_credentials`,{});
+  if(btn) btn.disabled=false;
+  if(!r){ res.textContent='网络错误'; return; }
+  const d=await r.json();
+  if(d.found){
+    res.style.color='var(--ok)';
+    res.textContent=t('d.try_creds_found').replace('{u}',d.username).replace('{p}','••••');
+    // 自动填充输入框
+    if($(`mc-u-${key}`)) $(`mc-u-${key}`).value=d.username;
+    if($(`mc-p-${key}`)) $(`mc-p-${key}`).value=d.password;
+  } else {
+    res.style.color='var(--warn)';
+    res.textContent=t('d.try_creds_none');
+  }
 }
 
 async function saveAlias(key){
