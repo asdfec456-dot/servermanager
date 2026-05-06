@@ -39,6 +39,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 
 import urllib.parse
+import platform as _platform
 
 from fastapi import FastAPI, BackgroundTasks, Request, Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -688,8 +689,9 @@ def create_session(user: dict) -> str:
         "user_id":        user["id"],
         "username":       user["username"],
         "role":           user["role"],
-        "cluster_access": user.get("cluster_access"),   # None = 全部
-        "machine_access": user.get("machine_access"),   # 单台机器权限
+        "cluster_access": user.get("cluster_access"),
+        "machine_access": user.get("machine_access"),
+        "last_logout":    user.get("last_logout", 0),   # 上次登出时间，用于判断"新机器"
         "expires":        time.time() + 86400,
     }
     return token
@@ -1130,7 +1132,9 @@ async def collect_server(bmc_ip: str, settings: dict) -> dict:
 # ─── 缓存与后台刷新 ───────────────────────────────────────────────
 
 _cache: Dict[str, dict] = {}
-_first_seen: Dict[str, float] = {}   # ip → 首次发现时间戳
+_first_seen:  Dict[str, float] = {}   # ip → 首次发现时间戳
+_ping_alive:  Dict[str, bool]  = {}   # ip → 最新 ping 结果
+_flap_tracker: Dict[str, list] = {}   # ip → [状态切换时间戳]
 _collecting = False
 _last_full_refresh: float = 0.0
 
@@ -1177,11 +1181,63 @@ async def _periodic():
         s = load_settings()
         await asyncio.sleep(s.get("refresh_interval", 60))
 
+async def _ping_once(ip: str) -> bool:
+    """单次 ICMP ping，跨平台。"""
+    try:
+        if _platform.system() == "Darwin":
+            cmd = ["ping", "-c", "1", "-W", "1000", "-n", ip]
+        else:
+            cmd = ["ping", "-c", "1", "-W", "1", "-n", ip]
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+        try:
+            await asyncio.wait_for(proc.wait(), timeout=3.0)
+        except asyncio.TimeoutError:
+            proc.kill()
+            return False
+        return proc.returncode == 0
+    except Exception:
+        return False
+
+def is_flapping(ip: str) -> bool:
+    """30 分钟内 ping 状态切换 ≥ 3 次则判定为不稳定。"""
+    now = time.time()
+    return sum(1 for t in _flap_tracker.get(ip, []) if now - t < 1800) >= 3
+
+async def _icmp_loop():
+    """轻量 ICMP 存活监控，每 30s ping 所有配置的主机。"""
+    await asyncio.sleep(20)   # 等待初次采集完成
+    while True:
+        try:
+            settings = load_settings()
+            ips = parse_ip_ranges(settings.get("ip_ranges", ""))
+            if ips:
+                results = await asyncio.gather(
+                    *[_ping_once(ip) for ip in ips], return_exceptions=True
+                )
+                now = time.time()
+                for ip, result in zip(ips, results):
+                    alive = result is True
+                    prev  = _ping_alive.get(ip)
+                    _ping_alive[ip] = alive
+                    if prev is not None and prev != alive:
+                        changes = _flap_tracker.setdefault(ip, [])
+                        changes.append(now)
+                        # 只保留最近 1 小时的记录
+                        _flap_tracker[ip] = [t for t in changes if now - t < 3600]
+        except Exception as e:
+            logger.debug("ICMP loop: %s", e)
+        await asyncio.sleep(30)
+
 # ─── FastAPI ──────────────────────────────────────────────────────
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     asyncio.create_task(_periodic())
+    asyncio.create_task(_icmp_loop())
     yield
 
 app = FastAPI(title="Server Manager", lifespan=lifespan)
@@ -1251,6 +1307,13 @@ async def auth_logout(user: dict = Depends(get_current_user),
                       cred: Optional[HTTPAuthorizationCredentials] = Depends(_security)):
     if cred:
         _sessions.pop(cred.credentials, None)
+    # 记录登出时间，供下次登录后判断"新机器"
+    auth = load_auth()
+    for u in auth.get("users", []):
+        if u["username"] == user["username"]:
+            u["last_logout"] = int(time.time())
+            break
+    save_auth(auth)
     return {"ok": True}
 
 @app.get("/api/auth/me")
@@ -1472,16 +1535,27 @@ def _build_server_list(user: dict) -> dict:
         for ip in sc.get("bmc_ips", []):
             ip_to_scs.setdefault(ip, []).append(sc["id"])
 
-    aliases = load_aliases()
+    aliases     = load_aliases()
+    last_logout = user.get("last_logout", 0)
     data = []
     for ip in visible_ips:
-        alias = aliases.get(ip, "")
+        alias      = aliases.get(ip, "")
+        first_seen = _first_seen.get(ip)
+        # 新机器：用户上次 logout 之后首次出现（且曾经 logout 过）
+        is_new     = bool(last_logout and first_seen and first_seen > last_logout)
+        flapping   = is_flapping(ip)
+        ping_alive = _ping_alive.get(ip)   # None = 尚未 ping
+        extra = {
+            "subcluster_ids": ip_to_scs.get(ip, []),
+            "alias":      alias,
+            "first_seen": first_seen,
+            "is_new":     is_new,
+            "flapping":   flapping,
+            "ping_alive": ping_alive,
+        }
         cached = _cache.get(ip)
         if cached:
-            entry = {**cached,
-                     "subcluster_ids": ip_to_scs.get(ip, []),
-                     "alias": alias,
-                     "first_seen": _first_seen.get(ip)}
+            entry = {**cached, **extra}
         else:
             entry = {
                 "name": ip, "bmc_ip": ip, "status": "pending", "health": "Unknown",
@@ -1490,9 +1564,7 @@ def _build_server_list(user: dict) -> dict:
                 "temperatures": [], "fans": [], "power_supplies": [], "power_consumed_watts": None,
                 "processors": [], "memory_summary": {}, "storage": [],
                 "alerts": [], "last_updated": None, "error": None,
-                "subcluster_ids": ip_to_scs.get(ip, []),
-                "alias": alias,
-                "first_seen": _first_seen.get(ip),
+                **extra,
             }
         data.append(entry)
 

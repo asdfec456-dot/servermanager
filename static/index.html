@@ -108,6 +108,9 @@ main{padding:16px;min-height:60vh}
 @keyframes new-pulse{0%,100%{box-shadow:0 0 0 2px rgba(56,189,248,.25)}50%{box-shadow:0 0 0 5px rgba(56,189,248,.5)}}
 .card-new{animation:new-pulse 2s ease-in-out infinite;border-color:var(--acc)!important}
 .new-badge{background:var(--acc);color:#fff;font-size:.55rem;font-weight:700;padding:1px 6px;border-radius:999px;letter-spacing:.04em;vertical-align:middle;margin-left:4px}
+/* Flapping / unstable */
+@keyframes flap-blink{0%,100%{opacity:1}50%{opacity:.45}}
+.flap-badge{background:var(--warn);color:#fff;font-size:.55rem;font-weight:700;padding:1px 6px;border-radius:999px;letter-spacing:.04em;vertical-align:middle;margin-left:4px;animation:flap-blink 1.4s ease-in-out infinite}
 /* Alias row in detail */
 .alias-row{display:flex;align-items:flex-end;gap:8px;padding:10px 13px;background:var(--sf2);border-bottom:1px solid var(--bd)}
 .card-head{padding:11px 13px 9px;display:flex;align-items:flex-start;justify-content:space-between;gap:7px}
@@ -847,6 +850,7 @@ zh:{
   'al.rule_btn_edit':'编辑','al.rule_btn_del':'删除','al.rule_confirm_del':'确认删除此规则？',
   'al.hist_empty':'暂无报警记录','al.hist_clear':'清空记录','al.hist_confirm_clear':'确认清空所有报警记录？',
   'd.alias':'别名','d.alias_ph':'自定义名称（可留空）','d.alias_save':'保存','d.alias_saved':'已保存',
+  'd.new':'新发现','d.flapping':'连接不稳定',
   'bmc.change_pw':'修改 BMC 密码','bmc.new_pw':'新密码（至少 6 位）','bmc.confirm_pw':'确认新密码',
   'bmc.submit':'应用到此服务器','bmc.submitting':'修改中...','bmc.warn':'⚠️ 修改完成后，请立即在右上角「设置」中更新全局密码，否则采集将失败。',
   'bmc.note_title':'操作说明','bmc.note':'此操作通过 Redfish / IPMI 将新密码直接写入 BMC 硬件。修改仅针对当前服务器，若所有服务器使用相同密码，则需要逐台修改，并最终更新全局设置。',
@@ -987,6 +991,7 @@ en:{
   'sub.save_pct':'Save {pct}% with annual',
   'sub.pay_methods':'Payment methods',
   'd.alias':'Alias','d.alias_ph':'Custom name (optional)','d.alias_save':'Save','d.alias_saved':'Saved',
+  'd.new':'New','d.flapping':'Unstable',
   'sub.pay_card':'Credit / Debit card',
   'sub.pay_alipay':'Alipay QR',
   'sub.pay_wechat':'WeChat Pay QR',
@@ -1108,6 +1113,7 @@ ja:{
   'sub.save_pct':'年払いで {pct}% 節約',
   'sub.pay_methods':'お支払い方法',
   'd.alias':'エイリアス','d.alias_ph':'カスタム名（省略可）','d.alias_save':'保存','d.alias_saved':'保存済み',
+  'd.new':'新規','d.flapping':'不安定',
   'sub.pay_card':'クレジット / デビットカード',
   'sub.pay_alipay':'Alipay QR',
   'sub.pay_wechat':'WeChat Pay QR',
@@ -1375,9 +1381,9 @@ function renderCardHtml(s,wide){
   const[hcls,hlbl]=hbadge(s),ms=s.memory_summary||{},procs=s.processors||[];
   const key=s.bmc_ip.replace(/\./g,'-');
   const displayName=s.alias||s.name;
-  const isNew=s.first_seen&&(Date.now()/1000-s.first_seen<86400);
-  const newBadge=isNew?`<span class="new-badge">NEW</span>`:'';
-  const newCls=isNew?' card-new':'';
+  const newBadge  = s.is_new    ? `<span class="new-badge">${t('d.new')}</span>`     : '';
+  const flapBadge = s.flapping  ? `<span class="flap-badge">${t('d.flapping')}</span>` : '';
+  const newCls    = s.is_new    ? ' card-new' : '';
 
   // 离线/无法连接 → 紧凑单行卡片
   if(s.status==='offline'||s.status==='pending'){
@@ -1385,7 +1391,7 @@ function renderCardHtml(s,wide){
     const errTxt=s.error?`<span style="flex:1;font-size:.65rem;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${esc(s.error)}</span>`:'';
     return`<div class="card card-offline${newCls}" onclick="openDetail('${key}')">
 <span style="width:7px;height:7px;border-radius:50%;background:${dot};flex-shrink:0"></span>
-<span style="font-size:.82rem;font-weight:600;white-space:nowrap">${esc(displayName)}${newBadge}</span>
+<span style="font-size:.82rem;font-weight:600;white-space:nowrap">${esc(displayName)}${newBadge}${flapBadge}</span>
 <span style="font-size:.67rem;color:var(--tx3);font-family:monospace;white-space:nowrap">${s.bmc_ip}</span>
 ${errTxt}
 <span class="hbadge ${hcls}" style="flex-shrink:0">${hlbl}</span>
@@ -1402,7 +1408,7 @@ ${errTxt}
   const scTags=currentUser?.role==='admin'&&(s.subcluster_ids||[]).length?`<div class="sc-tags">${(s.subcluster_ids||[]).map(id=>{const sc=subclusters.find(x=>x.id===id);return sc?`<span class="sc-tag">${esc(sc.name)}</span>`:''}).join('')}</div>`:'';
   const pwr=s.power_state==='On'?t('c.on'):s.power_state==='Off'?t('c.off'):s.power_state||'—';
   return`<div class="card${newCls}" onclick="openDetail('${key}')">
-<div class="card-head"><div class="card-title"><div class="card-name">${esc(displayName)}${newBadge}${proto}</div><div class="card-sub">${s.bmc_ip} · ${s.model||t('c.unknown_model')}</div></div><span class="hbadge ${hcls}">${hlbl}</span></div>
+<div class="card-head"><div class="card-title"><div class="card-name">${esc(displayName)}${newBadge}${flapBadge}${proto}</div><div class="card-sub">${s.bmc_ip} · ${s.model||t('c.unknown_model')}</div></div><span class="hbadge ${hcls}">${hlbl}</span></div>
 <div class="card-div"></div>
 <div class="card-metrics">
 <div><div class="ml">${t('c.power')}</div><div class="mv mv-ok">${pwr}</div></div>
