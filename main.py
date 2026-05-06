@@ -1595,9 +1595,10 @@ def _build_server_list(user: dict) -> dict:
         for ip in sc.get("bmc_ips", []):
             ip_to_scs.setdefault(ip, []).append(sc["id"])
 
-    aliases      = load_aliases()
+    aliases           = load_aliases()
     machine_creds_map = load_machine_creds()
-    last_logout  = user.get("last_logout", 0)
+    global_username   = settings.get("username", "")
+    last_logout       = user.get("last_logout", 0)
     data = []
     for ip in visible_ips:
         alias      = aliases.get(ip, "")
@@ -1606,6 +1607,14 @@ def _build_server_list(user: dict) -> dict:
         is_new     = bool(last_logout and first_seen and first_seen > last_logout)
         flapping   = is_flapping(ip)
         ping_alive = _ping_alive.get(ip)   # None = 尚未 ping
+        mc          = machine_creds_map.get(ip, {})
+        cred_source = mc.get("source", "manual") if mc else "global"
+        if not mc:
+            cred_source   = "global"
+            cred_username = global_username
+        else:
+            cred_source   = mc.get("source", "manual")   # "auto" | "manual"
+            cred_username = mc.get("username", "")
         extra = {
             "subcluster_ids":   ip_to_scs.get(ip, []),
             "alias":            alias,
@@ -1613,7 +1622,9 @@ def _build_server_list(user: dict) -> dict:
             "is_new":           is_new,
             "flapping":         flapping,
             "ping_alive":       ping_alive,
-            "has_custom_creds": ip in machine_creds_map,
+            "has_custom_creds": bool(mc),
+            "cred_source":      cred_source,
+            "cred_username":    cred_username,
         }
         cached = _cache.get(ip)
         if cached:
@@ -1722,15 +1733,16 @@ async def api_set_alias(bmc_ip_enc: str, req: Request,
 @app.put("/api/servers/{bmc_ip_enc}/credentials")
 async def api_set_machine_creds(bmc_ip_enc: str, req: Request,
                                  admin: dict = Depends(require_admin)):
-    """保存单台机器的独立 BMC 凭据。"""
+    """保存单台机器的独立 BMC 凭据。source: 'manual'|'auto'"""
     bmc_ip   = bmc_ip_enc.replace("-", ".")
     body     = await req.json()
     username = (body.get("username") or "").strip()
     password = body.get("password") or ""
+    source   = body.get("source", "manual")
     if not username:
         raise HTTPException(400, "用户名不能为空")
     creds = load_machine_creds()
-    creds[bmc_ip] = {"username": username, "password": password}
+    creds[bmc_ip] = {"username": username, "password": password, "source": source}
     save_machine_creds(creds)
     return {"ok": True}
 
@@ -1743,6 +1755,27 @@ async def api_del_machine_creds(bmc_ip_enc: str,
     creds.pop(bmc_ip, None)
     save_machine_creds(creds)
     return {"ok": True}
+
+@app.post("/api/settings/try_credentials")
+async def api_try_global_creds(req: Request, admin: dict = Depends(require_admin)):
+    """对指定 IP 并发测试常用凭据，返回第一个有效组合（用于填写全局设置）。"""
+    body    = await req.json()
+    test_ip = (body.get("ip") or "").strip()
+    if not test_ip:
+        raise HTTPException(400, "请提供测试 IP 地址")
+
+    async def test_one(username: str, password: str):
+        ok = await _test_redfish_cred(test_ip, username, password)
+        return {"username": username, "password": password} if ok else None
+
+    results = await asyncio.gather(
+        *[test_one(u, p) for u, p in COMMON_BMC_CREDS],
+        return_exceptions=True,
+    )
+    found = [r for r in results if isinstance(r, dict)]
+    if found:
+        return {"found": True, "username": found[0]["username"], "password": found[0]["password"]}
+    return {"found": False}
 
 @app.post("/api/servers/{bmc_ip_enc}/try_credentials")
 async def api_try_credentials(bmc_ip_enc: str,

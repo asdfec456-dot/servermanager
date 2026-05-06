@@ -554,6 +554,11 @@ tr:hover td{background:var(--sf2)}
         </div>
       </div>
     </div>
+    <div style="margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <button class="btn" id="btn-try-global" onclick="tryGlobalCreds()" type="button" style="font-size:.76rem">🔍 <span id="lbl-try-global">尝试常用密码</span></button>
+      <span id="try-global-note" style="font-size:.67rem;color:var(--tx3)"></span>
+    </div>
+    <div id="try-global-result" style="font-size:.75rem;margin-top:5px;min-height:16px"></div>
     <div class="sec-title" style="margin-top:11px" id="lbl-proto">扫描协议</div>
     <div class="proto-seg" id="proto-seg">
       <button class="proto-opt sel" data-v="auto" onclick="selProto(this)" id="lbl-proto-auto">自动检测</button>
@@ -800,6 +805,8 @@ zh:{
   'cfg.hint_auto':'自动检测：优先 Redfish，失败后回退 IPMI','cfg.hint_rf':'仅使用 Redfish REST API','cfg.hint_ipmi':'仅使用 IPMI（需要 ipmitool）',
   'cfg.advanced':'高级设置','cfg.refresh':'自动刷新（秒）','cfg.timeout':'超时（秒）','cfg.concurrent':'并发数',
   'cfg.cancel':'取消','cfg.save':'保存并扫描','cfg.saving':'保存中...','cfg.ip_count':'共 {n} 个地址',
+  'cfg.try_creds':'尝试常用密码','cfg.try_trying':'测试中，请稍候...','cfg.try_note':'将对第一个 IP 测试 {n} 种品牌默认密码',
+  'cfg.try_found':'✓ 找到可用凭据（已填入）：用户 {u}','cfg.try_none':'未找到可用的默认凭据',
   'u.title':'用户管理','u.list':'用户列表','u.form_add':'添加用户','u.form_edit':'编辑用户',
   'u.name':'用户名','u.pass':'密码','u.pass_hint':'至少 6 位','u.pass_hint_edit':'留空则不修改',
   'u.role':'角色','u.role_viewer':'查看者','u.role_admin':'管理员',
@@ -853,9 +860,7 @@ zh:{
   'd.new':'新发现','d.flapping':'连接不稳定',
   'd.creds':'独立凭据','d.creds_user':'用户名','d.creds_pass':'密码',
   'd.creds_save':'保存凭据','d.creds_clear':'恢复全局凭据','d.creds_saved':'已保存',
-  'd.creds_active':'✓ 使用独立凭据','d.creds_global':'使用全局凭据',
-  'd.try_creds':'尝试常用密码','d.try_creds_trying':'测试中 {n}/{total}...',
-  'd.try_creds_found':'✓ 找到可用凭据：{u} / {p}','d.try_creds_none':'未找到可用的默认凭据',
+  'd.creds_global':'全局凭据','d.creds_manual':'手动独立凭据','d.creds_auto':'自动发现的凭据',
   'bmc.change_pw':'修改 BMC 密码','bmc.new_pw':'新密码（至少 6 位）','bmc.confirm_pw':'确认新密码',
   'bmc.submit':'应用到此服务器','bmc.submitting':'修改中...','bmc.warn':'⚠️ 修改完成后，请立即在右上角「设置」中更新全局密码，否则采集将失败。',
   'bmc.note_title':'操作说明','bmc.note':'此操作通过 Redfish / IPMI 将新密码直接写入 BMC 硬件。修改仅针对当前服务器，若所有服务器使用相同密码，则需要逐台修改，并最终更新全局设置。',
@@ -931,6 +936,8 @@ en:{
   'cfg.hint_auto':'Auto: try Redfish first, fall back to IPMI','cfg.hint_rf':'Redfish REST API only','cfg.hint_ipmi':'IPMI only (requires ipmitool)',
   'cfg.advanced':'Advanced','cfg.refresh':'Auto Refresh (s)','cfg.timeout':'Timeout (s)','cfg.concurrent':'Concurrency',
   'cfg.cancel':'Cancel','cfg.save':'Save & Scan','cfg.saving':'Saving...','cfg.ip_count':'{n} addresses',
+  'cfg.try_creds':'Try common passwords','cfg.try_trying':'Testing, please wait...','cfg.try_note':'Will test {n} default passwords on the first IP',
+  'cfg.try_found':'✓ Credentials found (filled in): user {u}','cfg.try_none':'No common credentials worked',
   'u.title':'User Management','u.list':'User List','u.form_add':'Add User','u.form_edit':'Edit User',
   'u.name':'Username','u.pass':'Password','u.pass_hint':'Min 6 characters','u.pass_hint_edit':'Leave blank to keep current',
   'u.role':'Role','u.role_viewer':'Viewer','u.role_admin':'Administrator',
@@ -999,9 +1006,7 @@ en:{
   'd.new':'New','d.flapping':'Unstable',
   'd.creds':'Custom Credentials','d.creds_user':'Username','d.creds_pass':'Password',
   'd.creds_save':'Save Credentials','d.creds_clear':'Use Global','d.creds_saved':'Saved',
-  'd.creds_active':'✓ Custom credentials active','d.creds_global':'Using global credentials',
-  'd.try_creds':'Try common passwords','d.try_creds_trying':'Testing {n}/{total}...',
-  'd.try_creds_found':'✓ Found: {u} / {p}','d.try_creds_none':'No common credentials worked',
+  'd.creds_global':'Global credentials','d.creds_manual':'Custom credentials','d.creds_auto':'Auto-discovered credentials',
   'sub.pay_card':'Credit / Debit card',
   'sub.pay_alipay':'Alipay QR',
   'sub.pay_wechat':'WeChat Pay QR',
@@ -1058,6 +1063,8 @@ ja:{
   'cfg.hint_auto':'自動：まず Redfish、失敗時は IPMI にフォールバック','cfg.hint_rf':'Redfish REST API のみ','cfg.hint_ipmi':'IPMI のみ（ipmitool が必要）',
   'cfg.advanced':'詳細設定','cfg.refresh':'自動更新（秒）','cfg.timeout':'タイムアウト（秒）','cfg.concurrent':'最大同時接続数',
   'cfg.cancel':'キャンセル','cfg.save':'保存してスキャン','cfg.saving':'保存中...','cfg.ip_count':'{n} アドレス',
+  'cfg.try_creds':'一般的なパスワードを試す','cfg.try_trying':'テスト中...','cfg.try_note':'{n}種類のデフォルトパスワードを最初のIPで試します',
+  'cfg.try_found':'✓ 認証情報が見つかりました（入力済み）：ユーザー {u}','cfg.try_none':'デフォルト認証情報が見つかりませんでした',
   'u.title':'ユーザー管理','u.list':'ユーザー一覧','u.form_add':'ユーザー追加','u.form_edit':'ユーザー編集',
   'u.name':'ユーザー名','u.pass':'パスワード','u.pass_hint':'6文字以上','u.pass_hint_edit':'空白のままで変更しない',
   'u.role':'ロール','u.role_viewer':'閲覧者','u.role_admin':'管理者',
@@ -1126,9 +1133,7 @@ ja:{
   'd.new':'新規','d.flapping':'不安定',
   'd.creds':'独自認証','d.creds_user':'ユーザー名','d.creds_pass':'パスワード',
   'd.creds_save':'保存','d.creds_clear':'グローバルに戻す','d.creds_saved':'保存済み',
-  'd.creds_active':'✓ 独自認証使用中','d.creds_global':'グローバル認証使用',
-  'd.try_creds':'一般的なパスワードを試す','d.try_creds_trying':'テスト中 {n}/{total}...',
-  'd.try_creds_found':'✓ 認証成功：{u} / {p}','d.try_creds_none':'有効なデフォルト認証なし',
+  'd.creds_global':'グローバル認証','d.creds_manual':'手動独自認証','d.creds_auto':'自動検出の認証情報',
   'sub.pay_card':'クレジット / デビットカード',
   'sub.pay_alipay':'Alipay QR',
   'sub.pay_wechat':'WeChat Pay QR',
@@ -1562,6 +1567,9 @@ async function openSettingsModal(){
   cfgProto=s.protocol||'auto';
   document.querySelectorAll('.proto-opt').forEach(b=>b.classList.toggle('sel',b.dataset.v===cfgProto));
   updateProtoHint();updateIpCount();
+  $('try-global-result').textContent='';
+  $('try-global-note').textContent=t('cfg.try_note').replace('{n}',16);
+  $('lbl-try-global').textContent=t('cfg.try_creds');
   $('ov-cfg').classList.add('open');document.body.style.overflow='hidden';
 }
 function selProto(el){document.querySelectorAll('.proto-opt').forEach(b=>b.classList.remove('sel'));el.classList.add('sel');cfgProto=el.dataset.v;updateProtoHint();}
@@ -1730,10 +1738,13 @@ function buildDetail(s){
   const key=s.bmc_ip.replace(/\./g,'-');
   // 别名 + 独立凭据（仅管理员）
   if(currentUser?.role==='admin'){
-    const credsActive = s.has_custom_creds;
-    const credsSrc = credsActive
-      ? `<span style="color:var(--ok);font-size:.7rem">${t('d.creds_active')}</span>`
-      : `<span style="color:var(--tx3);font-size:.7rem">${t('d.creds_global')}</span>`;
+    const cs = s.cred_source||'global';
+    const srcLabel = cs==='auto'
+      ? `<span style="color:var(--ok);font-size:.7rem">🔍 ${t('d.creds_auto')} · ${s.cred_username||''}</span>`
+      : cs==='manual'
+      ? `<span style="color:var(--acc);font-size:.7rem">🔑 ${t('d.creds_manual')} · ${s.cred_username||''}</span>`
+      : `<span style="color:var(--tx3);font-size:.7rem">🌐 ${t('d.creds_global')} · ${s.cred_username||''}</span>`;
+    const credsSrc = srcLabel;
     parts.push(`<div class="alias-row" style="flex-wrap:wrap;gap:10px">
 <div style="flex:1;min-width:160px">
   <label style="font-size:.72rem;color:var(--tx2);display:block;margin-bottom:4px">${t('d.alias')}</label>
@@ -1759,7 +1770,6 @@ function buildDetail(s){
   <div style="display:flex;gap:7px;flex-wrap:wrap">
     <button class="btn btn-acc" onclick="saveMachineCreds('${key}')" style="border:none;font-size:.77rem">${t('d.creds_save')}</button>
     <button class="btn" onclick="clearMachineCreds('${key}')" style="font-size:.77rem">${t('d.creds_clear')}</button>
-    <button class="btn" id="btn-try-${key}" onclick="tryCommonCreds('${key}')" style="font-size:.77rem">${t('d.try_creds')}</button>
   </div>
   <div id="mc-result-${key}" style="margin-top:8px;font-size:.75rem;min-height:18px"></div>
 </div>`);
@@ -1807,6 +1817,31 @@ ${ms.total_gib?`<div><div class="ik">${t('d.mem')}</div><div class="iv">${ms.tot
   return parts.join('');
 }
 
+let _credAutoFound = {};  // key → true if credentials were found by auto-try
+
+async function tryGlobalCreds(){
+  const ipText = ($('cfg-ip')?.value||'').trim();
+  const firstIp = ipText.split(/[\n,;\s]+/).map(s=>s.trim()).find(s=>s);
+  const res = $('try-global-result');
+  const btn = $('btn-try-global');
+  if(!firstIp){ res.style.color='var(--warn)'; res.textContent='请先填写 IP 地址'; return; }
+  btn.disabled=true;
+  res.style.color='var(--tx2)'; res.textContent=t('cfg.try_trying');
+  const r = await api('POST','/api/settings/try_credentials',{ip:firstIp});
+  btn.disabled=false;
+  if(!r) return;
+  const d = await r.json();
+  if(d.found){
+    res.style.color='var(--ok)';
+    res.textContent=t('cfg.try_found').replace('{u}',d.username);
+    $('cfg-user').value=d.username;
+    $('cfg-pw').value=d.password;
+  } else {
+    res.style.color='var(--warn)';
+    res.textContent=t('cfg.try_none');
+  }
+}
+
 function toggleMcPw(key, show){
   const el=$(`mc-p-${key}`);
   if(el) el.type = show ? 'text' : 'password';
@@ -1816,7 +1851,9 @@ async function saveMachineCreds(key){
   const u=($(`mc-u-${key}`)?.value||'').trim();
   const p=$(`mc-p-${key}`)?.value||'';
   if(!u){ $(`mc-result-${key}`).textContent='请输入用户名'; return; }
-  const r=await api('PUT',`/api/servers/${key}/credentials`,{username:u,password:p});
+  const source = _credAutoFound[key] ? 'auto' : 'manual';
+  delete _credAutoFound[key];
+  const r=await api('PUT',`/api/servers/${key}/credentials`,{username:u,password:p,source});
   if(!r) return;
   const d=await r.json();
   const res=$(`mc-result-${key}`);
@@ -1855,13 +1892,13 @@ async function tryCommonCreds(key){
   const d=await r.json();
   if(d.found){
     res.style.color='var(--ok)';
-    res.textContent=t('d.try_creds_found').replace('{u}',d.username).replace('{p}','••••');
-    // 自动填充输入框
+    res.textContent=t('cfg.try_found').replace('{u}',d.username);
     if($(`mc-u-${key}`)) $(`mc-u-${key}`).value=d.username;
     if($(`mc-p-${key}`)) $(`mc-p-${key}`).value=d.password;
+    _credAutoFound[key]=true;
   } else {
     res.style.color='var(--warn)';
-    res.textContent=t('d.try_creds_none');
+    res.textContent=t('cfg.try_none');
   }
 }
 
