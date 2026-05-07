@@ -1894,9 +1894,22 @@ function buildDetail(s){
 </div>
 </div>
 <div style="padding:12px 14px;background:var(--sf2);border-bottom:1px solid var(--bd)">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-    <span style="font-size:.78rem;font-weight:600">${t('d.creds')}</span>${credsSrc}
+  <!-- 正在使用的凭据（信息行） -->
+  <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:10px;padding:6px 10px;background:var(--sf);border:1px solid var(--bd);border-radius:7px;font-size:.75rem">
+    ${credsSrc}
+    <span style="color:var(--bd2)">·</span>
+    <code style="color:var(--tx1);font-size:.76rem">${esc(s.cred_username||'—')}</code>
+    <span style="color:var(--tx3)">/</span>
+    <span style="position:relative;display:inline-flex;align-items:center">
+      <input type="password" id="cur-pw-${key}" value="${esc(s.cred_password||'')}" readonly
+        style="border:none;background:transparent;font-family:monospace;font-size:.76rem;color:var(--tx1);width:72px;padding-right:18px;outline:none;cursor:default">
+      <button type="button" onclick="toggleEye('cur-pw-${key}')"
+        style="position:absolute;right:0;background:none;border:none;cursor:pointer;color:var(--tx3);padding:0;line-height:1">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+    </span>
   </div>
+  <div style="font-size:.78rem;font-weight:600;margin-bottom:10px">${t('d.creds')}</div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
     <div><label style="font-size:.68rem;color:var(--tx2)">${t('d.creds_user')}</label>
       <input class="inp" id="mc-u-${key}" type="text" style="margin-top:3px;font-size:.82rem" placeholder="admin"></div>

@@ -1633,6 +1633,8 @@ def _build_server_list(user: dict) -> dict:
     aliases           = load_aliases()
     machine_creds_map = load_machine_creds()
     global_username   = settings.get("username", "")
+    global_password   = settings.get("password", "")
+    is_admin          = user.get("role") == "admin"
     last_logout       = user.get("last_logout", 0)
     data = []
     for ip in visible_ips:
@@ -1643,13 +1645,14 @@ def _build_server_list(user: dict) -> dict:
         flapping   = is_flapping(ip)
         ping_alive = _ping_alive.get(ip)   # None = 尚未 ping
         mc          = machine_creds_map.get(ip, {})
-        cred_source = mc.get("source", "manual") if mc else "global"
         if not mc:
-            cred_source   = "global"
-            cred_username = global_username
+            cred_source    = "global"
+            cred_username  = global_username
+            cred_password  = global_password if is_admin else ""
         else:
-            cred_source   = mc.get("source", "manual")   # "auto" | "manual"
-            cred_username = mc.get("username", "")
+            cred_source    = mc.get("source", "manual")   # "auto" | "manual"
+            cred_username  = mc.get("username", "")
+            cred_password  = mc.get("password", "") if is_admin else ""
         extra = {
             "subcluster_ids":   ip_to_scs.get(ip, []),
             "alias":            alias,
@@ -1660,6 +1663,7 @@ def _build_server_list(user: dict) -> dict:
             "has_custom_creds": bool(mc),
             "cred_source":      cred_source,
             "cred_username":    cred_username,
+            "cred_password":    cred_password,   # 仅管理员可见
         }
         cached = _cache.get(ip)
         if cached:
