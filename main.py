@@ -18,6 +18,7 @@ try:
 except ImportError:
     CRYPTO_AVAILABLE = False
 
+import os
 import asyncio
 import aiohttp
 import base64 as _b64m
