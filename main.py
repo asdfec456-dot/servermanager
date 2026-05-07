@@ -1270,13 +1270,22 @@ async def refresh_cache() -> None:
         _collecting = False
 
 async def _periodic():
+    # 先等待一个完整周期再采集，避免每次登录都看到「采集中」
+    # 例外：缓存完全为空时做一次初始化采集（首次安装或长时间停机后）
+    s = load_settings()
+    if not _cache and parse_ip_ranges(s.get("ip_ranges", "")):
+        try:
+            await refresh_cache()
+        except Exception as e:
+            logger.error("初始化采集: %s", e)
+    # 之后纯按配置频率循环：先睡眠，再采集
     while True:
+        s = load_settings()
+        await asyncio.sleep(s.get("refresh_interval", 60))
         try:
             await refresh_cache()
         except Exception as e:
             logger.error("周期刷新: %s", e)
-        s = load_settings()
-        await asyncio.sleep(s.get("refresh_interval", 60))
 
 async def _ping_once(ip: str) -> bool:
     """单次 ICMP ping，跨平台。"""
