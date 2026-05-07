@@ -351,16 +351,36 @@ tr:hover td{background:var(--sf2)}
 
 /* Mobile <641px */
 @media(max-width:640px){
-  /* Header: 隐藏 "Server Manager" 文字，只保留图标+集群名+数字+汉堡菜单 */
-  header{padding:0 10px;height:52px;gap:6px}
-  .logo-name{display:none}       /* 隐藏 "Server Manager" 文字 */
-  .hdr-stats{gap:7px;flex:1}
-  .stat-n{font-size:.95rem}
-  .stat-l{display:none}
-  /* 隐藏所有右侧功能按钮，只保留汉堡菜单 */
+  /* ── Header: 两行布局 ───────────────────────────────── */
+  header{
+    flex-wrap:wrap;
+    height:auto;
+    padding:8px 12px 0;
+    gap:0;
+    align-items:center;
+  }
+  /* 行1左：图标+集群名 */
+  .hdr-left{flex:1;min-width:0;order:1;padding-bottom:8px}
+  .logo-name{display:none}          /* 隐藏 "Server Manager" 文字 */
+  .cluster-name{max-width:160px}
+
+  /* 行1右：只显示汉堡按钮 */
+  .hdr-right{order:2;flex-shrink:0;padding-bottom:8px}
   .hdr-right > *{display:none}
-  .hdr-right .btn-mob-menu{display:flex}
-  /* 显示采集中徽章 */
+  .hdr-right .btn-mob-menu{display:flex !important}
+
+  /* 行2：状态统计（全宽，带顶部分隔线） */
+  .hdr-stats{
+    order:3;
+    flex:0 0 100%;
+    justify-content:flex-start;
+    gap:16px;
+    padding:6px 0 8px;
+    border-top:1px solid var(--bd);
+  }
+  .stat-n{font-size:.95rem}
+  .stat-l{display:inline}           /* 行2空间足够，显示标签 */
+  .stat-l{font-size:.7rem}
   #s-coll{display:flex!important}
 
   /* Full-screen modals (bottom sheet) */
@@ -414,8 +434,8 @@ tr:hover td{background:var(--sf2)}
   font-size:.85rem;cursor:pointer;border-bottom:1px solid var(--bd);color:var(--tx1)}
 .mob-menu-item:hover,.mob-menu-item:active{background:var(--sf2)}
 .mob-menu-sec{padding:7px 16px 3px;font-size:.65rem;color:var(--tx3);text-transform:uppercase;letter-spacing:.08em}
-/* 默认在桌面隐藏汉堡按钮 */
-.btn-mob-menu{display:none}
+/* 桌面端隐藏汉堡按钮 */
+@media(min-width:641px){.btn-mob-menu{display:none}}
 
 /* Touch targets */
 @media(hover:none){
