@@ -49,12 +49,17 @@ select.inp{cursor:pointer}
 header{background:var(--sf);border-bottom:1px solid var(--bd);height:56px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;z-index:50;box-shadow:0 1px 4px var(--shadow)}
 .logo{display:flex;align-items:center;gap:7px;font-size:.98rem;font-weight:700;color:var(--acc);white-space:nowrap}
 .cluster-name{font-size:.72rem;color:var(--tx2);margin-left:3px;font-weight:400;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hdr-stats{display:flex;align-items:center;gap:11px;flex:1;justify-content:center}
-.stat{display:flex;align-items:center;gap:4px;font-size:.73rem;color:var(--tx2);white-space:nowrap}
-.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.hdr-stats{display:flex;align-items:center;gap:14px;flex:1;justify-content:center}
+.stat{display:flex;align-items:baseline;gap:3px;white-space:nowrap}
+.stat-n{font-size:1.18rem;font-weight:700;color:var(--tx1);line-height:1}
+.stat-l{font-size:.66rem;color:var(--tx3)}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;align-self:center}
 .d-ok{background:var(--ok)}.d-off{background:var(--tx3)}
-.d-pend{background:var(--pend);animation:blink 1.2s ease-in-out infinite}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.d-pend{background:var(--acc);animation:blink 1.2s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+/* 采集中 — 醒目徽章 */
+.stat-coll{display:flex;align-items:center;gap:6px;background:rgba(56,189,248,.13);border:1px solid rgba(56,189,248,.35);border-radius:20px;padding:4px 12px 4px 8px;font-size:.9rem;font-weight:700;color:var(--acc);white-space:nowrap;animation:coll-pulse 1.4s ease-in-out infinite}
+@keyframes coll-pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(56,189,248,.35)}60%{opacity:.85;box-shadow:0 0 0 5px rgba(56,189,248,0)}}
 .hdr-right{display:flex;align-items:center;gap:5px;flex-shrink:0}
 .btn{display:inline-flex;align-items:center;gap:4px;padding:5px 9px;border-radius:6px;border:1px solid var(--bd);background:var(--sf2);color:var(--tx);cursor:pointer;font-size:.73rem;transition:all .15s;white-space:nowrap}
 .btn:hover{background:var(--sf3);border-color:var(--acc);color:var(--acc)}
@@ -351,7 +356,8 @@ tr:hover td{background:var(--sf2)}
   .logo-text{display:none}
   .cluster-name{display:none}
   .hdr-stats{gap:8px}
-  .stat-label{display:none}  /* hide text, keep dot+number */
+  .stat-n{font-size:.95rem}
+  .stat-l{display:none}  /* 小屏只显示数字 */
   .hdr-right{gap:4px}
   .btn-lbl{display:none}     /* hide button labels, icons only */
   .lang-sw .lang-btn{padding:3px 5px;font-size:.67rem}
@@ -462,11 +468,14 @@ tr:hover td{background:var(--sf2)}
     Server Manager<span class="cluster-name" id="hdr-cluster"></span>
   </div>
   <div class="hdr-stats">
-    <div class="stat"><span class="dot d-ok"></span><span id="s-total">—</span> <span id="lbl-servers">台</span></div>
-    <div class="stat"><span class="dot d-ok"></span><span id="s-online">—</span> <span id="lbl-online">在线</span></div>
-    <div class="stat"><span class="dot d-off"></span><span id="s-offline">—</span> <span id="lbl-offline">离线</span></div>
-    <div class="stat" id="s-coll" style="display:none"><span class="dot d-pend"></span><span id="lbl-collecting">采集中</span></div>
-    <div class="stat" id="s-time" style="color:var(--tx3)"></div>
+    <div class="stat"><span class="dot d-ok"></span><span class="stat-n" id="s-total">—</span><span class="stat-l" id="lbl-servers"> 台</span></div>
+    <div class="stat"><span class="dot d-ok"></span><span class="stat-n" id="s-online">—</span><span class="stat-l" id="lbl-online"> 在线</span></div>
+    <div class="stat"><span class="dot d-off"></span><span class="stat-n" id="s-offline">—</span><span class="stat-l" id="lbl-offline"> 离线</span></div>
+    <div class="stat-coll" id="s-coll" style="display:none">
+      <span class="dot d-pend" style="width:9px;height:9px"></span>
+      <span id="lbl-collecting">采集中</span>
+    </div>
+    <div class="stat" id="s-time" style="font-size:.68rem;color:var(--tx3)"></div>
   </div>
   <div class="hdr-right">
     <div class="user-badge"><span id="hdr-uname"></span><span class="role-tag" id="hdr-role-tag"></span></div>
@@ -809,10 +818,10 @@ tr:hover td{background:var(--sf2)}
 /* ── TRANSLATIONS ──────────────────────────────────────────── */
 const LANG={
 zh:{
-  'servers':'台','online':'在线','offline':'离线','collecting':'采集中','refreshed':'刷新:',
+  'servers':'台','online':'在线','offline':'离线','collecting':'采集中','refreshed':'上次采集:',
   'filter':'筛选：','all':'全部','ok':'正常','warning':'警告','critical':'严重',
   'role.admin':'管理员','role.viewer':'查看者',
-  'btn.refresh':'刷新','btn.settings':'设置','btn.subclusters':'子集群','btn.users':'用户','btn.logout':'登出',
+  'btn.refresh':'采集','btn.settings':'设置','btn.subclusters':'子集群','btn.users':'用户','btn.logout':'登出',
   'h.ok':'正常','h.warning':'警告','h.critical':'严重','h.unknown':'未知','h.offline':'离线','h.collecting':'采集中',
   'h.auth_failed':'认证失败','h.reachable':'BMC不可达',
   'c.power':'电源状态','c.memory':'内存','c.fans':'风扇','c.psu':'电源模块',
@@ -826,7 +835,7 @@ zh:{
   'cfg.title':'BMC 配置','cfg.sub':'保存后立即触发全量扫描','cfg.ip':'IP 地址范围','cfg.ip_help':'BMC 地址（每行一条）',
   'cfg.cred':'统一认证凭据','cfg.user':'用户名','cfg.pw':'密码','cfg.proto':'扫描协议','cfg.proto_auto':'自动检测',
   'cfg.hint_auto':'自动检测：优先 Redfish，失败后回退 IPMI','cfg.hint_rf':'仅使用 Redfish REST API','cfg.hint_ipmi':'仅使用 IPMI（需要 ipmitool）',
-  'cfg.advanced':'高级设置','cfg.refresh':'自动刷新（秒）','cfg.timeout':'超时（秒）','cfg.concurrent':'并发数',
+  'cfg.advanced':'高级设置','cfg.refresh':'采集间隔（秒）','cfg.timeout':'超时（秒）','cfg.concurrent':'并发数',
   'cfg.cancel':'取消','cfg.save':'保存并扫描','cfg.saving':'保存中...','cfg.ip_count':'共 {n} 个地址',
   'cfg.try_creds':'尝试常用密码','cfg.try_trying':'测试中，请稍候...','cfg.try_note':'将对第一个 IP 测试 {n} 种品牌默认密码',
   'cfg.try_found':'✓ 找到可用凭据（已填入）：用户 {u}','cfg.try_none':'未找到可用的默认凭据',
