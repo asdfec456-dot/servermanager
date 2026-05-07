@@ -1543,7 +1543,8 @@ ${note}
   const pct=s.power_consumed_watts?Math.min(100,s.power_consumed_watts/2000*100):0;
   const pbar=s.power_consumed_watts!=null?`<div class="pbar-wrap"><div class="pbar-row"><span>${t('c.power')}</span><span>${fmtW(s.power_consumed_watts)}</span></div><div class="pbar-track"><div class="pbar-fill" style="width:${pct}%"></div></div></div>`:'';
   const err=s.error?`<div class="card-err"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${esc(s.error)}</div>`:'';
-  const scTags=currentUser?.role==='admin'&&(s.subcluster_ids||[]).length?`<div class="sc-tags">${(s.subcluster_ids||[]).map(id=>{const sc=subclusters.find(x=>x.id===id);return sc?`<span class="sc-tag">${esc(sc.name)}</span>`:''}).join('')}</div>`:'';
+  const visibleScIds=(s.subcluster_ids||[]).filter(id=>!_universalScIds.has(id));
+  const scTags=currentUser?.role==='admin'&&visibleScIds.length?`<div class="sc-tags">${visibleScIds.map(id=>{const sc=subclusters.find(x=>x.id===id);return sc?`<span class="sc-tag">${esc(sc.name)}</span>`:''}).join('')}</div>`:'';
   const pwr=s.power_state==='On'?t('c.on'):s.power_state==='Off'?t('c.off'):s.power_state||'—';
   return`<div class="card${newCls}" onclick="openDetail('${key}')">
 <div class="card-head"><div class="card-title"><div class="card-name">${esc(displayName)}${newBadge}${flapBadge}${proto}</div><div class="card-sub">${s.bmc_ip} · ${s.model||t('c.unknown_model')}</div></div><span class="hbadge ${hcls}">${hlbl}</span></div>
@@ -1624,6 +1625,18 @@ function renderTableRow(s){
 </tr>`;
 }
 
+/* ── 计算「覆盖全部机器」的子集群（不在卡片标签中重复显示）── */
+let _universalScIds=new Set();
+function computeUniversalScs(serverList){
+  _universalScIds=new Set();
+  if(!serverList.length||!subclusters.length)return;
+  const total=serverList.length;
+  for(const sc of subclusters){
+    if(serverList.every(s=>(s.subcluster_ids||[]).includes(sc.id)))
+      _universalScIds.add(sc.id);
+  }
+}
+
 /* ── Main renderGrid ───────────────────────────────────────── */
 function renderGrid(){
   const vis=servers.filter(matchFilter),el=$('main');
@@ -1633,6 +1646,8 @@ function renderGrid(){
   const sorted=viewMode==='table'
     ?sortedServers(vis)
     :[...vis].sort((a,b)=>statusRank(a)-statusRank(b)||(a.alias||a.name).localeCompare(b.alias||b.name));
+  // 计算当前视图中覆盖所有机器的分组（卡片标签中省略）
+  computeUniversalScs(sorted);
   switch(viewMode){
     case'grid':case'grid-wide':{
       const cls=viewMode==='grid-wide'?'grid-wide':'grid';
@@ -1886,9 +1901,10 @@ function buildDetail(s){
     <div><label style="font-size:.68rem;color:var(--tx2)">${t('d.creds_user')}</label>
       <input class="inp" id="mc-u-${key}" type="text" style="margin-top:3px;font-size:.82rem" placeholder="admin"></div>
     <div><label style="font-size:.68rem;color:var(--tx2)">${t('d.creds_pass')}</label>
-      <input class="inp" id="mc-p-${key}" type="password" style="margin-top:3px;font-size:.82rem" placeholder="••••••">
-      <label style="display:flex;align-items:center;gap:4px;font-size:.65rem;color:var(--tx3);margin-top:4px;cursor:pointer">
-        <input type="checkbox" onchange="toggleMcPw('${key}',this.checked)"> 显示密码</label></div>
+      <div class="inp-wrap" style="margin-top:3px">
+        <input class="inp" id="mc-p-${key}" type="password" style="font-size:.82rem" placeholder="••••••">
+        <button class="eye-btn" type="button" onclick="var p=document.getElementById('mc-p-${key}');p.type=p.type==='text'?'password':'text'" title="显示/隐藏密码"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div></div>
   </div>
   <div style="display:flex;gap:7px;flex-wrap:wrap">
     <button class="btn btn-acc" onclick="saveMachineCreds('${key}')" style="border:none;font-size:.77rem">${t('d.creds_save')}</button>
@@ -1965,10 +1981,6 @@ async function tryGlobalCreds(){
   }
 }
 
-function toggleMcPw(key, show){
-  const el=$(`mc-p-${key}`);
-  if(el) el.type = show ? 'text' : 'password';
-}
 
 async function saveMachineCreds(key){
   const u=($(`mc-u-${key}`)?.value||'').trim();
