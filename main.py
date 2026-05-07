@@ -65,6 +65,7 @@ LICENSE_FILE       = DATA_DIR / "license.json"
 ALIASES_FILE       = DATA_DIR / "aliases.json"
 MACHINE_CREDS_FILE = DATA_DIR / "machine_creds.json"
 INSTALL_CFGS_FILE  = DATA_DIR / "install_configs.json"
+OS_PROFILES_FILE   = DATA_DIR / "os_profiles.json"
 ALERT_RULES_FILE   = DATA_DIR / "alert_rules.json"
 ALERT_CHANNELS_FILE= DATA_DIR / "alert_channels.json"
 ALERT_STATE_FILE   = DATA_DIR / "alert_state.json"
@@ -2358,6 +2359,19 @@ async def api_deactivate_license(admin: dict = Depends(require_admin)):
 # 系统安装
 # ═══════════════════════════════════════════════════════════════════
 
+def load_os_profiles() -> dict:
+    DATA_DIR.mkdir(exist_ok=True)
+    if OS_PROFILES_FILE.exists():
+        try:
+            return json.loads(OS_PROFILES_FILE.read_text())
+        except Exception:
+            pass
+    return {"profiles": []}
+
+def save_os_profiles(data: dict) -> None:
+    DATA_DIR.mkdir(exist_ok=True)
+    OS_PROFILES_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+
 def load_install_configs() -> dict:
     DATA_DIR.mkdir(exist_ok=True)
     if INSTALL_CFGS_FILE.exists():
@@ -2696,7 +2710,55 @@ async def mount_virtual_media(bmc_ip: str, username: str, password: str,
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
-# ── 安装 API ─────────────────────────────────────────────────────
+# ── OS 配置 CRUD ──────────────────────────────────────────────────
+
+@app.get("/api/os-profiles")
+async def api_list_os_profiles(user: dict = Depends(get_current_user)):
+    return load_os_profiles()
+
+@app.post("/api/os-profiles")
+async def api_create_os_profile(req: Request, admin: dict = Depends(require_admin)):
+    body = await req.json()
+    name = (body.get("name") or "").strip()
+    if not name:
+        raise HTTPException(400, "配置名称不能为空")
+    profile = {
+        "id":       str(uuid.uuid4()),
+        "name":     name,
+        "os_type":  body.get("os_type", "ubuntu-24.04"),
+        "iso_url":  (body.get("iso_url") or "").strip(),
+        "disk":     (body.get("disk") or "/dev/sda").strip(),
+        "timezone": (body.get("timezone") or "Asia/Tokyo").strip(),
+        "notes":    (body.get("notes") or "").strip(),
+    }
+    data = load_os_profiles()
+    data["profiles"].append(profile)
+    save_os_profiles(data)
+    return profile
+
+@app.put("/api/os-profiles/{profile_id}")
+async def api_update_os_profile(profile_id: str, req: Request,
+                                 admin: dict = Depends(require_admin)):
+    body = await req.json()
+    data = load_os_profiles()
+    p = next((x for x in data["profiles"] if x["id"] == profile_id), None)
+    if not p:
+        raise HTTPException(404, "配置不存在")
+    for field in ("name", "os_type", "iso_url", "disk", "timezone", "notes"):
+        if field in body:
+            p[field] = (body[field] or "").strip()
+    save_os_profiles(data)
+    return p
+
+@app.delete("/api/os-profiles/{profile_id}")
+async def api_delete_os_profile(profile_id: str,
+                                 admin: dict = Depends(require_admin)):
+    data = load_os_profiles()
+    data["profiles"] = [x for x in data["profiles"] if x["id"] != profile_id]
+    save_os_profiles(data)
+    return {"ok": True}
+
+# ── 安装 API ──────────────────────────────────────────────────────
 
 @app.get("/api/servers/{bmc_ip_enc}/install/config")
 async def api_get_install_cfg(bmc_ip_enc: str, admin: dict = Depends(require_admin)):
@@ -2718,6 +2780,12 @@ async def api_generate_install_cfg(bmc_ip_enc: str, req: Request,
                                    admin: dict = Depends(require_admin)):
     """生成并返回 kickstart / autoinstall / preseed 文件内容。"""
     body = await req.json()
+    # 合并 OS Profile 配置
+    profile_id = body.get("profile_id", "")
+    if profile_id:
+        profiles = load_os_profiles().get("profiles", [])
+        profile = next((p for p in profiles if p["id"] == profile_id), {})
+        body = {**profile, **body}   # 请求体字段优先（可覆盖 profile 默认值）
     os_type = body.get("os_type", "ubuntu-24.04")
     if "ubuntu" in os_type:
         content  = generate_cloud_init(body)
@@ -2765,6 +2833,13 @@ async def api_install_start(bmc_ip_enc: str, req: Request,
     username = mc.get("username") or settings.get("username", "")
     password = mc.get("password") or settings.get("password", "")
     results: dict = {}
+
+    # 合并 OS Profile
+    profile_id = body.get("profile_id", "")
+    if profile_id:
+        profiles = load_os_profiles().get("profiles", [])
+        profile  = next((p for p in profiles if p["id"] == profile_id), {})
+        body     = {**profile, **body}
 
     # 1. 挂载虚拟光驱（可选）
     iso_url     = body.get("iso_url", "")
