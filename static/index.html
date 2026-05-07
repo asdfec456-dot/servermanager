@@ -1903,7 +1903,7 @@ function buildDetail(s){
     <div><label style="font-size:.68rem;color:var(--tx2)">${t('d.creds_pass')}</label>
       <div class="inp-wrap" style="margin-top:3px">
         <input class="inp" id="mc-p-${key}" type="password" style="font-size:.82rem" placeholder="••••••">
-        <button class="eye-btn" type="button" onclick="var p=document.getElementById('mc-p-${key}');p.type=p.type==='text'?'password':'text'" title="显示/隐藏密码"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        <button class="eye-btn" type="button" onclick="toggleEye('mc-p-${key}')" title="显示/隐藏密码"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
       </div></div>
   </div>
   <div style="display:flex;gap:7px;flex-wrap:wrap">
