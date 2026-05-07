@@ -3037,30 +3037,45 @@ def save_ssl_config(data: dict) -> None:
     SSL_CONFIG_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False))
 
 def get_cert_info(cert_path: str) -> dict:
-    """读取 PEM 证书的基本信息（CN、到期日）。"""
+    """读取 PEM 证书的基本信息（CN、SAN、到期日）。"""
     try:
         from cryptography import x509
+        from cryptography.x509.oid import ExtensionOID
         import datetime
         data = Path(cert_path).read_bytes()
         cert = x509.load_pem_x509_certificate(data)
         cn_attrs = cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)
         cn = cn_attrs[0].value if cn_attrs else ""
+        # SAN（Subject Alternative Names）
+        sans: list[str] = []
+        try:
+            ext = cert.extensions.get_extension_for_oid(ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
+            sans = [n.value for n in ext.value]
+        except Exception:
+            pass
         try:
             not_after = cert.not_valid_after_utc.replace(tzinfo=None)
         except AttributeError:
             not_after = cert.not_valid_after                          # type: ignore
         days_left = (not_after - datetime.datetime.utcnow()).days
-        return {"ok": True, "cn": cn, "not_after": not_after.strftime("%Y-%m-%d"), "days_left": days_left}
+        return {"ok": True, "cn": cn, "sans": sans,
+                "not_after": not_after.strftime("%Y-%m-%d"), "days_left": days_left}
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
 def search_ssl_certs(domain: str) -> list:
-    """在常见位置搜索指定域名的 SSL 证书，返回 {cert, key, key_exists, info, source}。"""
+    """在常见位置搜索指定域名的 SSL 证书。
+    自动包含上级域名目录（通配符证书通常存放在父域名目录下）。
+    """
     import glob as _glob
     results = []
     seen = set()
-    d = domain.lstrip("*.")          # 支持通配符域名
-    wild = f"*.{d.split('.',1)[-1]}" # 通配符形式
+    d    = domain.lstrip("*.")            # sm.catnetwork.co.jp
+    wild = f"*.{d.split('.',1)[-1]}"     # *.catnetwork.co.jp
+
+    # 父域名（通配符证书的存放目录名通常是父域名）
+    parts = d.split(".")
+    parent = ".".join(parts[1:]) if len(parts) > 2 else ""  # catnetwork.co.jp
 
     def _try(cert_glob: str, key_path: str, src: str):
         for cp in _glob.glob(cert_glob):
@@ -3073,7 +3088,11 @@ def search_ssl_certs(domain: str) -> list:
                             "key_exists": os.path.isfile(kp),
                             "info": info, "source": src})
 
-    for dom in [domain, d, wild]:
+    search_domains = [d, wild]
+    if parent and parent != d:
+        search_domains.append(parent)   # 父域名目录（通配符证书常见位置）
+
+    for dom in search_domains:
         # Let's Encrypt / Certbot
         _try(f"/etc/letsencrypt/live/{dom}/fullchain.pem",
              f"/etc/letsencrypt/live/{dom}/privkey.pem", "Let's Encrypt")
