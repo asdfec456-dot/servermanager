@@ -66,6 +66,8 @@ ALIASES_FILE       = DATA_DIR / "aliases.json"
 MACHINE_CREDS_FILE = DATA_DIR / "machine_creds.json"
 INSTALL_CFGS_FILE  = DATA_DIR / "install_configs.json"
 OS_PROFILES_FILE   = DATA_DIR / "os_profiles.json"
+SSL_DIR            = DATA_DIR / "ssl"
+SSL_CONFIG_FILE    = DATA_DIR / "ssl_config.json"
 ALERT_RULES_FILE   = DATA_DIR / "alert_rules.json"
 ALERT_CHANNELS_FILE= DATA_DIR / "alert_channels.json"
 ALERT_STATE_FILE   = DATA_DIR / "alert_state.json"
@@ -3016,6 +3018,206 @@ async def api_power(bmc_ip_enc: str, req: Request,
     password = mc.get("password") or settings.get("password", "")
     return await power_action(bmc_ip, username, password, action)
 
+# ═══════════════════════════════════════════════════════════════════
+# HTTPS / SSL 配置
+# ═══════════════════════════════════════════════════════════════════
+
+def load_ssl_config() -> dict:
+    DATA_DIR.mkdir(exist_ok=True)
+    if SSL_CONFIG_FILE.exists():
+        try:
+            return json.loads(SSL_CONFIG_FILE.read_text())
+        except Exception:
+            pass
+    return {"enabled": False}
+
+def save_ssl_config(data: dict) -> None:
+    DATA_DIR.mkdir(exist_ok=True)
+    SSL_CONFIG_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+
+def get_cert_info(cert_path: str) -> dict:
+    """读取 PEM 证书的基本信息（CN、到期日）。"""
+    try:
+        from cryptography import x509
+        import datetime
+        data = Path(cert_path).read_bytes()
+        cert = x509.load_pem_x509_certificate(data)
+        cn_attrs = cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)
+        cn = cn_attrs[0].value if cn_attrs else ""
+        try:
+            not_after = cert.not_valid_after_utc.replace(tzinfo=None)
+        except AttributeError:
+            not_after = cert.not_valid_after                          # type: ignore
+        days_left = (not_after - datetime.datetime.utcnow()).days
+        return {"ok": True, "cn": cn, "not_after": not_after.strftime("%Y-%m-%d"), "days_left": days_left}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+def search_ssl_certs(domain: str) -> list:
+    """在常见位置搜索指定域名的 SSL 证书，返回 {cert, key, key_exists, info, source}。"""
+    import glob as _glob
+    results = []
+    seen = set()
+    d = domain.lstrip("*.")          # 支持通配符域名
+    wild = f"*.{d.split('.',1)[-1]}" # 通配符形式
+
+    def _try(cert_glob: str, key_path: str, src: str):
+        for cp in _glob.glob(cert_glob):
+            if not os.path.isfile(cp) or cp in seen:
+                continue
+            seen.add(cp)
+            kp = key_path or os.path.join(os.path.dirname(cp), "privkey.pem")
+            info = get_cert_info(cp)
+            results.append({"cert": cp, "key": kp,
+                            "key_exists": os.path.isfile(kp),
+                            "info": info, "source": src})
+
+    for dom in [domain, d, wild]:
+        # Let's Encrypt / Certbot
+        _try(f"/etc/letsencrypt/live/{dom}/fullchain.pem",
+             f"/etc/letsencrypt/live/{dom}/privkey.pem", "Let's Encrypt")
+        _try(f"/etc/letsencrypt/live/{dom}*/fullchain.pem", "", "Let's Encrypt")
+        # Nginx
+        for d2 in [dom, dom.replace("*.", "")]:
+            _try(f"/etc/nginx/ssl/{d2}.crt",   f"/etc/nginx/ssl/{d2}.key",   "Nginx")
+            _try(f"/etc/nginx/ssl/{d2}.pem",   f"/etc/nginx/ssl/{d2}.key",   "Nginx")
+            _try(f"/etc/nginx/certs/{d2}.crt", f"/etc/nginx/certs/{d2}.key", "Nginx")
+            _try(f"/etc/nginx/conf.d/ssl/{d2}.crt", f"/etc/nginx/conf.d/ssl/{d2}.key", "Nginx")
+        # Apache
+        _try(f"/etc/apache2/ssl/{dom}.crt",  f"/etc/apache2/ssl/{dom}.key",  "Apache")
+        _try(f"/etc/httpd/ssl/{dom}.crt",    f"/etc/httpd/ssl/{dom}.key",    "Apache")
+        _try(f"/etc/httpd/conf.d/{dom}.crt", f"/etc/httpd/conf.d/{dom}.key", "Apache")
+        # System-wide
+        _try(f"/etc/ssl/certs/{dom}.crt",  f"/etc/ssl/private/{dom}.key", "System")
+        _try(f"/etc/ssl/certs/{dom}.pem",  f"/etc/ssl/private/{dom}.pem", "System")
+        _try(f"/etc/pki/tls/certs/{dom}.crt", f"/etc/pki/tls/private/{dom}.key", "RHEL/CentOS")
+        # acme.sh (root 和用户目录)
+        _try(f"/root/.acme.sh/{dom}/{dom}.cer",          f"/root/.acme.sh/{dom}/{dom}.key",          "acme.sh")
+        _try(f"/root/.acme.sh/{dom}_ecc/{dom}.cer",      f"/root/.acme.sh/{dom}_ecc/{dom}.key",      "acme.sh")
+        _try(f"/home/*/.acme.sh/{dom}/{dom}.cer",        f"",                                         "acme.sh")
+        # Caddy
+        _try(f"/var/lib/caddy/.local/share/caddy/certificates/*/{dom}/{dom}.crt",
+             f"/var/lib/caddy/.local/share/caddy/certificates/*/{dom}/{dom}.key", "Caddy")
+    return results
+
+def _current_ssl_files() -> tuple[str, str]:
+    """返回当前生效的 (certfile, keyfile)，优先环境变量，回退 ssl_config.json。"""
+    cfg = load_ssl_config()
+    certfile = os.environ.get("SSL_CERTFILE") or (cfg.get("certfile") if cfg.get("enabled") else "")
+    keyfile  = os.environ.get("SSL_KEYFILE")  or (cfg.get("keyfile")  if cfg.get("enabled") else "")
+    return certfile or "", keyfile or ""
+
+@app.get("/api/ssl/status")
+async def api_ssl_status(admin: dict = Depends(require_admin)):
+    cfg = load_ssl_config()
+    certfile, keyfile = _current_ssl_files()
+    info = get_cert_info(certfile) if certfile and os.path.isfile(certfile) else {}
+    return {
+        "enabled":    cfg.get("enabled", False),
+        "certfile":   certfile,
+        "keyfile":    keyfile,
+        "domain":     cfg.get("domain", ""),
+        "cert_info":  info,
+    }
+
+@app.post("/api/ssl/search")
+async def api_ssl_search(req: Request, admin: dict = Depends(require_admin)):
+    body   = await req.json()
+    domain = (body.get("domain") or "").strip()
+    if not domain:
+        raise HTTPException(400, "请输入域名")
+    results = search_ssl_certs(domain)
+    return {"domain": domain, "results": results}
+
+@app.post("/api/ssl/upload")
+async def api_ssl_upload(cert: UploadFile = File(...), key: UploadFile = File(...),
+                          admin: dict = Depends(require_admin)):
+    """上传证书和私钥文件，保存到 DATA_DIR/ssl/。"""
+    SSL_DIR.mkdir(parents=True, exist_ok=True)
+    cert_path = SSL_DIR / "cert.pem"
+    key_path  = SSL_DIR / "key.pem"
+    cert_path.write_bytes(await cert.read())
+    key_path.write_bytes(await key.read())
+    # 验证证书格式
+    info = get_cert_info(str(cert_path))
+    if not info.get("ok"):
+        cert_path.unlink(missing_ok=True)
+        key_path.unlink(missing_ok=True)
+        raise HTTPException(400, f"证书格式无效：{info.get('error')}")
+    return {"cert": str(cert_path), "key": str(key_path), "info": info}
+
+@app.post("/api/ssl/apply")
+async def api_ssl_apply(req: Request, admin: dict = Depends(require_admin)):
+    """指定证书和私钥路径，写入 ssl_config.json，并更新 systemd override。"""
+    body     = await req.json()
+    certfile = (body.get("certfile") or "").strip()
+    keyfile  = (body.get("keyfile")  or "").strip()
+    domain   = (body.get("domain")   or "").strip()
+    if not certfile or not keyfile:
+        raise HTTPException(400, "certfile 和 keyfile 不能为空")
+    if not os.path.isfile(certfile):
+        raise HTTPException(400, f"证书文件不存在：{certfile}")
+    if not os.path.isfile(keyfile):
+        raise HTTPException(400, f"私钥文件不存在：{keyfile}")
+    info = get_cert_info(certfile)
+    if not info.get("ok"):
+        raise HTTPException(400, f"证书验证失败：{info.get('error')}")
+
+    # 保存配置
+    save_ssl_config({"enabled": True, "certfile": certfile,
+                     "keyfile": keyfile, "domain": domain,
+                     "applied_at": int(time.time())})
+
+    # 更新 systemd override（SSL env vars）
+    override_dir = Path("/etc/systemd/system/servermanager.service.d")
+    ssl_env_conf = override_dir / "ssl.conf"
+    try:
+        import subprocess as _sp
+        _sp.run(["sudo", "mkdir", "-p", str(override_dir)], check=True, timeout=5)
+        tmp = Path("/tmp/sm_ssl.conf")
+        tmp.write_text(f"[Service]\nEnvironment=SSL_CERTFILE={certfile}\nEnvironment=SSL_KEYFILE={keyfile}\n")
+        _sp.run(["sudo", "cp", str(tmp), str(ssl_env_conf)], check=True, timeout=5)
+        _sp.run(["sudo", "systemctl", "daemon-reload"], check=True, timeout=10)
+        systemd_ok = True
+    except Exception as e:
+        logger.warning("systemd SSL override 写入失败（手动配置）: %s", e)
+        systemd_ok = False
+
+    return {"ok": True, "info": info, "systemd_updated": systemd_ok,
+            "note": "重启服务后 HTTPS 生效" if systemd_ok else "请手动设置 SSL_CERTFILE/SSL_KEYFILE 环境变量后重启"}
+
+@app.delete("/api/ssl")
+async def api_ssl_disable(admin: dict = Depends(require_admin)):
+    """禁用 HTTPS。"""
+    save_ssl_config({"enabled": False})
+    try:
+        import subprocess as _sp
+        ssl_conf = Path("/etc/systemd/system/servermanager.service.d/ssl.conf")
+        if ssl_conf.exists():
+            _sp.run(["sudo", "rm", "-f", str(ssl_conf)], check=True, timeout=5)
+            _sp.run(["sudo", "systemctl", "daemon-reload"], check=True, timeout=10)
+    except Exception as e:
+        logger.warning("删除 systemd SSL override 失败: %s", e)
+    return {"ok": True}
+
+@app.post("/api/system/restart")
+async def api_system_restart(bg: BackgroundTasks, admin: dict = Depends(require_admin)):
+    """延迟 1 秒后重启服务（用于 HTTPS 配置生效）。"""
+    async def _do():
+        await asyncio.sleep(1.2)
+        import subprocess as _sp
+        _sp.run(["sudo", "systemctl", "restart", "servermanager"], timeout=10)
+    bg.add_task(_do)
+    return {"ok": True, "msg": "服务将在 1 秒后重启"}
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=False)
+    ssl_cfg  = load_ssl_config()
+    certfile = os.environ.get("SSL_CERTFILE") or (ssl_cfg.get("certfile") if ssl_cfg.get("enabled") else "")
+    keyfile  = os.environ.get("SSL_KEYFILE")  or (ssl_cfg.get("keyfile")  if ssl_cfg.get("enabled") else "")
+    run_kwargs: dict = {"host": "0.0.0.0", "port": 8080, "reload": False}
+    if certfile and keyfile and os.path.isfile(certfile) and os.path.isfile(keyfile):
+        run_kwargs["ssl_certfile"] = certfile
+        run_kwargs["ssl_keyfile"]  = keyfile
+        logger.info("HTTPS 已启用，证书：%s", certfile)
+    uvicorn.run("main:app", **run_kwargs)

@@ -486,7 +486,7 @@ tr:hover td{background:var(--sf2)}
     <div class="auth-err" id="login-err"></div>
     <button class="btn-block btn-acc" id="login-btn" onclick="doLogin()">登录</button>
   </div>
-  <div class="auth-footer">© 2026 CATNETWORK · Server Manager v1.4.0</div>
+  <div class="auth-footer">© 2026 CATNETWORK · Server Manager v1.5.0</div>
 </div>
 </div>
 
@@ -559,6 +559,10 @@ tr:hover td{background:var(--sf2)}
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
           <span id="dd-lbl-osp">安装配置</span>
         </button>
+        <button class="dd-item" onclick="ddOpen('ov-ssl')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span id="dd-lbl-ssl">HTTPS 配置</span>
+        </button>
 
       </div>
     </div>
@@ -597,7 +601,7 @@ tr:hover td{background:var(--sf2)}
 </div>
 
 <main id="main"></main>
-<div class="footer">© 2026 <a href="https://www.catnetwork.co.jp" target="_blank">CATNETWORK</a> · Server Manager v1.4.0</div>
+<div class="footer">© 2026 <a href="https://www.catnetwork.co.jp" target="_blank">CATNETWORK</a> · Server Manager v1.5.0</div>
 </div>
 
 <!-- SETTINGS MODAL -->
@@ -866,6 +870,60 @@ tr:hover td{background:var(--sf2)}
 </div>
 </div>
 
+<!-- SSL / HTTPS MODAL -->
+<div class="overlay" id="ov-ssl" onclick="closeOvBg(event,'ov-ssl')">
+<div class="modal modal-wide">
+  <div class="modal-hdr">
+    <div><div class="modal-title">HTTPS 配置</div><div class="modal-sub">为 Server Manager 启用 TLS 加密访问</div></div>
+    <button class="mclose" onclick="closeOverlay('ov-ssl')">✕</button>
+  </div>
+  <!-- 标签 -->
+  <div style="display:flex;border-bottom:1px solid var(--bd);padding:0 18px">
+    <button class="alert-tab act" id="ssl-tab-status" onclick="switchSslTab('status',this)">当前状态</button>
+    <button class="alert-tab" id="ssl-tab-search" onclick="switchSslTab('search',this)">搜索证书</button>
+    <button class="alert-tab" id="ssl-tab-upload" onclick="switchSslTab('upload',this)">手动上传</button>
+  </div>
+  <!-- 状态 -->
+  <div id="ssl-pane-status" class="modal-body" style="padding:18px">
+    <div id="ssl-status-content" style="font-size:.88rem"></div>
+  </div>
+  <!-- 搜索 -->
+  <div id="ssl-pane-search" class="modal-body" style="display:none;padding:18px">
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      <input class="inp" id="ssl-search-domain" placeholder="sm.catnetwork.co.jp" style="flex:1;min-width:180px">
+      <button class="btn btn-acc" onclick="doSslSearch()" style="border:none">🔍 搜索常见位置</button>
+    </div>
+    <div style="font-size:.72rem;color:var(--tx3);margin-bottom:12px">
+      搜索范围：Let's Encrypt · Nginx · Apache · acme.sh · Caddy · 系统目录
+    </div>
+    <div id="ssl-search-results"></div>
+  </div>
+  <!-- 上传 -->
+  <div id="ssl-pane-upload" class="modal-body" style="display:none;padding:18px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div>
+        <label style="font-size:.74rem;color:var(--tx2);display:block;margin-bottom:5px">证书文件（fullchain.pem / .crt）</label>
+        <label class="btn" style="cursor:pointer;width:100%;justify-content:center">
+          📄 选择证书文件
+          <input type="file" accept=".pem,.crt,.cer" id="ssl-cert-file" style="display:none" onchange="updateSslUploadInfo()">
+        </label>
+        <div id="ssl-cert-name" style="font-size:.72rem;color:var(--tx3);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+      </div>
+      <div>
+        <label style="font-size:.74rem;color:var(--tx2);display:block;margin-bottom:5px">私钥文件（privkey.pem / .key）</label>
+        <label class="btn" style="cursor:pointer;width:100%;justify-content:center">
+          🔑 选择私钥文件
+          <input type="file" accept=".pem,.key" id="ssl-key-file" style="display:none" onchange="updateSslUploadInfo()">
+        </label>
+        <div id="ssl-key-name" style="font-size:.72rem;color:var(--tx3);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+      </div>
+    </div>
+    <button class="btn btn-acc" id="btn-ssl-upload" onclick="doSslUpload()" style="border:none;display:none">⬆ 上传并验证</button>
+    <div id="ssl-upload-result" style="margin-top:10px;font-size:.8rem"></div>
+  </div>
+</div>
+</div>
+
 <!-- ALERTS MODAL -->
 <div class="overlay" id="ov-alerts" onclick="closeOvBg(event,'ov-alerts')">
 <div class="modal modal-wide">
@@ -1081,6 +1139,7 @@ zh:{
   'confirm.cancel_member':'确认取消会员？取消后立即失效，剩余时间不退款。',
   'confirm.delete_bmc_pass':'确认将 BMC 密码修改为新密码？此操作直接写入硬件。',
   // OS Profiles
+  'ssl.title':'HTTPS 配置',
   'osp.tab_profiles':'OS 配置','osp.tab_isos':'ISO 库',
   'iso.dl_title':'从 URL 预下载','iso.dl_ph':'https://releases.ubuntu.com/.../xxx.iso',
   'iso.dl_name_ph':'自定义文件名（可选）','iso.dl_btn':'开始下载',
@@ -1452,7 +1511,7 @@ function applyI18n(){
     'lbl-servers':'servers','lbl-online':'online','lbl-offline':'offline','lbl-collecting':'collecting',
     'fl-all':'all','fl-s-online':'online','fl-s-auth':'h.auth_failed','fl-s-reach':'h.reachable','fl-s-pend':'collecting','fl-s-off':'offline',
     'lbl-refresh':'btn.refresh','lbl-settings':'btn.settings','lbl-logout':'btn.logout',
-    'dd-lbl-cfg':'cfg.title','dd-lbl-sc':'sc.title','dd-lbl-users':'u.title','dd-lbl-alerts':'al.title','dd-lbl-osp':'osp.title',
+    'dd-lbl-cfg':'cfg.title','dd-lbl-sc':'sc.title','dd-lbl-users':'u.title','dd-lbl-alerts':'al.title','dd-lbl-osp':'osp.title','dd-lbl-ssl':'ssl.title',
     'lbl-setup-title':'setup.title','lbl-setup-sub':'setup.sub','lbl-cluster':'setup.cluster',
     'lbl-admin-user':'setup.admin','lbl-admin-pass':'setup.pass','lbl-confirm':'setup.confirm',
     'btn-setup-submit':'setup.submit','lbl-login-title':'login.title',
@@ -2411,6 +2470,146 @@ async function saveAlias(key){
   }
 }
 
+/* ── HTTPS / SSL ───────────────────────────────────────────── */
+async function openSslModal(){
+  switchSslTab('status',$('ssl-tab-status'));
+  await loadSslStatus();
+  $('ov-ssl').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function switchSslTab(tab,el){
+  ['status','search','upload'].forEach(t=>{
+    $('ssl-pane-'+t).style.display=t===tab?'':'none';
+    $('ssl-tab-'+t)?.classList.toggle('act',t===tab);
+  });
+}
+async function loadSslStatus(){
+  const el=$('ssl-status-content'); if(!el) return;
+  const r=await api('GET','/api/ssl/status'); if(!r) return;
+  const d=await r.json();
+  const enabled=d.enabled;
+  const info=d.cert_info||{};
+  const expiryColor=info.days_left<30?'var(--crit)':info.days_left<90?'var(--warn)':'var(--ok)';
+  el.innerHTML=`
+<div style="display:flex;align-items:center;gap:12px;padding:14px;border-radius:10px;background:var(--sf2);border:1px solid var(--bd);margin-bottom:16px">
+  <div style="font-size:2rem">${enabled?'🔒':'🔓'}</div>
+  <div>
+    <div style="font-weight:700;font-size:1rem;color:${enabled?'var(--ok)':'var(--tx1)'}">${enabled?'HTTPS 已启用':'HTTP（未加密）'}</div>
+    ${enabled&&info.ok?`<div style="font-size:.78rem;color:var(--tx2);margin-top:4px">
+      域名：${info.cn||d.domain||'—'} &nbsp;·&nbsp;
+      证书到期：<span style="color:${expiryColor}">${info.not_after||'—'}</span>
+      （<span style="color:${expiryColor}">${info.days_left}天</span>）
+    </div>`:''}
+    ${enabled?`<div style="font-size:.72rem;color:var(--tx3);margin-top:2px">${d.certfile}</div>`:''}
+  </div>
+</div>
+${enabled?`
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+  <button class="btn btn-danger" onclick="disableSsl()" style="font-size:.78rem">🔓 禁用 HTTPS</button>
+  <button class="btn" onclick="doSslRestart()" style="font-size:.78rem">↻ 重启服务</button>
+</div>`:`
+<div style="font-size:.82rem;color:var(--tx2);line-height:1.8">
+  通过「搜索证书」自动查找服务器已有证书，或通过「手动上传」提供证书文件。<br>
+  配置完成后服务将自动重启并切换到 HTTPS 访问。
+</div>`}
+<div id="ssl-status-msg" style="margin-top:10px;font-size:.8rem;min-height:16px"></div>`;
+}
+async function doSslSearch(){
+  const domain=($('ssl-search-domain')?.value||'').trim();
+  const el=$('ssl-search-results');
+  if(!domain){if(el)el.innerHTML='<div style="color:var(--warn)">请输入域名</div>';return;}
+  if(el)el.innerHTML='<div style="color:var(--tx3);font-size:.8rem">搜索中...</div>';
+  const r=await api('POST','/api/ssl/search',{domain}); if(!r) return;
+  const d=await r.json();
+  if(!d.results||!d.results.length){
+    el.innerHTML=`<div style="color:var(--tx3);font-size:.82rem;padding:20px 0;text-align:center">在常见位置未找到域名 <b>${esc(domain)}</b> 的证书<br><span style="font-size:.72rem">可尝试手动上传或检查证书路径</span></div>`;
+    return;
+  }
+  el.innerHTML=d.results.map((item,i)=>{
+    const info=item.info||{};
+    const expColor=info.days_left<30?'var(--crit)':info.days_left<90?'var(--warn)':'var(--ok)';
+    const keyOk=item.key_exists;
+    return`<div style="border:1px solid var(--bd);border-radius:8px;padding:12px 14px;margin-bottom:8px;background:var(--sf)">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+    <div>
+      <div style="font-size:.82rem;font-weight:600">${esc(info.cn||item.cert)}</div>
+      <div style="font-size:.7rem;color:var(--tx3);margin-top:2px">
+        来源：${esc(item.source)} &nbsp;·&nbsp;
+        到期：<span style="color:${expColor}">${info.not_after||'—'} (${info.days_left||'?'}天)</span>
+      </div>
+      <div style="font-size:.68rem;color:var(--tx3);margin-top:2px;font-family:monospace">
+        证书：${esc(item.cert)}<br>
+        私钥：${esc(item.key)} ${keyOk?'✓':'<span style="color:var(--warn)">未找到</span>'}
+      </div>
+    </div>
+    ${keyOk?`<button class="btn btn-acc" onclick="applySslCert('${esc(item.cert)}','${esc(item.key)}','${esc(domain)}')" style="border:none;font-size:.76rem;white-space:nowrap">应用此证书</button>`
+            :`<span style="font-size:.72rem;color:var(--warn)">私钥缺失</span>`}
+  </div>
+</div>`;
+  }).join('');
+}
+async function applySslCert(cert, key, domain){
+  const r=await api('POST','/api/ssl/apply',{certfile:cert,keyfile:key,domain});
+  if(!r) return;
+  const d=await r.json();
+  if(d.ok){
+    await loadSslStatus();
+    switchSslTab('status',$('ssl-tab-status'));
+    if(d.systemd_updated) doSslRestart();
+    else{
+      const m=$('ssl-status-msg');
+      if(m){m.style.color='var(--warn)';m.textContent=d.note||'配置已保存，请手动重启服务';}
+    }
+  }
+}
+function updateSslUploadInfo(){
+  const cf=$('ssl-cert-file')?.files[0], kf=$('ssl-key-file')?.files[0];
+  const cn=$('ssl-cert-name'), kn=$('ssl-key-name');
+  if(cn)cn.textContent=cf?cf.name:'';
+  if(kn)kn.textContent=kf?kf.name:'';
+  const btn=$('btn-ssl-upload');
+  if(btn)btn.style.display=(cf&&kf)?'':'none';
+}
+async function doSslUpload(){
+  const cf=$('ssl-cert-file')?.files[0], kf=$('ssl-key-file')?.files[0];
+  const res=$('ssl-upload-result'), btn=$('btn-ssl-upload');
+  if(!cf||!kf){if(res)res.textContent='请选择证书和私钥文件';return;}
+  btn.disabled=true; if(res){res.style.color='var(--tx2)';res.textContent='上传验证中...';}
+  const fd=new FormData(); fd.append('cert',cf); fd.append('key',kf);
+  const xhr=new XMLHttpRequest();
+  xhr.open('POST','/api/ssl/upload');
+  xhr.setRequestHeader('Authorization','Bearer '+token);
+  xhr.onload=async()=>{
+    btn.disabled=false;
+    if(xhr.status===200){
+      const d=JSON.parse(xhr.responseText);
+      res.style.color='var(--ok)';
+      res.textContent=`✓ 验证通过 · 域名：${d.info?.cn||'—'} · 到期：${d.info?.not_after||'—'}`;
+      // 自动应用
+      await applySslCert(d.cert,d.key,'');
+    } else {
+      res.style.color='var(--crit)';
+      const e=JSON.parse(xhr.responseText||'{}');
+      res.textContent='✗ '+(e.detail||'上传失败');
+    }
+  };
+  xhr.onerror=()=>{btn.disabled=false;res.style.color='var(--crit)';res.textContent='✗ 网络错误';};
+  xhr.send(fd);
+}
+async function disableSsl(){
+  if(!confirm('禁用 HTTPS 并切换回 HTTP？')) return;
+  const r=await api('DELETE','/api/ssl'); if(!r) return;
+  const d=await r.json();
+  if(d.ok){await loadSslStatus(); doSslRestart();}
+}
+async function doSslRestart(){
+  const msg=$('ssl-status-msg');
+  if(msg){msg.style.color='var(--tx2)';msg.textContent='正在重启服务，请稍候...';}
+  await api('POST','/api/system/restart',{});
+  // 等待服务重启后刷新页面
+  setTimeout(()=>location.reload(), 4000);
+}
+
 /* ── OS 安装配置（全局） ────────────────────────────────────── */
 let osProfiles=[];
 let _editOspId=null;
@@ -2722,6 +2921,7 @@ function openOverlay(id){
   else if(id==='ov-alerts')openAlertsModal();
   else if(id==='ov-sub')openSubModal();
   else if(id==='ov-osprofiles')openOspModal();
+  else if(id==='ov-ssl')openSslModal();
   else{$(id).classList.add('open');document.body.style.overflow='hidden';}
 }
 function closeOverlay(id){$(id).classList.remove('open');document.body.style.overflow='';}
@@ -3242,6 +3442,10 @@ function closeMobMenu(){
   <div class="mob-menu-item admin-only" onclick="ddOpen('ov-osprofiles');closeMobMenu()">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
     <span>安装配置</span>
+  </div>
+  <div class="mob-menu-item admin-only" onclick="ddOpen('ov-ssl');closeMobMenu()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    <span>HTTPS 配置</span>
   </div>
 </div>
 
