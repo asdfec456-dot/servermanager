@@ -950,6 +950,23 @@ zh:{
   'confirm.clear_hist':'确认清空所有报警记录？',
   'confirm.cancel_member':'确认取消会员？取消后立即失效，剩余时间不退款。',
   'confirm.delete_bmc_pass':'确认将 BMC 密码修改为新密码？此操作直接写入硬件。',
+  // Install
+  'inst.title':'系统安装','inst.os':'操作系统','inst.net':'网络配置',
+  'inst.sys':'系统设置','inst.method':'安装方式',
+  'inst.dhcp':'DHCP 自动','inst.static':'静态 IP',
+  'inst.ip':'IP 地址','inst.mask':'子网掩码','inst.gw':'网关','inst.dns':'DNS',
+  'inst.hostname':'主机名','inst.user':'用户名','inst.pass':'密码',
+  'inst.disk':'目标磁盘','inst.tz':'时区',
+  'inst.method_vm':'虚拟光驱 (Redfish VirtualMedia)',
+  'inst.method_pxe':'PXE 网络启动',
+  'inst.method_manual':'手动（仅生成配置文件）',
+  'inst.iso_url':'ISO 地址（HTTP/HTTPS）','inst.pxe_srv':'PXE 服务器 IP',
+  'inst.reboot':'安装后自动重启','inst.gen':'下载配置文件',
+  'inst.start':'一键安装','inst.starting':'执行中...',
+  'inst.ks_url':'配置文件 URL（供安装器拉取）',
+  'inst.ok':'安装指令已发送','inst.err':'执行失败',
+  'inst.power_reset':'重启','inst.power_on':'开机',
+  'inst.power_off':'强制关机','inst.power_soft':'正常关机',
   // Portal error
   'portal.error':'无法打开管理页面',
   // Table no data
@@ -1082,6 +1099,21 @@ en:{
   'confirm.clear_hist':'Clear all alert history?',
   'confirm.cancel_member':'Cancel membership? Access ends immediately with no refund.',
   'confirm.delete_bmc_pass':'Confirm BMC password change? This writes directly to hardware.',
+  'inst.title':'Install OS','inst.os':'OS','inst.net':'Network',
+  'inst.sys':'System','inst.method':'Install Method',
+  'inst.dhcp':'DHCP','inst.static':'Static IP',
+  'inst.ip':'IP Address','inst.mask':'Netmask','inst.gw':'Gateway','inst.dns':'DNS',
+  'inst.hostname':'Hostname','inst.user':'Username','inst.pass':'Password',
+  'inst.disk':'Target Disk','inst.tz':'Timezone',
+  'inst.method_vm':'Virtual Media (Redfish)',
+  'inst.method_pxe':'PXE Network Boot',
+  'inst.method_manual':'Manual (config file only)',
+  'inst.iso_url':'ISO URL (HTTP/HTTPS)','inst.pxe_srv':'PXE Server IP',
+  'inst.reboot':'Reboot after setup','inst.gen':'Download Config',
+  'inst.start':'Start Install','inst.starting':'Running...',
+  'inst.ks_url':'Config URL (for installer)','inst.ok':'Commands sent','inst.err':'Failed',
+  'inst.power_reset':'Reboot','inst.power_on':'Power On',
+  'inst.power_off':'Force Off','inst.power_soft':'Soft Shutdown',
   'portal.error':'Cannot open management page',
   'tbl.no_data':'—',
 },
@@ -1212,6 +1244,21 @@ ja:{
   'confirm.clear_hist':'すべてのアラート履歴をクリアしますか？',
   'confirm.cancel_member':'メンバーシップをキャンセルしますか？即時失効、返金不可。',
   'confirm.delete_bmc_pass':'BMC パスワードを変更しますか？ハードウェアに直接書き込まれます。',
+  'inst.title':'OS インストール','inst.os':'OS','inst.net':'ネットワーク',
+  'inst.sys':'システム設定','inst.method':'インストール方法',
+  'inst.dhcp':'DHCP 自動','inst.static':'静的 IP',
+  'inst.ip':'IP アドレス','inst.mask':'サブネットマスク','inst.gw':'ゲートウェイ','inst.dns':'DNS',
+  'inst.hostname':'ホスト名','inst.user':'ユーザー名','inst.pass':'パスワード',
+  'inst.disk':'対象ディスク','inst.tz':'タイムゾーン',
+  'inst.method_vm':'仮想メディア (Redfish)',
+  'inst.method_pxe':'PXE ネットブート',
+  'inst.method_manual':'手動（設定ファイルのみ）',
+  'inst.iso_url':'ISO URL (HTTP/HTTPS)','inst.pxe_srv':'PXE サーバー IP',
+  'inst.reboot':'インストール後に再起動','inst.gen':'設定ファイルをダウンロード',
+  'inst.start':'インストール開始','inst.starting':'実行中...',
+  'inst.ks_url':'設定ファイル URL','inst.ok':'コマンド送信完了','inst.err':'失敗',
+  'inst.power_reset':'再起動','inst.power_on':'電源オン',
+  'inst.power_off':'強制シャットダウン','inst.power_soft':'正常シャットダウン',
   'portal.error':'管理ページを開けません',
   'tbl.no_data':'—',
 }
@@ -1965,6 +2012,109 @@ ${ms.total_gib?`<div><div class="ik">${t('d.mem')}</div><div class="iv">${ms.tot
   if((s.alerts||[]).length)parts.push(sec(t('d.alerts'),`<div style="color:var(--warn);font-size:.8rem">${s.alerts.map(esc).join('<br>')}</div>`));
   if(s.error)parts.push(sec(t('d.error'),`<div style="color:var(--crit);font-size:.77rem">${esc(s.error)}</div>`));
 
+  // 电源控制（管理员）
+  if(currentUser?.role==='admin'){
+    parts.push(`<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--bd);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+<span style="font-size:.72rem;color:var(--tx2);margin-right:4px">${t('inst.power_reset')}：</span>
+<button class="btn" onclick="doPower('${key}','reset')" style="font-size:.74rem">${t('inst.power_reset')}</button>
+<button class="btn" onclick="doPower('${key}','on')" style="font-size:.74rem">${t('inst.power_on')}</button>
+<button class="btn" onclick="doPower('${key}','soft')" style="font-size:.74rem">${t('inst.power_soft')}</button>
+<button class="btn btn-danger" onclick="doPower('${key}','off')" style="font-size:.74rem">${t('inst.power_off')}</button>
+<span id="pwr-result-${key}" style="font-size:.72rem;color:var(--ok)"></span>
+</div>`);
+  }
+
+  // 系统安装（管理员）
+  if(currentUser?.role==='admin'){
+    parts.push(`<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--bd)">
+<details id="inst-details-${key}">
+<summary style="font-size:.88rem;font-weight:700;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;padding:4px 0">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+  ${t('inst.title')}
+</summary>
+<div style="margin-top:14px">
+
+<!-- OS 选择 -->
+<div style="margin-bottom:12px">
+<div style="font-size:.72rem;color:var(--tx2);margin-bottom:6px">${t('inst.os')}</div>
+<div style="display:flex;gap:6px;flex-wrap:wrap" id="inst-os-tabs-${key}">
+  ${['ubuntu-24.04','ubuntu-22.04','rocky-9','rocky-8','debian-12'].map(os=>`
+  <button class="fl-btn${os==='ubuntu-24.04'?' act':''}" onclick="selectInstOs('${key}','${os}',this)">${os}</button>`).join('')}
+</div>
+<input type="hidden" id="inst-os-${key}" value="ubuntu-24.04">
+</div>
+
+<!-- 网络配置 -->
+<div style="margin-bottom:12px">
+<div style="font-size:.72rem;color:var(--tx2);margin-bottom:6px">${t('inst.net')}</div>
+<div style="display:flex;gap:10px;margin-bottom:8px">
+  <label style="display:flex;align-items:center;gap:5px;font-size:.78rem;cursor:pointer">
+    <input type="radio" name="inst-ipmode-${key}" value="dhcp" checked onchange="toggleInstIp('${key}',false)"> ${t('inst.dhcp')}
+  </label>
+  <label style="display:flex;align-items:center;gap:5px;font-size:.78rem;cursor:pointer">
+    <input type="radio" name="inst-ipmode-${key}" value="static" onchange="toggleInstIp('${key}',true)"> ${t('inst.static')}
+  </label>
+</div>
+<div id="inst-static-${key}" style="display:none;display:grid;grid-template-columns:1fr 1fr;gap:7px">
+  <div><label style="font-size:.68rem;color:var(--tx2)">${t('inst.ip')}</label><input class="inp" id="inst-ip-${key}" style="margin-top:3px;font-size:.8rem" placeholder="192.168.1.10"></div>
+  <div><label style="font-size:.68rem;color:var(--tx2)">${t('inst.mask')}</label><input class="inp" id="inst-mask-${key}" style="margin-top:3px;font-size:.8rem" placeholder="255.255.255.0"></div>
+  <div><label style="font-size:.68rem;color:var(--tx2)">${t('inst.gw')}</label><input class="inp" id="inst-gw-${key}" style="margin-top:3px;font-size:.8rem" placeholder="192.168.1.1"></div>
+  <div><label style="font-size:.68rem;color:var(--tx2)">${t('inst.dns')}</label><input class="inp" id="inst-dns-${key}" style="margin-top:3px;font-size:.8rem" placeholder="8.8.8.8"></div>
+</div>
+</div>
+
+<!-- 系统设置 -->
+<div style="margin-bottom:12px">
+<div style="font-size:.72rem;color:var(--tx2);margin-bottom:6px">${t('inst.sys')}</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
+  <div><label style="font-size:.68rem;color:var(--tx2)">${t('inst.hostname')}</label><input class="inp" id="inst-hostname-${key}" style="margin-top:3px;font-size:.8rem" placeholder="server-01"></div>
+  <div><label style="font-size:.68rem;color:var(--tx2)">${t('inst.disk')}</label><input class="inp" id="inst-disk-${key}" style="margin-top:3px;font-size:.8rem" value="/dev/sda"></div>
+  <div><label style="font-size:.68rem;color:var(--tx2)">${t('inst.user')}</label><input class="inp" id="inst-user-${key}" style="margin-top:3px;font-size:.8rem" placeholder="admin"></div>
+  <div><label style="font-size:.68rem;color:var(--tx2)">${t('inst.pass')}</label>
+    <div class="inp-wrap" style="margin-top:3px">
+      <input class="inp" id="inst-pass-${key}" type="password" style="font-size:.8rem" placeholder="••••••">
+      <button class="eye-btn" type="button" onclick="toggleEye('inst-pass-${key}')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+    </div>
+  </div>
+  <div><label style="font-size:.68rem;color:var(--tx2)">${t('inst.tz')}</label><input class="inp" id="inst-tz-${key}" style="margin-top:3px;font-size:.8rem" value="Asia/Tokyo"></div>
+</div>
+</div>
+
+<!-- 安装方式 -->
+<div style="margin-bottom:12px">
+<div style="font-size:.72rem;color:var(--tx2);margin-bottom:6px">${t('inst.method')}</div>
+<div style="display:flex;flex-direction:column;gap:7px">
+  <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;cursor:pointer">
+    <input type="radio" name="inst-method-${key}" value="manual" checked onchange="toggleInstMethod('${key}','manual')">
+    ${t('inst.method_manual')}
+  </label>
+  <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;cursor:pointer">
+    <input type="radio" name="inst-method-${key}" value="virtual-media" onchange="toggleInstMethod('${key}','virtual-media')">
+    ${t('inst.method_vm')}
+  </label>
+  <div id="inst-vm-row-${key}" style="display:none;margin-left:20px">
+    <label style="font-size:.68rem;color:var(--tx2)">${t('inst.iso_url')}</label>
+    <input class="inp" id="inst-iso-${key}" style="margin-top:3px;font-size:.8rem" placeholder="http://192.168.1.1/ubuntu-24.04.iso">
+  </div>
+  <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;cursor:pointer">
+    <input type="radio" name="inst-method-${key}" value="pxe" onchange="toggleInstMethod('${key}','pxe')">
+    ${t('inst.method_pxe')}
+  </label>
+</div>
+</div>
+
+<!-- 操作按钮 -->
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:4px">
+  <button class="btn" onclick="downloadInstCfg('${key}')" style="font-size:.78rem">⬇ ${t('inst.gen')}</button>
+  <button class="btn btn-acc" id="inst-btn-${key}" onclick="startInstall('${key}')" style="border:none;font-size:.78rem">▶ ${t('inst.start')}</button>
+</div>
+<div id="inst-ks-url-${key}" style="margin-top:8px;font-size:.7rem;color:var(--tx3)"></div>
+<div id="inst-result-${key}" style="margin-top:6px;font-size:.78rem;min-height:16px"></div>
+</div>
+</details>
+</div>`);
+  }
+
   // BMC 密码修改区块（仅管理员 + 在线服务器）
   if(currentUser?.role==='admin' && s.status==='online'){
     parts.push(`<div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--bd)">
@@ -2086,6 +2236,85 @@ async function saveAlias(key){
     $('det-title').textContent=alias||sv?.name||ip;
     renderGrid();
   }
+}
+
+/* ── 系统安装 ──────────────────────────────────────────────── */
+function selectInstOs(key, os, btn){
+  $(`inst-os-${key}`).value=os;
+  document.querySelectorAll(`#inst-os-tabs-${key} .fl-btn`).forEach(b=>b.classList.remove('act'));
+  btn.classList.add('act');
+}
+function toggleInstIp(key, show){
+  const el=$(`inst-static-${key}`);
+  if(el) el.style.display=show?'grid':'none';
+}
+function toggleInstMethod(key, method){
+  if($(`inst-vm-row-${key}`)) $(`inst-vm-row-${key}`).style.display=method==='virtual-media'?'block':'none';
+}
+function getInstConfig(key){
+  const ip=key.replace(/-/g,'.');
+  const ipmode=document.querySelector(`input[name="inst-ipmode-${key}"]:checked`)?.value||'dhcp';
+  const method=document.querySelector(`input[name="inst-method-${key}"]:checked`)?.value||'manual';
+  return{
+    os_type:    $(`inst-os-${key}`)?.value||'ubuntu-24.04',
+    hostname:   $(`inst-hostname-${key}`)?.value.trim()||'server',
+    username:   $(`inst-user-${key}`)?.value.trim()||'admin',
+    password:   $(`inst-pass-${key}`)?.value||'',
+    disk:       $(`inst-disk-${key}`)?.value.trim()||'/dev/sda',
+    timezone:   $(`inst-tz-${key}`)?.value.trim()||'Asia/Tokyo',
+    ip_mode:    ipmode,
+    ip_address: $(`inst-ip-${key}`)?.value.trim()||'',
+    netmask:    $(`inst-mask-${key}`)?.value.trim()||'255.255.255.0',
+    gateway:    $(`inst-gw-${key}`)?.value.trim()||'',
+    dns:        $(`inst-dns-${key}`)?.value.trim()||'8.8.8.8',
+    boot_method:method,
+    iso_url:    $(`inst-iso-${key}`)?.value.trim()||'',
+    do_reboot:  true,
+  };
+}
+async function downloadInstCfg(key){
+  const cfg=getInstConfig(key);
+  const r=await api('POST',`/api/servers/${key}/install/generate`,cfg);
+  if(!r) return;
+  const blob=await r.blob();
+  const fname=r.headers.get('content-disposition')?.match(/filename="(.+?)"/)?.[1]||'config.txt';
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download=fname;a.click();
+  // 显示供安装器拉取的 URL
+  const ksUrl=`${location.origin}/api/install/kickstart/${key}`;
+  const div=$(`inst-ks-url-${key}`);
+  if(div) div.innerHTML=`${t('inst.ks_url')}: <code style="font-size:.68rem;word-break:break-all">${ksUrl}</code>`;
+}
+async function startInstall(key){
+  const cfg=getInstConfig(key);
+  // 先生成配置文件
+  await api('POST',`/api/servers/${key}/install/generate`,cfg);
+  const btn=$(`inst-btn-${key}`), res=$(`inst-result-${key}`);
+  btn.disabled=true; res.textContent=t('inst.starting'); res.style.color='var(--tx2)';
+  const r=await api('POST',`/api/servers/${key}/install/start`,cfg);
+  btn.disabled=false;
+  if(!r){res.style.color='var(--crit)';res.textContent=t('inst.err');return;}
+  const d=await r.json();
+  if(d.ok){
+    res.style.color='var(--ok)'; res.textContent=t('inst.ok');
+    // 显示详细结果
+    const detail=Object.entries(d.results||{}).map(([k,v])=>`${k}: ${v.ok?'✓':('✗ '+v.error)}`).join(' · ');
+    if(detail) res.textContent+=' — '+detail;
+  } else {
+    res.style.color='var(--warn)';
+    const detail=Object.entries(d.results||{}).map(([k,v])=>`${k}: ${v.ok?'✓':('✗ '+(v.error||''))}`).join(' · ');
+    res.textContent=t('inst.err')+(detail?' — '+detail:'');
+  }
+}
+async function doPower(key, action){
+  const res=$(`pwr-result-${key}`);
+  res.style.color='var(--tx2)'; res.textContent='...';
+  const r=await api('POST',`/api/servers/${key}/power`,{action});
+  if(!r){res.style.color='var(--crit)';res.textContent='✗';return;}
+  const d=await r.json();
+  res.style.color=d.ok?'var(--ok)':'var(--crit)';
+  res.textContent=d.ok?`✓ ${d.method||''}`:('✗ '+(d.error||''));
+  setTimeout(()=>{res.textContent='';},4000);
 }
 
 /* ── Overlays ──────────────────────────────────────────────── */

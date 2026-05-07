@@ -64,6 +64,7 @@ SUBSCRIPTION_FILE  = DATA_DIR / "subscription.json"
 LICENSE_FILE       = DATA_DIR / "license.json"
 ALIASES_FILE       = DATA_DIR / "aliases.json"
 MACHINE_CREDS_FILE = DATA_DIR / "machine_creds.json"
+INSTALL_CFGS_FILE  = DATA_DIR / "install_configs.json"
 ALERT_RULES_FILE   = DATA_DIR / "alert_rules.json"
 ALERT_CHANNELS_FILE= DATA_DIR / "alert_channels.json"
 ALERT_STATE_FILE   = DATA_DIR / "alert_state.json"
@@ -2352,6 +2353,450 @@ async def api_deactivate_license(admin: dict = Depends(require_admin)):
         sub["status"] = "inactive"
         save_subscription(sub)
     return get_subscription_info()
+
+# ═══════════════════════════════════════════════════════════════════
+# 系统安装
+# ═══════════════════════════════════════════════════════════════════
+
+def load_install_configs() -> dict:
+    DATA_DIR.mkdir(exist_ok=True)
+    if INSTALL_CFGS_FILE.exists():
+        try:
+            return json.loads(INSTALL_CFGS_FILE.read_text())
+        except Exception:
+            pass
+    return {}
+
+def save_install_configs(data: dict) -> None:
+    DATA_DIR.mkdir(exist_ok=True)
+    INSTALL_CFGS_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+
+def hash_linux_password(password: str) -> str:
+    """生成 Linux shadow 兼容的 SHA-512 密码哈希 ($6$...)。"""
+    import subprocess as _sp
+    try:
+        r = _sp.run(["openssl", "passwd", "-6", password],
+                    capture_output=True, text=True, timeout=5)
+        if r.returncode == 0:
+            return r.stdout.strip()
+    except Exception:
+        pass
+    try:
+        import crypt as _crypt
+        return _crypt.crypt(password, _crypt.mksalt(_crypt.METHOD_SHA512))
+    except Exception:
+        pass
+    return password   # 最后回退（不安全，仅限测试）
+
+def _net_section_cloud_init(cfg: dict) -> str:
+    if cfg.get("ip_mode") == "static":
+        ip   = cfg.get("ip_address", "")
+        mask = cfg.get("netmask", "24")
+        # 支持 CIDR 或点分十进制
+        try:
+            prefix = int(mask)
+        except ValueError:
+            parts = mask.split(".")
+            prefix = sum(bin(int(x)).count("1") for x in parts)
+        gw  = cfg.get("gateway", "")
+        dns = cfg.get("dns", "8.8.8.8")
+        return f"""      ethernets:
+        eth0:
+          dhcp4: false
+          addresses: [{ip}/{prefix}]
+          gateway4: {gw}
+          nameservers:
+            addresses: [{dns}]"""
+    return "      ethernets:\n        eth0:\n          dhcp4: true"
+
+def generate_cloud_init(cfg: dict) -> str:
+    """Ubuntu 22.04 / 24.04 autoinstall (cloud-init)。"""
+    hostname  = cfg.get("hostname", "ubuntu-server")
+    username  = cfg.get("username", "admin")
+    pw_hash   = hash_linux_password(cfg.get("password", "changeme"))
+    disk      = cfg.get("disk", "/dev/sda")
+    tz        = cfg.get("timezone", "Asia/Tokyo")
+    net       = _net_section_cloud_init(cfg)
+    return f"""#cloud-config
+autoinstall:
+  version: 1
+  locale: zh_CN.UTF-8
+  keyboard:
+    layout: us
+  identity:
+    hostname: {hostname}
+    username: {username}
+    password: '{pw_hash}'
+  network:
+    network:
+      version: 2
+{net}
+  storage:
+    layout:
+      name: direct
+      match:
+        path: {disk}
+  ssh:
+    install-server: true
+    allow-pw: true
+  timezone: {tz}
+  packages:
+    - curl
+    - wget
+    - vim
+    - net-tools
+  late-commands:
+    - curtin in-target --target=/target -- systemctl enable ssh
+"""
+
+def generate_kickstart(cfg: dict) -> str:
+    """Rocky Linux 8/9 / RHEL / AlmaLinux kickstart。"""
+    hostname  = cfg.get("hostname", "rocky-server")
+    username  = cfg.get("username", "admin")
+    pw_hash   = hash_linux_password(cfg.get("password", "changeme"))
+    disk      = cfg.get("disk", "sda")
+    tz        = cfg.get("timezone", "Asia/Tokyo")
+    if cfg.get("ip_mode") == "static":
+        ip   = cfg.get("ip_address", "")
+        mask = cfg.get("netmask", "255.255.255.0")
+        gw   = cfg.get("gateway", "")
+        dns  = cfg.get("dns", "8.8.8.8")
+        net_line = (f"network --bootproto=static --ip={ip} --netmask={mask} "
+                    f"--gateway={gw} --nameserver={dns} --hostname={hostname} "
+                    "--device=eth0 --onboot=on --activate")
+    else:
+        net_line = (f"network --bootproto=dhcp --device=eth0 "
+                    f"--hostname={hostname} --onboot=on --activate")
+    return f"""#version=RHEL9
+text
+keyboard us
+lang en_US.UTF-8
+timezone {tz} --utc
+{net_line}
+rootpw --iscrypted {pw_hash}
+user --name={username} --groups=wheel --iscrypted --password={pw_hash}
+selinux --permissive
+firewall --disabled
+services --enabled=sshd,chronyd
+ignoredisk --only-use={disk}
+bootloader --location=mbr --boot-drive={disk}
+clearpart --all --initlabel --drives={disk}
+part /boot/efi --fstype=efi --size=200 --ondisk={disk}
+part /boot     --fstype=xfs --size=1024 --ondisk={disk}
+part pv.0      --fstype=lvmpv --grow --ondisk={disk}
+volgroup vg0 pv.0
+logvol / --fstype=xfs --name=lv_root --vgname=vg0 --grow
+%packages
+@^minimal-environment
+curl
+wget
+vim
+net-tools
+%end
+%post
+systemctl enable sshd
+%end
+"""
+
+def generate_preseed(cfg: dict) -> str:
+    """Debian 11/12 preseed。"""
+    hostname  = cfg.get("hostname", "debian-server")
+    username  = cfg.get("username", "admin")
+    pw_hash   = hash_linux_password(cfg.get("password", "changeme"))
+    disk      = cfg.get("disk", "/dev/sda")
+    tz        = cfg.get("timezone", "Asia/Tokyo")
+    if cfg.get("ip_mode") == "static":
+        ip   = cfg.get("ip_address", "")
+        mask = cfg.get("netmask", "255.255.255.0")
+        gw   = cfg.get("gateway", "")
+        dns  = cfg.get("dns", "8.8.8.8")
+        net_lines = f"""d-i netcfg/disable_autoconfig boolean true
+d-i netcfg/get_ipaddress string {ip}
+d-i netcfg/get_netmask string {mask}
+d-i netcfg/get_gateway string {gw}
+d-i netcfg/get_nameservers string {dns}
+d-i netcfg/confirm_static boolean true"""
+    else:
+        net_lines = "d-i netcfg/choose_interface select auto"
+    return f"""d-i debian-installer/locale string en_US.UTF-8
+d-i keyboard-configuration/xkb-keymap select us
+{net_lines}
+d-i netcfg/get_hostname string {hostname}
+d-i netcfg/get_domain string localdomain
+d-i time/zone string {tz}
+d-i clock-setup/utc boolean true
+d-i passwd/root-login boolean false
+d-i passwd/user-fullname string {username}
+d-i passwd/username string {username}
+d-i passwd/user-password-crypted password {pw_hash}
+d-i partman-auto/disk string {disk}
+d-i partman-auto/method string regular
+d-i partman-auto/choose_recipe select atomic
+d-i partman/confirm_write_new_label boolean true
+d-i partman/choose_partition select finish
+d-i partman/confirm boolean true
+d-i partman/confirm_nooverwrite boolean true
+d-i pkgsel/include string openssh-server curl wget vim net-tools
+d-i grub-installer/only_debian boolean true
+d-i grub-installer/bootdev string {disk}
+d-i finish-install/reboot_in_progress note
+"""
+
+async def set_boot_device(bmc_ip: str, username: str, password: str,
+                          device: str = "cdrom") -> dict:
+    """通过 IPMI 设置一次性引导设备，失败后尝试 Redfish。"""
+    ipmi_map = {"cdrom": "cdrom", "pxe": "pxe", "disk": "disk"}
+    rf_map   = {"cdrom": "Cd",    "pxe": "Pxe",  "disk": "Hdd"}
+    ipmi_dev = ipmi_map.get(device, "cdrom")
+    rf_dev   = rf_map.get(device, "Cd")
+
+    # 1. 尝试 IPMI
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "ipmitool", "-I", "lanplus", "-H", bmc_ip,
+            "-U", username, "-P", password,
+            "chassis", "bootdev", ipmi_dev,
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        )
+        _, err = await asyncio.wait_for(proc.communicate(), timeout=20)
+        if proc.returncode == 0:
+            return {"ok": True, "method": "IPMI"}
+    except Exception:
+        pass
+
+    # 2. 尝试 Redfish Boot Override
+    try:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode    = ssl.CERT_NONE
+        auth = aiohttp.BasicAuth(username, password)
+        async with aiohttp.ClientSession(auth=auth) as sess:
+            async with sess.get(f"https://{bmc_ip}/redfish/v1/Systems",
+                                ssl=ctx, timeout=aiohttp.ClientTimeout(total=10)) as r:
+                if r.status != 200:
+                    return {"ok": False, "error": "Redfish Systems 不可访问"}
+                d = await r.json(content_type=None)
+                sys_path = (d.get("Members") or [{}])[0].get("@odata.id", "")
+            if not sys_path:
+                return {"ok": False, "error": "找不到 Systems 路径"}
+            async with sess.patch(
+                f"https://{bmc_ip}{sys_path}", ssl=ctx,
+                json={"Boot": {"BootSourceOverrideEnabled": "Once",
+                               "BootSourceOverrideTarget": rf_dev}},
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as r:
+                if r.status in (200, 204):
+                    return {"ok": True, "method": "Redfish"}
+                return {"ok": False, "error": f"Redfish Patch 返回 {r.status}"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+async def power_action(bmc_ip: str, username: str, password: str,
+                       action: str = "reset") -> dict:
+    """通过 IPMI / Redfish 执行电源操作：reset / on / off / soft。"""
+    ipmi_cmds = {"reset": ["chassis", "power", "reset"],
+                 "on":    ["chassis", "power", "on"],
+                 "off":   ["chassis", "power", "off"],
+                 "soft":  ["chassis", "power", "soft"]}
+    rf_resets = {"reset": "ForceRestart", "on": "On",
+                 "off": "ForceOff",       "soft": "GracefulShutdown"}
+    ipmi_args = ipmi_cmds.get(action, ipmi_cmds["reset"])
+    rf_type   = rf_resets.get(action, "ForceRestart")
+
+    # 1. IPMI
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "ipmitool", "-I", "lanplus", "-H", bmc_ip,
+            "-U", username, "-P", password, *ipmi_args,
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        )
+        await asyncio.wait_for(proc.communicate(), timeout=20)
+        if proc.returncode == 0:
+            return {"ok": True, "method": "IPMI"}
+    except Exception:
+        pass
+
+    # 2. Redfish
+    try:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode    = ssl.CERT_NONE
+        auth = aiohttp.BasicAuth(username, password)
+        async with aiohttp.ClientSession(auth=auth) as sess:
+            async with sess.get(f"https://{bmc_ip}/redfish/v1/Systems",
+                                ssl=ctx, timeout=aiohttp.ClientTimeout(total=10)) as r:
+                d = await r.json(content_type=None)
+                sys_path = (d.get("Members") or [{}])[0].get("@odata.id", "")
+            async with sess.post(
+                f"https://{bmc_ip}{sys_path}/Actions/ComputerSystem.Reset",
+                ssl=ctx, json={"ResetType": rf_type},
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as r:
+                if r.status in (200, 202, 204, 200):
+                    return {"ok": True, "method": "Redfish"}
+                return {"ok": False, "error": f"HTTP {r.status}"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+async def mount_virtual_media(bmc_ip: str, username: str, password: str,
+                              iso_url: str) -> dict:
+    """通过 Redfish VirtualMedia 挂载 ISO。"""
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode    = ssl.CERT_NONE
+    auth = aiohttp.BasicAuth(username, password)
+    try:
+        async with aiohttp.ClientSession(auth=auth) as sess:
+            # 找 Manager VirtualMedia
+            async with sess.get(f"https://{bmc_ip}/redfish/v1/Managers",
+                                ssl=ctx, timeout=aiohttp.ClientTimeout(total=10)) as r:
+                if r.status != 200:
+                    return {"ok": False, "error": "Managers 不可访问"}
+                d = await r.json(content_type=None)
+                mgr_path = (d.get("Members") or [{}])[0].get("@odata.id", "")
+            # VirtualMedia 集合
+            async with sess.get(f"https://{bmc_ip}{mgr_path}/VirtualMedia",
+                                ssl=ctx, timeout=aiohttp.ClientTimeout(total=10)) as r:
+                if r.status != 200:
+                    return {"ok": False, "error": "VirtualMedia 不支持或不可访问"}
+                d = await r.json(content_type=None)
+                members = d.get("Members", [])
+            # 找 CD/DVD 槽
+            slot_path = None
+            for m in members:
+                p = m.get("@odata.id", "")
+                async with sess.get(f"https://{bmc_ip}{p}", ssl=ctx,
+                                    timeout=aiohttp.ClientTimeout(total=10)) as r:
+                    if r.status == 200:
+                        slot = await r.json(content_type=None)
+                        mt = slot.get("MediaTypes", [])
+                        if any(t in ("CD", "DVD", "CD-DVD") for t in mt):
+                            slot_path = p
+                            break
+            if not slot_path:
+                return {"ok": False, "error": "未找到 CD/DVD VirtualMedia 槽"}
+            # 挂载
+            async with sess.patch(
+                f"https://{bmc_ip}{slot_path}", ssl=ctx,
+                json={"Image": iso_url, "Inserted": True, "WriteProtected": True},
+                timeout=aiohttp.ClientTimeout(total=15),
+            ) as r:
+                if r.status in (200, 204):
+                    return {"ok": True, "slot": slot_path}
+                # 部分 BMC 需要 POST InsertMedia
+            async with sess.post(
+                f"https://{bmc_ip}{slot_path}/Actions/VirtualMedia.InsertMedia",
+                ssl=ctx,
+                json={"Image": iso_url, "Inserted": True, "WriteProtected": True},
+                timeout=aiohttp.ClientTimeout(total=15),
+            ) as r:
+                if r.status in (200, 202, 204):
+                    return {"ok": True, "slot": slot_path}
+                return {"ok": False, "error": f"挂载失败 HTTP {r.status}"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+# ── 安装 API ─────────────────────────────────────────────────────
+
+@app.get("/api/servers/{bmc_ip_enc}/install/config")
+async def api_get_install_cfg(bmc_ip_enc: str, admin: dict = Depends(require_admin)):
+    bmc_ip = bmc_ip_enc.replace("-", ".")
+    return load_install_configs().get(bmc_ip, {})
+
+@app.put("/api/servers/{bmc_ip_enc}/install/config")
+async def api_save_install_cfg(bmc_ip_enc: str, req: Request,
+                               admin: dict = Depends(require_admin)):
+    bmc_ip = bmc_ip_enc.replace("-", ".")
+    body   = await req.json()
+    cfgs   = load_install_configs()
+    cfgs[bmc_ip] = body
+    save_install_configs(cfgs)
+    return {"ok": True}
+
+@app.post("/api/servers/{bmc_ip_enc}/install/generate")
+async def api_generate_install_cfg(bmc_ip_enc: str, req: Request,
+                                   admin: dict = Depends(require_admin)):
+    """生成并返回 kickstart / autoinstall / preseed 文件内容。"""
+    body = await req.json()
+    os_type = body.get("os_type", "ubuntu-24.04")
+    if "ubuntu" in os_type:
+        content  = generate_cloud_init(body)
+        filename = "user-data"
+        ct       = "text/yaml"
+    elif any(x in os_type for x in ("rocky", "rhel", "alma", "centos")):
+        content  = generate_kickstart(body)
+        filename = "ks.cfg"
+        ct       = "text/plain"
+    else:
+        content  = generate_preseed(body)
+        filename = "preseed.cfg"
+        ct       = "text/plain"
+    # 存储供 HTTP 拉取
+    bmc_ip = bmc_ip_enc.replace("-", ".")
+    cfgs   = load_install_configs()
+    cfgs.setdefault(bmc_ip, {})
+    cfgs[bmc_ip]["_generated"] = content
+    cfgs[bmc_ip]["_filename"]  = filename
+    save_install_configs(cfgs)
+    from fastapi.responses import Response
+    return Response(content=content, media_type=ct,
+                    headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
+@app.get("/api/install/kickstart/{bmc_ip_enc}")
+async def api_serve_kickstart(bmc_ip_enc: str):
+    """无需认证的 kickstart 端点，供安装器自动拉取。"""
+    bmc_ip = bmc_ip_enc.replace("-", ".")
+    cfgs   = load_install_configs()
+    cfg    = cfgs.get(bmc_ip, {})
+    content = cfg.get("_generated", "")
+    if not content:
+        raise HTTPException(404, "未找到该机器的安装配置，请先生成")
+    from fastapi.responses import PlainTextResponse
+    return PlainTextResponse(content)
+
+@app.post("/api/servers/{bmc_ip_enc}/install/start")
+async def api_install_start(bmc_ip_enc: str, req: Request,
+                            admin: dict = Depends(require_admin)):
+    """一键安装：（可选）挂载虚拟光驱 → 设置启动项 → 重启。"""
+    bmc_ip = bmc_ip_enc.replace("-", ".")
+    body   = await req.json()
+    mc     = load_machine_creds().get(bmc_ip, {})
+    settings = load_settings()
+    username = mc.get("username") or settings.get("username", "")
+    password = mc.get("password") or settings.get("password", "")
+    results: dict = {}
+
+    # 1. 挂载虚拟光驱（可选）
+    iso_url     = body.get("iso_url", "")
+    boot_method = body.get("boot_method", "manual")
+    if boot_method == "virtual-media" and iso_url:
+        results["mount"] = await mount_virtual_media(bmc_ip, username, password, iso_url)
+
+    # 2. 设置引导设备
+    if boot_method in ("virtual-media", "cdrom"):
+        results["boot"] = await set_boot_device(bmc_ip, username, password, "cdrom")
+    elif boot_method == "pxe":
+        results["boot"] = await set_boot_device(bmc_ip, username, password, "pxe")
+
+    # 3. 重启
+    if body.get("do_reboot", True) and boot_method != "manual":
+        results["power"] = await power_action(bmc_ip, username, password, "reset")
+
+    ok = all(v.get("ok", True) for v in results.values())
+    return {"ok": ok, "results": results}
+
+@app.post("/api/servers/{bmc_ip_enc}/power")
+async def api_power(bmc_ip_enc: str, req: Request,
+                    admin: dict = Depends(require_admin)):
+    """电源控制：reset / on / off / soft。"""
+    bmc_ip = bmc_ip_enc.replace("-", ".")
+    body   = await req.json()
+    action = body.get("action", "reset")
+    mc     = load_machine_creds().get(bmc_ip, {})
+    settings = load_settings()
+    username = mc.get("username") or settings.get("username", "")
+    password = mc.get("password") or settings.get("password", "")
+    return await power_action(bmc_ip, username, password, action)
 
 if __name__ == "__main__":
     import uvicorn
