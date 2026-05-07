@@ -747,6 +747,51 @@ def verify_password(password: str, stored: str) -> bool:
 
 _sessions: Dict[str, dict] = {}
 
+# ── 登录爆破防护 ──────────────────────────────────────────────────
+_BRUTE_MAX_ATTEMPTS = 5      # 允许的最大失败次数
+_BRUTE_LOCKOUT_SECS = 900    # 锁定时长（15 分钟）
+_BRUTE_WINDOW_SECS  = 300    # 计数窗口（5 分钟内）
+
+_login_fail_ip:   Dict[str, dict] = {}   # ip       → {count, first, locked_until}
+_login_fail_user: Dict[str, dict] = {}   # username → {count, first, locked_until}
+
+def _client_ip(req: Request) -> str:
+    fwd = req.headers.get("x-forwarded-for", "")
+    return fwd.split(",")[0].strip() if fwd else (req.client.host if req.client else "unknown")
+
+def _check_brute(ip: str, username: str) -> Optional[dict]:
+    """如果该 IP 或用户名被锁定，返回错误信息 dict；否则返回 None。"""
+    now = time.time()
+    for store, key in [(_login_fail_ip, ip), (_login_fail_user, username)]:
+        info = store.get(key, {})
+        locked_until = info.get("locked_until", 0)
+        if locked_until > now:
+            remaining = int(locked_until - now)
+            return {"remaining": remaining,
+                    "detail": f"登录失败次数过多，请 {remaining // 60} 分 {remaining % 60} 秒后重试"}
+        if locked_until and locked_until <= now:
+            store.pop(key, None)
+    return None
+
+def _record_failure(ip: str, username: str) -> int:
+    """记录一次失败，返回当前窗口内失败次数（取 IP 和用户名中较大值）。"""
+    now  = time.time()
+    peak = 0
+    for store, key in [(_login_fail_ip, ip), (_login_fail_user, username)]:
+        if key not in store or now - store[key].get("first", now) > _BRUTE_WINDOW_SECS:
+            store[key] = {"count": 0, "first": now, "locked_until": 0}
+        info = store[key]
+        info["count"] += 1
+        if info["count"] >= _BRUTE_MAX_ATTEMPTS:
+            info["locked_until"] = now + _BRUTE_LOCKOUT_SECS
+            logger.warning("登录锁定: %s (IP=%s, 用户=%s)", key, ip, username)
+        peak = max(peak, info["count"])
+    return peak
+
+def _clear_failures(ip: str, username: str) -> None:
+    _login_fail_ip.pop(ip, None)
+    _login_fail_user.pop(username, None)
+
 def create_session(user: dict) -> str:
     token = secrets.token_hex(32)
     _sessions[token] = {
@@ -1397,12 +1442,28 @@ async def auth_login(req: Request):
     body     = await req.json()
     username = (body.get("username") or "").strip()
     password = body.get("password") or ""
-    auth     = load_auth()
+    ip       = _client_ip(req)
+
+    # 爆破检查
+    throttle = _check_brute(ip, username)
+    if throttle:
+        raise HTTPException(429, detail=throttle)
+
+    auth = load_auth()
     if not auth["initialized"]:
         raise HTTPException(400, "系统尚未初始化")
     user = next((u for u in auth["users"] if u["username"] == username), None)
+
     if not user or not verify_password(password, user["password_hash"]):
-        raise HTTPException(401, "用户名或密码错误")
+        count = _record_failure(ip, username)
+        remaining_attempts = max(0, _BRUTE_MAX_ATTEMPTS - count)
+        if remaining_attempts == 0:
+            detail = {"remaining": _BRUTE_LOCKOUT_SECS,
+                      "detail": f"密码错误次数过多，账户已锁定 {_BRUTE_LOCKOUT_SECS // 60} 分钟"}
+            raise HTTPException(429, detail=detail)
+        raise HTTPException(401, detail=f"用户名或密码错误（还可尝试 {remaining_attempts} 次）")
+
+    _clear_failures(ip, username)
     token = create_session(user)
     return {
         "token": token, "username": username,

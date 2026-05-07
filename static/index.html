@@ -1684,15 +1684,50 @@ async function doSetup(){
   currentUser={username:d.username,role:d.role,cluster_access:null,machine_access:null,cluster_name:d.cluster_name};
   showApp();
 }
+let _lockoutTimer=null;
+function _startLockoutCountdown(seconds){
+  const err=$('login-err'), btn=$('login-btn');
+  if(_lockoutTimer){clearInterval(_lockoutTimer);_lockoutTimer=null;}
+  let rem=seconds;
+  if(btn){btn.disabled=true;}
+  function tick(){
+    if(rem<=0){
+      if(err){err.style.color='';err.textContent='';}
+      if(btn){btn.disabled=false;btn.textContent=t('login.submit');}
+      _lockoutTimer=null;return;
+    }
+    const m=Math.floor(rem/60),s=rem%60;
+    if(err){
+      err.style.color='var(--crit)';
+      err.textContent=`🔒 登录已锁定 — 请 ${m>0?m+'分':''}${s}秒后重试`;
+    }
+    rem--;
+  }
+  tick();
+  _lockoutTimer=setInterval(tick,1000);
+}
+
 async function doLogin(){
   const un=$('l-user').value.trim(),pw=$('l-pass').value,err=$('login-err'),btn=$('login-btn');
-  err.textContent='';
+  err.textContent='';err.style.color='';
   if(!un||!pw){err.textContent=t('u.err_pass');return;}
   btn.disabled=true;btn.textContent=t('login.loading');
   const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:un,password:pw})});
   const d=await r.json();
+  if(!r.ok){
+    if(r.status===429){
+      const info=typeof d.detail==='object'?d.detail:d;
+      const rem=info.remaining||900;
+      _startLockoutCountdown(rem);
+    } else {
+      btn.disabled=false;btn.textContent=t('login.submit');
+      err.style.color='var(--crit)';
+      err.textContent=(typeof d.detail==='string'?d.detail:d.detail?.detail)||'登录失败';
+    }
+    return;
+  }
+  if(_lockoutTimer){clearInterval(_lockoutTimer);_lockoutTimer=null;}
   btn.disabled=false;btn.textContent=t('login.submit');
-  if(!r.ok){err.textContent=d.detail||'错误';return;}
   token=d.token;localStorage.setItem('sm_token',token);
   currentUser={username:d.username,role:d.role,cluster_access:d.cluster_access,machine_access:d.machine_access,cluster_name:d.cluster_name};
   showApp();
