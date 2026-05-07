@@ -675,6 +675,10 @@ tr:hover td{background:var(--sf2)}
       <div class="form-g2"><label id="lbl-sc-name">名称</label><input class="inp" id="sc-name" type="text"></div>
       <div class="form-g2"><label id="lbl-sc-desc">描述（可选）</label><input class="inp" id="sc-desc" type="text"></div>
       <div class="form-g2"><label id="lbl-sc-machines">包含的机器</label><div class="ip-sel-wrap" id="sc-ip-sel"></div></div>
+      <label style="display:flex;align-items:center;gap:7px;font-size:.78rem;cursor:pointer;margin-top:4px;color:var(--tx1)">
+        <input type="checkbox" id="sc-show-in-cards" checked style="width:14px;height:14px;accent-color:var(--acc)">
+        <span id="lbl-sc-show-in-cards">在服务器卡片中显示分组标签</span>
+      </label>
       <div class="err-msg" id="sc-err"></div>
       <div style="display:flex;gap:7px">
         <button class="btn" id="btn-sc-cancel" onclick="cancelScEdit()"><span id="lbl-sc-cancel">取消</span></button>
@@ -850,6 +854,7 @@ zh:{
   'sc.new':'新建子集群','sc.edit':'编辑子集群','sc.name':'名称','sc.desc':'描述（可选）','sc.machines':'包含的机器',
   'sc.cancel':'取消','sc.create':'创建','sc.save':'保存修改','sc.edit_btn':'编辑','sc.del':'删除',
   'sc.all_groups':'全部分组','sc.n_groups':'{n} 个分组',
+  'sc.show_in_cards':'在服务器卡片中显示分组标签',
   'cfg.try_common_fallback':'认证失败时自动尝试厂商默认密码',
   'sc.no_list':'暂无子集群','sc.no_mach':'暂无机器','sc.scan_first':'请先配置 IP 范围并等待扫描',
   'sc.err_name':'请输入名称','sc.count_unit':'台','sc.confirm_del':'确认删除子集群',
@@ -1552,7 +1557,11 @@ ${note}
   const pct=s.power_consumed_watts?Math.min(100,s.power_consumed_watts/2000*100):0;
   const pbar=s.power_consumed_watts!=null?`<div class="pbar-wrap"><div class="pbar-row"><span>${t('c.power')}</span><span>${fmtW(s.power_consumed_watts)}</span></div><div class="pbar-track"><div class="pbar-fill" style="width:${pct}%"></div></div></div>`:'';
   const err=s.error?`<div class="card-err"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${esc(s.error)}</div>`:'';
-  const visibleScIds=(s.subcluster_ids||[]).filter(id=>!_universalScIds.has(id));
+  const visibleScIds=(s.subcluster_ids||[]).filter(id=>{
+    if(_universalScIds.has(id))return false;
+    const sc=subclusters.find(x=>x.id===id);
+    return sc&&sc.show_in_cards!==false;
+  });
   const scTags=currentUser?.role==='admin'&&visibleScIds.length?`<div class="sc-tags">${visibleScIds.map(id=>{const sc=subclusters.find(x=>x.id===id);return sc?`<span class="sc-tag">${esc(sc.name)}</span>`:''}).join('')}</div>`:'';
   const pwr=s.power_state==='On'?t('c.on'):s.power_state==='Off'?t('c.off'):s.power_state||'—';
   return`<div class="card${newCls}" onclick="openDetail('${key}')">
@@ -1655,8 +1664,8 @@ function renderGrid(){
   const sorted=viewMode==='table'
     ?sortedServers(vis)
     :[...vis].sort((a,b)=>statusRank(a)-statusRank(b)||(a.alias||a.name).localeCompare(b.alias||b.name));
-  // 计算当前视图中覆盖所有机器的分组（卡片标签中省略）
-  computeUniversalScs(sorted);
+  // 计算全局覆盖所有机器的分组（不管当前筛选状态，始终用完整列表）
+  computeUniversalScs(servers);
   switch(viewMode){
     case'grid':case'grid-wide':{
       const cls=viewMode==='grid-wide'?'grid-wide':'grid';
@@ -1817,6 +1826,7 @@ function resetScForm(){
   _editScId=null;
   $('sc-form-title').textContent=t('sc.new');
   $('sc-name').value='';$('sc-desc').value='';
+  if($('sc-show-in-cards')) $('sc-show-in-cards').checked=true;
   $('lbl-sc-save').textContent=t('sc.create');
   $('sc-err').textContent='';
   renderIpSelect([]);
@@ -1850,6 +1860,7 @@ async function editSc(id){
   _editScId=id;
   $('sc-form-title').textContent=t('sc.edit');
   $('sc-name').value=sc.name;$('sc-desc').value=sc.description||'';
+  if($('sc-show-in-cards')) $('sc-show-in-cards').checked=sc.show_in_cards!==false;
   $('lbl-sc-save').textContent=t('sc.save');$('sc-err').textContent='';
   renderIpSelect(sc.bmc_ips||[]);
 }
@@ -1858,7 +1869,8 @@ async function saveSubcluster(){
   err.textContent='';
   if(!name){err.textContent=t('sc.err_name');return;}
   const ips=[...document.querySelectorAll('#sc-ip-sel input:checked')].map(cb=>cb.value);
-  const r=_editScId?await api('PUT',`/api/subclusters/${_editScId}`,{name,description:desc,bmc_ips:ips}):await api('POST','/api/subclusters',{name,description:desc,bmc_ips:ips});
+  const showInCards=$('sc-show-in-cards')?.checked!==false;
+  const r=_editScId?await api('PUT',`/api/subclusters/${_editScId}`,{name,description:desc,bmc_ips:ips,show_in_cards:showInCards}):await api('POST','/api/subclusters',{name,description:desc,bmc_ips:ips,show_in_cards:showInCards});
   if(!r)return;
   if(!r.ok){const d=await r.json();err.textContent=d.detail||'失败';return;}
   resetScForm();await renderScList();renderGrid();

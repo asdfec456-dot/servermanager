@@ -1554,11 +1554,12 @@ async def create_subcluster(req: Request, admin: dict = Depends(require_admin)):
     if not name:
         raise HTTPException(400, "子集群名称不能为空")
     sc = {
-        "id":          str(uuid.uuid4()),
-        "name":        name,
-        "description": (body.get("description") or "").strip(),
-        "bmc_ips":     body.get("bmc_ips") or [],
-        "created_at":  int(time.time()),
+        "id":           str(uuid.uuid4()),
+        "name":         name,
+        "description":  (body.get("description") or "").strip(),
+        "bmc_ips":      body.get("bmc_ips") or [],
+        "show_in_cards": body.get("show_in_cards", True),
+        "created_at":   int(time.time()),
     }
     data = load_subclusters()
     data["subclusters"].append(sc)
@@ -1578,6 +1579,8 @@ async def update_subcluster(sc_id: str, req: Request, admin: dict = Depends(requ
         sc["description"] = (body["description"] or "").strip()
     if "bmc_ips" in body:
         sc["bmc_ips"] = body["bmc_ips"] or []
+    if "show_in_cards" in body:
+        sc["show_in_cards"] = bool(body["show_in_cards"])
     save_subclusters(data)
     return sc
 
