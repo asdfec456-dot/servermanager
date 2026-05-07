@@ -41,7 +41,7 @@ from datetime import datetime
 import urllib.parse
 import platform as _platform
 
-from fastapi import FastAPI, BackgroundTasks, Request, Depends, HTTPException
+from fastapi import FastAPI, BackgroundTasks, Request, Depends, HTTPException, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -2359,6 +2359,25 @@ async def api_deactivate_license(admin: dict = Depends(require_admin)):
 # 系统安装
 # ═══════════════════════════════════════════════════════════════════
 
+ISOS_DIR = DATA_DIR / "isos"
+
+def detect_os_from_filename(filename: str) -> str:
+    """从 ISO 文件名推断系统类型。"""
+    fn = filename.lower()
+    if "ubuntu" in fn:
+        if "24" in fn: return "ubuntu-24.04"
+        if "22" in fn: return "ubuntu-22.04"
+        return "ubuntu-24.04"
+    if "rocky" in fn or "alma" in fn or "rhel" in fn or "centos" in fn:
+        if "8" in fn: return "rocky-8"
+        if "9" in fn: return "rocky-9"
+        return "rocky-9"
+    if "debian" in fn:
+        if "11" in fn: return "debian-11"
+        if "12" in fn: return "debian-12"
+        return "debian-12"
+    return ""
+
 def load_os_profiles() -> dict:
     DATA_DIR.mkdir(exist_ok=True)
     if OS_PROFILES_FILE.exists():
@@ -2756,6 +2775,50 @@ async def api_delete_os_profile(profile_id: str,
     data = load_os_profiles()
     data["profiles"] = [x for x in data["profiles"] if x["id"] != profile_id]
     save_os_profiles(data)
+    return {"ok": True}
+
+@app.post("/api/os-profiles/upload-iso")
+async def api_upload_iso(file: UploadFile = File(...),
+                          admin: dict = Depends(require_admin)):
+    """上传 ISO 文件，自动识别系统类型，返回可供 VirtualMedia 使用的 URL。"""
+    ISOS_DIR.mkdir(parents=True, exist_ok=True)
+    filename = Path(file.filename).name   # 去掉路径部分
+    dest     = ISOS_DIR / filename
+    with open(dest, "wb") as f:
+        while chunk := await file.read(1024 * 1024):   # 1 MB 块
+            f.write(chunk)
+    os_type  = detect_os_from_filename(filename)
+    size_mb  = dest.stat().st_size // (1024 * 1024)
+    return {"filename": filename, "os_type": os_type,
+            "iso_url": f"/api/isos/{filename}", "size_mb": size_mb}
+
+@app.get("/api/isos")
+async def api_list_isos(admin: dict = Depends(require_admin)):
+    """列出已上传的 ISO 文件。"""
+    ISOS_DIR.mkdir(parents=True, exist_ok=True)
+    files = []
+    for p in sorted(ISOS_DIR.iterdir()):
+        if p.suffix.lower() == ".iso":
+            files.append({"filename": p.name,
+                          "size_mb": p.stat().st_size // (1024 * 1024),
+                          "os_type": detect_os_from_filename(p.name),
+                          "iso_url": f"/api/isos/{p.name}"})
+    return {"isos": files}
+
+@app.get("/api/isos/{filename}")
+async def serve_iso(filename: str):
+    """供 Redfish VirtualMedia 直接访问（无需登录）。"""
+    path = ISOS_DIR / Path(filename).name
+    if not path.exists():
+        raise HTTPException(404, "ISO 文件不存在")
+    from fastapi.responses import FileResponse
+    return FileResponse(str(path), media_type="application/octet-stream")
+
+@app.delete("/api/isos/{filename}")
+async def delete_iso(filename: str, admin: dict = Depends(require_admin)):
+    path = ISOS_DIR / Path(filename).name
+    if path.exists():
+        path.unlink()
     return {"ok": True}
 
 # ── 安装 API ──────────────────────────────────────────────────────
