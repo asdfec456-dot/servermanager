@@ -784,14 +784,17 @@ tr:hover td{background:var(--sf2)}
     <div><div class="modal-title" id="osp-modal-title">系统安装配置</div><div class="modal-sub" id="osp-modal-sub">预配置操作系统模板</div></div>
     <button class="mclose" onclick="closeOverlay('ov-osprofiles')">✕</button>
   </div>
-  <div class="modal-body" style="padding:0;display:grid;grid-template-columns:220px 1fr;min-height:320px">
-    <!-- 左：列表 -->
+  <div style="display:flex;border-bottom:1px solid var(--bd);padding:0 18px">
+    <button class="alert-tab act" id="osp-tab-profiles" onclick="switchOspTab('profiles',this)">OS 配置</button>
+    <button class="alert-tab" id="osp-tab-isos" onclick="switchOspTab('isos',this)">ISO 库</button>
+  </div>
+  <!-- Tab: OS Profiles -->
+  <div id="osp-pane-profiles" class="modal-body" style="padding:0;display:grid;grid-template-columns:220px 1fr;min-height:320px">
     <div style="border-right:1px solid var(--bd);padding:14px;display:flex;flex-direction:column;gap:8px">
       <div class="sec-title" id="osp-list-hdr" style="margin-bottom:4px">已有配置</div>
       <div id="osp-list" style="flex:1;overflow-y:auto"></div>
       <button class="btn" id="btn-osp-add" onclick="newOspProfile()" style="font-size:.76rem;width:100%">+ 添加配置</button>
     </div>
-    <!-- 右：表单 -->
     <div style="padding:16px" id="osp-form-wrap">
       <div id="osp-form-empty" style="color:var(--tx3);font-size:.8rem;text-align:center;padding-top:60px">← 选择左侧配置或添加新配置</div>
       <div id="osp-form" style="display:none">
@@ -809,28 +812,10 @@ tr:hover td{background:var(--sf2)}
           </div>
           <div class="form-g2"><label id="lbl-osp-disk">默认目标磁盘</label><input class="inp" id="osp-disk" value="/dev/sda"></div>
           <div class="form-g2" style="grid-column:1/-1">
-            <label id="lbl-osp-iso">ISO 来源</label>
-            <div style="display:flex;gap:12px;margin-bottom:6px;margin-top:4px">
-              <label style="display:flex;align-items:center;gap:4px;font-size:.75rem;cursor:pointer">
-                <input type="radio" name="osp-iso-src" value="url" checked onchange="toggleOspIsoSrc('url')"> URL
-              </label>
-              <label style="display:flex;align-items:center;gap:4px;font-size:.75rem;cursor:pointer">
-                <input type="radio" name="osp-iso-src" value="upload" onchange="toggleOspIsoSrc('upload')"> 本地上传
-              </label>
-            </div>
-            <input class="inp" id="osp-iso" placeholder="http://192.168.1.1/ubuntu-24.04.iso" style="font-size:.8rem">
-            <div id="osp-iso-upload-row" style="display:none;margin-top:6px">
-              <div style="display:flex;align-items:center;gap:8px">
-                <label class="btn" style="cursor:pointer;font-size:.76rem">
-                  选择 ISO 文件
-                  <input type="file" id="osp-iso-file" accept=".iso" style="display:none" onchange="onOspIsoFileChange(this)">
-                </label>
-                <button class="btn btn-acc" id="btn-osp-upload" onclick="uploadOspIso()" style="border:none;font-size:.76rem;display:none">上传</button>
-              </div>
-              <div id="osp-iso-upload-info" style="font-size:.72rem;color:var(--tx3);margin-top:5px"></div>
-              <div id="osp-iso-upload-prog" style="font-size:.72rem;color:var(--acc);margin-top:3px"></div>
-              <!-- 已上传 ISO 列表 -->
-              <div id="osp-iso-list" style="margin-top:8px"></div>
+            <label id="lbl-osp-iso">ISO 地址</label>
+            <div style="display:flex;gap:6px;margin-top:3px">
+              <input class="inp" id="osp-iso" placeholder="http://... 或从 ISO 库选择" style="flex:1;font-size:.8rem">
+              <button class="btn" onclick="switchOspTab('isos',$('osp-tab-isos'))" style="font-size:.74rem;white-space:nowrap">ISO 库 →</button>
             </div>
           </div>
           <div class="form-g2"><label id="lbl-osp-tz">默认时区</label><input class="inp" id="osp-tz" value="Asia/Tokyo"></div>
@@ -843,6 +828,39 @@ tr:hover td{background:var(--sf2)}
           <button class="btn btn-danger" id="btn-osp-del" onclick="deleteOspProfile()" style="display:none">删除</button>
         </div>
       </div>
+    </div>
+  </div>
+  <!-- Tab: ISO Library -->
+  <div id="osp-pane-isos" class="modal-body" style="display:none;padding:16px;overflow-y:auto">
+    <div style="margin-bottom:16px;padding:14px;background:var(--sf2);border-radius:8px;border:1px solid var(--bd)">
+      <div class="sec-title" style="margin-bottom:10px">从 URL 预下载</div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap">
+        <input class="inp" id="iso-dl-url" style="flex:2;min-width:200px;font-size:.8rem"
+          placeholder="https://releases.ubuntu.com/24.04/ubuntu-24.04-live-server-amd64.iso">
+        <input class="inp" id="iso-dl-name" style="flex:1;min-width:130px;font-size:.8rem"
+          placeholder="自定义文件名（可选）">
+        <button class="btn btn-acc" onclick="startIsoDownload()" style="border:none;font-size:.78rem;white-space:nowrap">⬇ 开始下载</button>
+      </div>
+      <div id="iso-dl-result" style="margin-top:7px;font-size:.75rem;min-height:14px"></div>
+    </div>
+    <div style="margin-bottom:16px;padding:14px;background:var(--sf2);border-radius:8px;border:1px solid var(--bd)">
+      <div class="sec-title" style="margin-bottom:10px">本地上传</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <label class="btn" style="cursor:pointer;font-size:.78rem">
+          📁 选择 ISO 文件
+          <input type="file" accept=".iso" style="display:none" id="iso-ul-file" onchange="onIsoLibUpload(this)">
+        </label>
+        <button class="btn btn-acc" id="btn-iso-ul" onclick="uploadIsoLib()" style="border:none;font-size:.78rem;display:none">⬆ 上传</button>
+        <div id="iso-ul-info" style="font-size:.75rem;color:var(--tx3)"></div>
+      </div>
+      <div id="iso-ul-prog" style="margin-top:7px;font-size:.75rem;min-height:14px"></div>
+    </div>
+    <div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div class="sec-title" style="margin:0">ISO 库</div>
+        <button class="btn" onclick="loadIsoLibrary()" style="font-size:.72rem">↻ 刷新</button>
+      </div>
+      <div id="iso-library-list"></div>
     </div>
   </div>
 </div>
@@ -1063,6 +1081,15 @@ zh:{
   'confirm.cancel_member':'确认取消会员？取消后立即失效，剩余时间不退款。',
   'confirm.delete_bmc_pass':'确认将 BMC 密码修改为新密码？此操作直接写入硬件。',
   // OS Profiles
+  'osp.tab_profiles':'OS 配置','osp.tab_isos':'ISO 库',
+  'iso.dl_title':'从 URL 预下载','iso.dl_ph':'https://releases.ubuntu.com/.../xxx.iso',
+  'iso.dl_name_ph':'自定义文件名（可选）','iso.dl_btn':'开始下载',
+  'iso.ul_title':'本地上传','iso.ul_btn':'选择 ISO 文件',
+  'iso.lib_title':'ISO 库','iso.refresh':'刷新',
+  'iso.status_ready':'就绪','iso.status_queued':'队列中',
+  'iso.status_downloading':'下载中','iso.status_error':'失败',
+  'iso.del':'删除','iso.use':'选用',
+  'iso.empty':'ISO 库为空',
   'osp.title':'系统安装配置','osp.sub':'预配置操作系统模板，安装时直接选用',
   'osp.list':'已有配置','osp.add':'添加配置','osp.edit':'编辑配置',
   'osp.name':'配置名称','osp.os_type':'系统类型','osp.iso_url':'ISO 地址（HTTP/HTTPS）',
@@ -1220,6 +1247,14 @@ en:{
   'confirm.clear_hist':'Clear all alert history?',
   'confirm.cancel_member':'Cancel membership? Access ends immediately with no refund.',
   'confirm.delete_bmc_pass':'Confirm BMC password change? This writes directly to hardware.',
+  'osp.tab_profiles':'Profiles','osp.tab_isos':'ISO Library',
+  'iso.dl_title':'Download from URL','iso.dl_ph':'https://releases.ubuntu.com/.../xxx.iso',
+  'iso.dl_name_ph':'Custom filename (optional)','iso.dl_btn':'Download',
+  'iso.ul_title':'Local Upload','iso.ul_btn':'Select ISO File',
+  'iso.lib_title':'ISO Library','iso.refresh':'Refresh',
+  'iso.status_ready':'Ready','iso.status_queued':'Queued',
+  'iso.status_downloading':'Downloading','iso.status_error':'Error',
+  'iso.del':'Delete','iso.use':'Use','iso.empty':'ISO library is empty',
   'osp.title':'OS Install Profiles','osp.sub':'Pre-configure OS templates for installation',
   'osp.list':'Profiles','osp.add':'Add Profile','osp.edit':'Edit Profile',
   'osp.name':'Profile Name','osp.os_type':'OS Type','osp.iso_url':'ISO URL (HTTP/HTTPS)',
@@ -1372,6 +1407,14 @@ ja:{
   'confirm.clear_hist':'すべてのアラート履歴をクリアしますか？',
   'confirm.cancel_member':'メンバーシップをキャンセルしますか？即時失効、返金不可。',
   'confirm.delete_bmc_pass':'BMC パスワードを変更しますか？ハードウェアに直接書き込まれます。',
+  'osp.tab_profiles':'プロファイル','osp.tab_isos':'ISOライブラリ',
+  'iso.dl_title':'URLからダウンロード','iso.dl_ph':'https://...iso',
+  'iso.dl_name_ph':'カスタムファイル名（省略可）','iso.dl_btn':'ダウンロード',
+  'iso.ul_title':'ローカルアップロード','iso.ul_btn':'ISOファイルを選択',
+  'iso.lib_title':'ISOライブラリ','iso.refresh':'更新',
+  'iso.status_ready':'準備完了','iso.status_queued':'キュー中',
+  'iso.status_downloading':'ダウンロード中','iso.status_error':'エラー',
+  'iso.del':'削除','iso.use':'選択','iso.empty':'ISOライブラリは空です',
   'osp.title':'OSインストールプロファイル','osp.sub':'インストール用OSテンプレートを事前設定',
   'osp.list':'プロファイル一覧','osp.add':'追加','osp.edit':'編集',
   'osp.name':'プロファイル名','osp.os_type':'OSタイプ','osp.iso_url':'ISO URL (HTTP/HTTPS)',
@@ -2382,6 +2425,7 @@ async function openOspModal(){
   await loadOsProfiles();
   renderOspList();
   cancelOspEdit();
+  switchOspTab('profiles',$('osp-tab-profiles'));
   $('osp-modal-title').textContent=t('osp.title');
   $('osp-modal-sub').textContent=t('osp.sub');
   $('osp-list-hdr').textContent=t('osp.list');
@@ -2473,7 +2517,9 @@ function onInstProfileChange(key){
     if(vmHint) vmHint.textContent='';
   }
 }
-/* ── ISO 上传 ───────────────────────────────────────────────── */
+/* ── ISO 库 ─────────────────────────────────────────────────── */
+let _isoList=[], _isoPollTimer=null;
+
 function detectOsFromFilename(fn){
   fn=fn.toLowerCase();
   if(fn.includes('ubuntu')){return fn.includes('24')?'ubuntu-24.04':fn.includes('22')?'ubuntu-22.04':'ubuntu-24.04';}
@@ -2481,66 +2527,115 @@ function detectOsFromFilename(fn){
   if(fn.includes('debian')){return fn.includes('11')?'debian-11':'debian-12';}
   return '';
 }
-function toggleOspIsoSrc(src){
-  const urlRow=$('osp-iso'), uploadRow=$('osp-iso-upload-row');
-  if(src==='url'){urlRow.style.display='';uploadRow.style.display='none';}
-  else{urlRow.style.display='none';uploadRow.style.display='';loadOspIsoList();}
+/* OS配置 / ISO库 标签切换 */
+function switchOspTab(tab, el){
+  $('osp-pane-profiles').style.display=tab==='profiles'?'':'none';
+  $('osp-pane-isos').style.display=tab==='isos'?'':'none';
+  document.querySelectorAll('#osp-tab-profiles,#osp-tab-isos').forEach(b=>b.classList.remove('act'));
+  if(el) el.classList.add('act');
+  else $('osp-tab-'+tab).classList.add('act');
+  if(tab==='isos') loadIsoLibrary();
 }
-function onOspIsoFileChange(input){
+
+/* ─ ISO 库下载 ─ */
+async function startIsoDownload(){
+  const url=($('iso-dl-url')?.value||'').trim();
+  const name=($('iso-dl-name')?.value||'').trim();
+  const res=$('iso-dl-result');
+  if(!url){res.style.color='var(--warn)';res.textContent='请填写 URL';return;}
+  res.style.color='var(--tx2)';res.textContent='提交中...';
+  const r=await api('POST','/api/isos/download',{url,filename:name||''});
+  if(!r){res.textContent='网络错误';return;}
+  const d=await r.json();
+  if(d.status==='already_downloading'){res.textContent='已在下载中：'+d.filename;return;}
+  res.style.color='var(--ok)';res.textContent='✓ 已加入下载队列：'+d.filename;
+  $('iso-dl-url').value=''; $('iso-dl-name').value='';
+  loadIsoLibrary(); startIsoPoll();
+}
+
+/* ─ ISO 库上传 ─ */
+function onIsoLibUpload(input){
   const file=input.files[0]; if(!file) return;
-  const info=$('osp-iso-upload-info'), btn=$('btn-osp-upload');
   const detected=detectOsFromFilename(file.name);
-  info.textContent=file.name+' · '+(file.size/1024/1024).toFixed(0)+'MB'+(detected?' → '+detected:'');
-  btn.style.display='';
-  if(detected) $('osp-os-type').value=detected;
+  $('iso-ul-info').textContent=file.name+' · '+(file.size/1024/1024).toFixed(0)+'MB'+(detected?' → '+detected:'');
+  $('btn-iso-ul').style.display='';
 }
-function uploadOspIso(){
-  const file=$('osp-iso-file').files[0]; if(!file) return;
-  const prog=$('osp-iso-upload-prog'), btn=$('btn-osp-upload');
+function uploadIsoLib(){
+  const file=$('iso-ul-file').files[0]; if(!file) return;
+  const prog=$('iso-ul-prog'), btn=$('btn-iso-ul');
   btn.disabled=true;
   const fd=new FormData(); fd.append('file',file);
   const xhr=new XMLHttpRequest();
   xhr.open('POST','/api/os-profiles/upload-iso');
   xhr.setRequestHeader('Authorization','Bearer '+token);
-  xhr.upload.onprogress=e=>{if(e.lengthComputable)prog.textContent='上传中 '+(e.loaded/e.total*100|0)+'%';};
+  xhr.upload.onprogress=e=>{if(e.lengthComputable)prog.style.color='var(--acc)';prog.textContent='上传中 '+(e.loaded/e.total*100|0)+'%';};
   xhr.onload=()=>{
     btn.disabled=false;
     if(xhr.status===200){
       const d=JSON.parse(xhr.responseText);
-      prog.textContent='✓ 上传完成 · '+d.size_mb+'MB';
-      $('osp-iso').value=d.iso_url;
-      if(d.os_type) $('osp-os-type').value=d.os_type;
-      loadOspIsoList();
-    } else { prog.textContent='✗ 上传失败'; }
+      prog.style.color='var(--ok)'; prog.textContent='✓ 上传完成 · '+d.size_mb+'MB · '+d.os_type;
+      loadIsoLibrary();
+    } else { prog.style.color='var(--crit)'; prog.textContent='✗ 上传失败'; }
   };
-  xhr.onerror=()=>{btn.disabled=false;prog.textContent='✗ 网络错误';};
-  xhr.send(fd);
-  prog.textContent='上传中...';
+  xhr.onerror=()=>{btn.disabled=false;prog.style.color='var(--crit)';prog.textContent='✗ 网络错误';};
+  xhr.send(fd); prog.textContent='上传中...';
 }
-async function loadOspIsoList(){
-  const el=$('osp-iso-list'); if(!el) return;
+
+/* ─ ISO 库列表 ─ */
+async function loadIsoLibrary(){
+  _isoList=[];
+  const el=$('iso-library-list'); if(!el) return;
   const r=await api('GET','/api/isos'); if(!r) return;
   const d=await r.json();
-  if(!d.isos||!d.isos.length){el.innerHTML='<div style="font-size:.72rem;color:var(--tx3)">无已上传 ISO</div>';return;}
-  el.innerHTML='<div style="font-size:.7rem;color:var(--tx3);margin-bottom:4px">已上传：</div>'+
-    d.isos.map(iso=>`<div style="display:flex;align-items:center;gap:6px;font-size:.74rem;padding:3px 0">
-      <span style="cursor:pointer;color:var(--acc)" onclick="selectOspIso('${iso.iso_url}','${iso.os_type}')">
-        ${esc(iso.filename)}</span>
-      <span style="color:var(--tx3)">${iso.size_mb}MB · ${iso.os_type}</span>
-      <button onclick="deleteOspIso('${iso.filename}')" style="background:none;border:none;color:var(--crit);cursor:pointer;font-size:.75rem;padding:0">✕</button>
-    </div>`).join('');
+  _isoList=d.isos||[];
+  renderIsoLibrary();
 }
-function selectOspIso(url, osType){
-  $('osp-iso').value=url;
-  if(osType) $('osp-os-type').value=osType;
-  // 切回 URL 显示
-  document.querySelector('input[name="osp-iso-src"][value="url"]').checked=true;
-  toggleOspIsoSrc('url');
+function renderIsoLibrary(){
+  const el=$('iso-library-list'); if(!el) return;
+  if(!_isoList.length){
+    el.innerHTML=`<div style="color:var(--tx3);font-size:.8rem;padding:20px 0;text-align:center">ISO 库为空</div>`;
+    return;
+  }
+  const statusColor={ready:'var(--ok)',queued:'var(--tx3)',downloading:'var(--acc)',error:'var(--crit)'};
+  const statusLabel={ready:'就绪',queued:'队列中',downloading:'下载中',error:'失败'};
+  el.innerHTML=_isoList.map(iso=>{
+    const sc=statusColor[iso.status]||'var(--tx3)';
+    const sl=statusLabel[iso.status]||iso.status;
+    const pct=Math.round(iso.progress||0);
+    const progBar=iso.status==='downloading'?
+      `<div style="height:3px;background:var(--sf2);border-radius:2px;margin-top:4px">
+         <div style="width:${pct}%;height:100%;background:var(--acc);border-radius:2px;transition:width .5s"></div>
+       </div>`:'';
+    return`<div style="padding:10px 12px;border:1px solid var(--bd);border-radius:8px;margin-bottom:7px;background:var(--sf)">
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <span style="font-size:.82rem;font-weight:600;flex:1">${esc(iso.filename)}</span>
+    <span style="font-size:.7rem;color:${sc};font-weight:600">${sl}${iso.status==='downloading'?' '+pct+'%':''}</span>
+    ${iso.status==='ready'?`<button class="btn" onclick="selectIsoForProfile('${iso.iso_url}','${iso.os_type||''}')" style="font-size:.72rem;padding:3px 8px">选用</button>`:''}
+    ${iso.status!=='downloading'&&iso.status!=='queued'?`<button onclick="deleteIsoFromLib('${esc(iso.filename)}')" style="background:none;border:none;color:var(--crit);cursor:pointer;font-size:.8rem;padding:2px">✕</button>`:''}
+  </div>
+  <div style="font-size:.7rem;color:var(--tx3);margin-top:3px">${iso.os_type||'未知系统'} · ${iso.size_mb}MB${iso.url?' · '+iso.url.substring(0,60):''}${iso.error?' · ⚠ '+iso.error:''}</div>
+  ${progBar}
+</div>`;
+  }).join('');
 }
-async function deleteOspIso(filename){
-  if(!confirm('删除 ISO 文件 '+filename+'？')) return;
+function selectIsoForProfile(url, osType){
+  // 切到 OS配置 标签，填入 ISO 地址
+  switchOspTab('profiles',$('osp-tab-profiles'));
+  if($('osp-iso')) $('osp-iso').value=url;
+  if(osType&&$('osp-os-type')) $('osp-os-type').value=osType;
+}
+async function deleteIsoFromLib(filename){
+  if(!confirm('删除 ISO 文件：'+filename+'？')) return;
   await api('DELETE',`/api/isos/${encodeURIComponent(filename)}`);
-  loadOspIsoList();
+  loadIsoLibrary();
+}
+function startIsoPoll(){
+  if(_isoPollTimer) return;
+  _isoPollTimer=setInterval(async()=>{
+    await loadIsoLibrary();
+    const active=_isoList.some(x=>x.status==='downloading'||x.status==='queued');
+    if(!active){clearInterval(_isoPollTimer);_isoPollTimer=null;}
+  },2000);
 }
 
 function toggleInstIp(key, show){

@@ -2360,6 +2360,7 @@ async def api_deactivate_license(admin: dict = Depends(require_admin)):
 # ═══════════════════════════════════════════════════════════════════
 
 ISOS_DIR = DATA_DIR / "isos"
+_iso_downloads: Dict[str, dict] = {}   # filename → {status,progress,url,error,size_total,size_done}
 
 def detect_os_from_filename(filename: str) -> str:
     """从 ISO 文件名推断系统类型。"""
@@ -2777,6 +2778,55 @@ async def api_delete_os_profile(profile_id: str,
     save_os_profiles(data)
     return {"ok": True}
 
+async def _download_iso_task(url: str, filename: str) -> None:
+    """后台流式下载 ISO，更新 _iso_downloads 进度。"""
+    dest = ISOS_DIR / filename
+    _iso_downloads[filename].update({"status": "downloading", "progress": 0})
+    try:
+        async with aiohttp.ClientSession() as sess:
+            async with sess.get(url, timeout=aiohttp.ClientTimeout(total=7200)) as resp:
+                if resp.status != 200:
+                    _iso_downloads[filename].update(
+                        {"status": "error", "error": f"HTTP {resp.status}"})
+                    return
+                total = int(resp.headers.get("content-length", 0))
+                _iso_downloads[filename]["size_total"] = total
+                done = 0
+                ISOS_DIR.mkdir(parents=True, exist_ok=True)
+                with open(dest, "wb") as f:
+                    async for chunk in resp.content.iter_chunked(512 * 1024):
+                        f.write(chunk)
+                        done += len(chunk)
+                        _iso_downloads[filename]["size_done"] = done
+                        if total:
+                            _iso_downloads[filename]["progress"] = done / total * 100
+        _iso_downloads[filename].update({"status": "ready", "progress": 100})
+        logger.info("ISO 下载完成: %s", filename)
+    except Exception as e:
+        _iso_downloads[filename].update({"status": "error", "error": str(e)})
+        if dest.exists():
+            dest.unlink(missing_ok=True)
+        logger.error("ISO 下载失败 %s: %s", filename, e)
+
+@app.post("/api/isos/download")
+async def api_start_iso_download(req: Request, admin: dict = Depends(require_admin)):
+    """启动后台下载任务。"""
+    body     = await req.json()
+    url      = (body.get("url") or "").strip()
+    if not url:
+        raise HTTPException(400, "URL 不能为空")
+    filename = (body.get("filename") or "").strip()
+    if not filename:
+        filename = url.split("?")[0].rstrip("/").split("/")[-1]
+    if not filename.lower().endswith(".iso"):
+        filename += ".iso"
+    if filename in _iso_downloads and _iso_downloads[filename]["status"] in ("queued","downloading"):
+        return {"filename": filename, "status": "already_downloading"}
+    _iso_downloads[filename] = {"status": "queued", "progress": 0,
+                                 "url": url, "error": None, "size_total": 0, "size_done": 0}
+    asyncio.create_task(_download_iso_task(url, filename))
+    return {"filename": filename, "status": "queued"}
+
 @app.post("/api/os-profiles/upload-iso")
 async def api_upload_iso(file: UploadFile = File(...),
                           admin: dict = Depends(require_admin)):
@@ -2794,16 +2844,37 @@ async def api_upload_iso(file: UploadFile = File(...),
 
 @app.get("/api/isos")
 async def api_list_isos(admin: dict = Depends(require_admin)):
-    """列出已上传的 ISO 文件。"""
+    """列出 ISO 库（已有文件 + 正在下载的任务）。"""
     ISOS_DIR.mkdir(parents=True, exist_ok=True)
-    files = []
+    result: dict[str, dict] = {}
+    # 已下载的文件
     for p in sorted(ISOS_DIR.iterdir()):
         if p.suffix.lower() == ".iso":
-            files.append({"filename": p.name,
-                          "size_mb": p.stat().st_size // (1024 * 1024),
-                          "os_type": detect_os_from_filename(p.name),
-                          "iso_url": f"/api/isos/{p.name}"})
-    return {"isos": files}
+            dl = _iso_downloads.get(p.name, {})
+            result[p.name] = {
+                "filename": p.name,
+                "size_mb":  p.stat().st_size // (1024 * 1024),
+                "os_type":  detect_os_from_filename(p.name),
+                "iso_url":  f"/api/isos/{p.name}",
+                "status":   dl.get("status", "ready"),
+                "progress": dl.get("progress", 100),
+                "error":    dl.get("error"),
+                "url":      dl.get("url", ""),
+            }
+    # 正在下载但还没落盘的任务
+    for fname, dl in _iso_downloads.items():
+        if fname not in result:
+            result[fname] = {
+                "filename": fname,
+                "size_mb":  dl.get("size_done", 0) // (1024 * 1024),
+                "os_type":  detect_os_from_filename(fname),
+                "iso_url":  f"/api/isos/{fname}",
+                "status":   dl.get("status", "queued"),
+                "progress": dl.get("progress", 0),
+                "error":    dl.get("error"),
+                "url":      dl.get("url", ""),
+            }
+    return {"isos": list(result.values())}
 
 @app.get("/api/isos/{filename}")
 async def serve_iso(filename: str):
