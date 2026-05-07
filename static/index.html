@@ -1089,7 +1089,7 @@ zh:{
   'd.creds_save':'保存凭据','d.creds_clear':'恢复全局凭据','d.creds_saved':'已保存',
   'd.creds_global':'全局凭据','d.creds_manual':'手动独立凭据','d.creds_auto':'自动发现的凭据',
   'bmc.change_pw':'修改 BMC 密码','bmc.new_pw':'新密码（至少 6 位）','bmc.confirm_pw':'确认新密码',
-  'bmc.submit':'应用到此服务器','bmc.submitting':'修改中...','bmc.warn':'⚠️ 修改完成后，请立即在右上角「设置」中更新全局密码，否则采集将失败。',
+  'bmc.submit':'应用到此服务器','bmc.submitting':'修改中...','bmc.warn':'新密码将直接写入 BMC 硬件，并自动保存为本机独立凭据，不影响全局统一密码。',
   'bmc.note_title':'操作说明','bmc.note':'此操作通过 Redfish / IPMI 将新密码直接写入 BMC 硬件。修改仅针对当前服务器，若所有服务器使用相同密码，则需要逐台修改，并最终更新全局设置。',
   'tr.server_offline':'服务器下线','tr.server_online':'服务器恢复上线',
   'tr.health_critical':'健康状态：严重','tr.health_warning':'健康状态：警告',
@@ -1254,7 +1254,7 @@ en:{
   'al.rule_btn_edit':'Edit','al.rule_btn_del':'Delete','al.rule_confirm_del':'Confirm delete this rule?',
   'al.hist_empty':'No alert history','al.hist_clear':'Clear History','al.hist_confirm_clear':'Clear all alert history?',
   'bmc.change_pw':'Change BMC Password','bmc.new_pw':'New Password (min 6 chars)','bmc.confirm_pw':'Confirm New Password',
-  'bmc.submit':'Apply to This Server','bmc.submitting':'Changing...','bmc.warn':'⚠️ After changing, update the global password in Settings immediately, or data collection will fail.',
+  'bmc.submit':'Apply to This Server','bmc.submitting':'Changing...','bmc.warn':'The new password is written directly to BMC hardware and saved as custom credentials for this server. Global password is not affected.',
   'bmc.note_title':'How It Works','bmc.note':'This writes the new password directly to the BMC hardware via Redfish / IPMI. The change applies to this server only. If all servers share the same password, repeat for each and update global Settings when done.',
   'tr.server_offline':'Server Offline','tr.server_online':'Server Online',
   'tr.health_critical':'Health: Critical','tr.health_warning':'Health: Warning',
@@ -1414,7 +1414,7 @@ ja:{
   'al.rule_btn_edit':'編集','al.rule_btn_del':'削除','al.rule_confirm_del':'このルールを削除しますか？',
   'al.hist_empty':'アラート履歴がありません','al.hist_clear':'履歴をクリア','al.hist_confirm_clear':'すべてのアラート履歴をクリアしますか？',
   'bmc.change_pw':'BMC パスワード変更','bmc.new_pw':'新しいパスワード（6文字以上）','bmc.confirm_pw':'パスワード確認',
-  'bmc.submit':'このサーバーに適用','bmc.submitting':'変更中...','bmc.warn':'⚠️ 変更後は、すぐに「設定」でグローバルパスワードを更新してください。更新しないとデータ収集が失敗します。',
+  'bmc.submit':'このサーバーに適用','bmc.submitting':'変更中...','bmc.warn':'新しいパスワードは BMC ハードウェアに直接書き込まれ、このサーバーの個別認証情報として自動保存されます。グローバルパスワードには影響しません。',
   'bmc.note_title':'動作説明','bmc.note':'この操作は Redfish / IPMI を使用して BMC ハードウェアに直接パスワードを書き込みます。変更はこのサーバーのみに適用されます。',
   'tr.server_offline':'サーバーオフライン','tr.server_online':'サーバー復旧',
   'tr.health_critical':'健全性：重大','tr.health_warning':'健全性：警告',
@@ -2361,7 +2361,7 @@ ${ms.total_gib?`<div><div class="ik">${t('d.mem')}</div><div class="iv">${ms.tot
 <div class="form-g2"><label>${t('bmc.confirm_pw')}</label>
   <input class="inp" id="bmc-pw2-${key}" type="password" autocomplete="new-password"></div>
 </div>
-<div style="font-size:.7rem;color:var(--warn);margin-bottom:8px">${t('bmc.warn')}</div>
+<div style="font-size:.7rem;color:var(--tx3);margin-bottom:8px">ℹ️ ${t('bmc.warn')}</div>
 <div id="bmc-pw-result-${key}" style="font-size:.73rem;margin-bottom:8px;min-height:16px"></div>
 <button class="btn btn-acc" id="bmc-pw-btn-${key}" onclick="changeBmcPassword('${key}')" style="font-size:.76rem">
   ${t('bmc.submit')}
@@ -3187,6 +3187,20 @@ async function changeBmcPassword(key){
     res.style.color='var(--ok)';
     res.textContent=`✓ ${d.msg}`;
     $(`bmc-pw-${key}`).value=''; $(`bmc-pw2-${key}`).value='';
+    // 自动同步到独立凭据（保留原用户名，仅更新密码）
+    const sv=servers.find(x=>x.bmc_ip===ip);
+    const currentUser_name=sv?.cred_username||'';
+    if(currentUser_name){
+      const syncR=await api('PUT',`/api/servers/${key}/credentials`,
+        {username:currentUser_name, password:pw, source:'manual'});
+      if(syncR&&syncR.ok){
+        if(sv){sv.cred_password=pw; sv.has_custom_creds=true; sv.cred_source='manual';}
+        res.textContent+=` · 独立凭据已同步`;
+        // 刷新凭据显示区
+        const curPwEl=$(`cur-pw-${key}`);
+        if(curPwEl) curPwEl.value=pw;
+      }
+    }
   } else {
     res.style.color='var(--crit)';
     res.textContent=`✗ ${d.detail||'修改失败'}`;
