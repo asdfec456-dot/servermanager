@@ -563,6 +563,10 @@ tr:hover td{background:var(--sf2)}
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           <span id="dd-lbl-ssl">HTTPS 配置</span>
         </button>
+        <button class="dd-item" onclick="ddOpen('ov-card-cfg')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/><line x1="6" y1="9" x2="18" y2="9"/><line x1="6" y1="13" x2="12" y2="13"/></svg>
+          <span id="dd-lbl-card">卡片显示</span>
+        </button>
 
       </div>
     </div>
@@ -870,6 +874,23 @@ tr:hover td{background:var(--sf2)}
 </div>
 </div>
 
+<!-- CARD DISPLAY SETTINGS MODAL -->
+<div class="overlay" id="ov-card-cfg" onclick="closeOvBg(event,'ov-card-cfg')">
+<div class="modal" style="max-width:400px">
+  <div class="modal-hdr">
+    <div><div class="modal-title" id="card-cfg-title">卡片显示设置</div>
+         <div class="modal-sub" id="card-cfg-sub">选择服务器卡片中显示的信息，设置即时生效</div></div>
+    <button class="mclose" onclick="closeOverlay('ov-card-cfg')">✕</button>
+  </div>
+  <div class="modal-body" style="padding:18px">
+    <div id="card-field-list" style="display:flex;flex-direction:column;gap:10px"></div>
+    <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--bd)">
+      <button class="btn" onclick="resetCardFields()" style="font-size:.76rem">↺ 恢复默认</button>
+    </div>
+  </div>
+</div>
+</div>
+
 <!-- SSL / HTTPS MODAL -->
 <div class="overlay" id="ov-ssl" onclick="closeOvBg(event,'ov-ssl')">
 <div class="modal modal-wide">
@@ -1140,6 +1161,11 @@ zh:{
   'confirm.delete_bmc_pass':'确认将 BMC 密码修改为新密码？此操作直接写入硬件。',
   // OS Profiles
   'ssl.title':'HTTPS 配置',
+  'card.settings':'卡片显示',
+  'card.field_power':'电源状态',  'card.field_memory':'内存大小',
+  'card.field_fans':'风扇状态',   'card.field_psu':'电源模块',
+  'card.field_temps':'温度传感器','card.field_powerbar':'功耗进度条',
+  'card.field_gpu':'GPU 信息（自动识别，无 GPU 则不显示）',
   'osp.tab_profiles':'OS 配置','osp.tab_isos':'ISO 库',
   'iso.dl_title':'从 URL 预下载','iso.dl_ph':'https://releases.ubuntu.com/.../xxx.iso',
   'iso.dl_name_ph':'自定义文件名（可选）','iso.dl_btn':'开始下载',
@@ -1511,7 +1537,7 @@ function applyI18n(){
     'lbl-servers':'servers','lbl-online':'online','lbl-offline':'offline','lbl-collecting':'collecting',
     'fl-all':'all','fl-s-online':'online','fl-s-auth':'h.auth_failed','fl-s-reach':'h.reachable','fl-s-pend':'collecting','fl-s-off':'offline',
     'lbl-refresh':'btn.refresh','lbl-settings':'btn.settings','lbl-logout':'btn.logout',
-    'dd-lbl-cfg':'cfg.title','dd-lbl-sc':'sc.title','dd-lbl-users':'u.title','dd-lbl-alerts':'al.title','dd-lbl-osp':'osp.title','dd-lbl-ssl':'ssl.title',
+    'dd-lbl-cfg':'cfg.title','dd-lbl-sc':'sc.title','dd-lbl-users':'u.title','dd-lbl-alerts':'al.title','dd-lbl-osp':'osp.title','dd-lbl-ssl':'ssl.title','dd-lbl-card':'card.settings',
     'lbl-setup-title':'setup.title','lbl-setup-sub':'setup.sub','lbl-cluster':'setup.cluster',
     'lbl-admin-user':'setup.admin','lbl-admin-pass':'setup.pass','lbl-confirm':'setup.confirm',
     'btn-setup-submit':'setup.submit','lbl-login-title':'login.title',
@@ -1873,12 +1899,13 @@ ${note}
 </div>`;
   }
 
-  // 在线 → 正常完整卡片
+  // 在线 → 正常完整卡片（按「卡片显示设置」决定各区块）
+  const cf=getCardFields();
   const proto=s.protocol_used?`<span class="proto-tag">${s.protocol_used}</span>`:'';
-  const topT=[...(s.temperatures||[])].sort((a,b)=>{const p=h=>h==='Critical'?2:h==='Warning'?1:0;return p(b.health)-p(a.health)||b.reading_celsius-a.reading_celsius;}).slice(0,wide?6:4);
+  const topT=cf.temps?[...(s.temperatures||[])].sort((a,b)=>{const p=h=>h==='Critical'?2:h==='Warning'?1:0;return p(b.health)-p(a.health)||b.reading_celsius-a.reading_celsius;}).slice(0,wide?6:4):[];
   const chips=topT.map(tp=>{const c=tp.health==='Critical'?'tchip-crit':tp.health==='Warning'?'tchip-warn':'tchip-ok';const n=tp.name.replace(/temperature/i,'').replace(/\s+/g,' ').trim()||tp.name;return`<span class="tchip ${c}"><span class="tdot" style="background:${tCol(tp.health)}"></span>${esc(n)}: ${tp.reading_celsius}°C</span>`;}).join('');
   const pct=s.power_consumed_watts?Math.min(100,s.power_consumed_watts/2000*100):0;
-  const pbar=s.power_consumed_watts!=null?`<div class="pbar-wrap"><div class="pbar-row"><span>${t('c.power')}</span><span>${fmtW(s.power_consumed_watts)}</span></div><div class="pbar-track"><div class="pbar-fill" style="width:${pct}%"></div></div></div>`:'';
+  const pbar=cf.powerbar&&s.power_consumed_watts!=null?`<div class="pbar-wrap"><div class="pbar-row"><span>${t('c.power')}</span><span>${fmtW(s.power_consumed_watts)}</span></div><div class="pbar-track"><div class="pbar-fill" style="width:${pct}%"></div></div></div>`:'';
   const err=s.error?`<div class="card-err"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${esc(s.error)}</div>`:'';
   const visibleScIds=(s.subcluster_ids||[]).filter(id=>{
     if(_universalScIds.has(id))return false;
@@ -1887,16 +1914,23 @@ ${note}
   });
   const scTags=currentUser?.role==='admin'&&visibleScIds.length?`<div class="sc-tags">${visibleScIds.map(id=>{const sc=subclusters.find(x=>x.id===id);return sc?`<span class="sc-tag">${esc(sc.name)}</span>`:''}).join('')}</div>`:'';
   const pwr=s.power_state==='On'?t('c.on'):s.power_state==='Off'?t('c.off'):s.power_state||'—';
+  // GPU
+  const gpus=s.gpus||[];
+  const gpuOk=gpus.filter(g=>g.health==='OK').length;
+  const gpuCls=gpuOk===gpus.length?'mv-ok':gpuOk===0&&gpus.length>0?'mv-crit':'mv-warn';
+  // 指标格子（按设置过滤）
+  const metricCells=[
+    cf.power  ?`<div><div class="ml">${t('c.power')}</div><div class="mv mv-ok">${pwr}</div></div>`:'',
+    cf.memory ?`<div><div class="ml">${t('c.memory')}</div><div class="mv ${ms.health==='OK'?'mv-ok':'mv-off'}">${ms.total_gib?ms.total_gib+' GiB':'—'}</div></div>`:'',
+    cf.fans   ?`<div><div class="ml">${t('c.fans')}</div><div class="mv ${fanCls(s)}">${fanSum(s)}</div></div>`:'',
+    cf.psu    ?`<div><div class="ml">${t('c.psu')}</div><div class="mv ${(s.power_supplies||[]).some(p=>p.health!=='OK')?'mv-crit':'mv-ok'}">${psuSum(s)}</div></div>`:'',
+    cf.gpu&&gpus.length?`<div><div class="ml">GPU</div><div class="mv ${gpuCls}">${gpus.length}个 · ${gpuOk===gpus.length?t('c.normal'):gpuOk+'正常'}</div></div>`:'',
+    wide&&procs.length&&!cf.gpu?`<div><div class="ml">CPU</div><div class="mv" style="font-size:.73rem;font-weight:400">${esc((procs[0].model||'').substring(0,30))}</div></div>`:'',
+  ].filter(Boolean).join('');
   return`<div class="card${newCls}" onclick="openDetail('${key}')">
 <div class="card-head"><div class="card-title"><div class="card-name">${esc(displayName)}${newBadge}${flapBadge}${proto}</div><div class="card-sub">${s.bmc_ip} · ${s.model||t('c.unknown_model')}</div></div><span class="hbadge ${hcls}">${hlbl}</span></div>
 <div class="card-div"></div>
-<div class="card-metrics">
-<div><div class="ml">${t('c.power')}</div><div class="mv mv-ok">${pwr}</div></div>
-<div><div class="ml">${t('c.memory')}</div><div class="mv ${ms.health==='OK'?'mv-ok':'mv-off'}">${ms.total_gib?ms.total_gib+' GiB':'—'}</div></div>
-<div><div class="ml">${t('c.fans')}</div><div class="mv ${fanCls(s)}">${fanSum(s)}</div></div>
-<div><div class="ml">${t('c.psu')}</div><div class="mv ${(s.power_supplies||[]).some(p=>p.health!=='OK')?'mv-crit':'mv-ok'}">${psuSum(s)}</div></div>
-${wide&&procs.length?`<div><div class="ml">CPU</div><div class="mv" style="font-size:.73rem;font-weight:400">${esc((procs[0].model||'').substring(0,30))}</div></div>`:''}
-</div>
+<div class="card-metrics">${metricCells}</div>
 ${topT.length?`<div class="card-temps">${chips}</div>`:''}${scTags}${pbar}${err}
 </div>`;
 }
@@ -2505,6 +2539,43 @@ async function saveAlias(key){
   }
 }
 
+/* ── 卡片显示设置 ───────────────────────────────────────────── */
+const CARD_FIELD_DEFS=[
+  {key:'power',   label:'card.field_power',    default:true},
+  {key:'memory',  label:'card.field_memory',   default:true},
+  {key:'fans',    label:'card.field_fans',     default:true},
+  {key:'psu',     label:'card.field_psu',      default:true},
+  {key:'temps',   label:'card.field_temps',    default:true},
+  {key:'powerbar',label:'card.field_powerbar', default:true},
+  {key:'gpu',     label:'card.field_gpu',      default:true},
+];
+function getCardFields(){
+  try{const saved=JSON.parse(localStorage.getItem('sm_card_fields')||'{}');
+    return Object.fromEntries(CARD_FIELD_DEFS.map(f=>[f.key, f.key in saved?saved[f.key]:f.default]));
+  }catch{return Object.fromEntries(CARD_FIELD_DEFS.map(f=>[f.key,f.default]));}
+}
+function setCardField(key,val){
+  const cfg=getCardFields(); cfg[key]=val;
+  localStorage.setItem('sm_card_fields',JSON.stringify(cfg));
+  renderGrid();
+}
+function resetCardFields(){
+  localStorage.removeItem('sm_card_fields');
+  openCardCfgModal(); renderGrid();
+}
+function openCardCfgModal(){
+  const cf=getCardFields();
+  const list=$('card-field-list'); if(!list) return;
+  list.innerHTML=CARD_FIELD_DEFS.map(f=>`
+    <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:8px 10px;border-radius:8px;border:1px solid var(--bd);background:var(--sf2)">
+      <input type="checkbox" ${cf[f.key]?'checked':''} style="width:16px;height:16px;accent-color:var(--acc);flex-shrink:0;margin-top:1px"
+        onchange="setCardField('${f.key}',this.checked)">
+      <span style="font-size:.82rem">${t(f.label)}</span>
+    </label>`).join('');
+  $('ov-card-cfg').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+
 /* ── HTTPS / SSL ───────────────────────────────────────────── */
 async function openSslModal(){
   switchSslTab('status',$('ssl-tab-status'));
@@ -2970,6 +3041,7 @@ function openOverlay(id){
   else if(id==='ov-sub')openSubModal();
   else if(id==='ov-osprofiles')openOspModal();
   else if(id==='ov-ssl')openSslModal();
+  else if(id==='ov-card-cfg')openCardCfgModal();
   else{$(id).classList.add('open');document.body.style.overflow='hidden';}
 }
 function closeOverlay(id){$(id).classList.remove('open');document.body.style.overflow='';}

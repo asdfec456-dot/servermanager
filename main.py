@@ -1112,18 +1112,26 @@ async def collect_redfish(bmc_ip: str, username: str, password: str, timeout: in
             procs_idx = gathered.get("procs")
             if procs_idx and "Members" in procs_idx:
                 ptasks = [asyncio.create_task(_rf_get(sess, bmc_ip, m["@odata.id"], auth))
-                          for m in procs_idx["Members"][:8] if "@odata.id" in m]
+                          for m in procs_idx["Members"][:16] if "@odata.id" in m]
                 for proc in await asyncio.gather(*ptasks, return_exceptions=True):
                     if not proc or isinstance(proc, Exception): continue
                     if proc.get("Status", {}).get("State") == "Absent": continue
-                    mhz = proc.get("MaxSpeedMHz")
-                    result["processors"].append({
-                        "name": proc.get("Name", ""), "model": proc.get("Model", ""),
-                        "cores": proc.get("TotalCores"), "threads": proc.get("TotalThreads"),
+                    mhz  = proc.get("MaxSpeedMHz")
+                    ptype = proc.get("ProcessorType", "CPU")
+                    entry = {
+                        "name":  proc.get("Name", ""),    "model": proc.get("Model", ""),
+                        "cores": proc.get("TotalCores"),  "threads": proc.get("TotalThreads"),
                         "speed_ghz": round(mhz / 1000, 1) if mhz else None,
                         "health": proc.get("Status", {}).get("Health") or "OK",
-                        "state": proc.get("Status", {}).get("State", ""),
-                    })
+                        "state":  proc.get("Status", {}).get("State", ""),
+                        "type":   ptype,
+                    }
+                    if ptype in ("GPU", "Accelerator", "FPGA"):
+                        result.setdefault("gpus", []).append(entry)
+                    else:
+                        result["processors"].append(entry)
+            if "gpus" not in result:
+                result["gpus"] = []
 
             storage_idx = gathered.get("storage_idx")
             if storage_idx and "Members" in storage_idx:
@@ -1222,7 +1230,7 @@ async def collect_server(bmc_ip: str, settings: dict) -> dict:
         "protocol_used": None, "power_state": "Unknown",
         "model": "", "manufacturer": "", "serial": "", "bios_version": "", "hostname": "",
         "temperatures": [], "fans": [], "power_supplies": [], "power_consumed_watts": None,
-        "processors": [], "memory_summary": {}, "storage": [], "alerts": [],
+        "processors": [], "gpus": [], "memory_summary": {}, "storage": [], "alerts": [],
         "last_updated": None, "error": None, "error_type": None,
     }
     data = None
