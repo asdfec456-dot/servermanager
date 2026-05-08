@@ -1168,7 +1168,9 @@ zh:{
   'card.settings':'卡片显示',
   'card.field_power':'电源状态',  'card.field_memory':'内存大小',
   'card.field_fans':'风扇状态',   'card.field_psu':'电源模块',
-  'card.field_temps':'温度传感器','card.field_powerbar':'功耗进度条',
+  'card.field_temps':'温度传感器（芯片标签）',
+  'card.field_thermo':'右侧温度计（侧边温度条）',
+  'card.field_powerbar':'功耗进度条',
   'card.field_gpu':'GPU 信息（自动识别，无 GPU 则不显示）',
   'osp.tab_profiles':'OS 配置','osp.tab_isos':'ISO 库',
   'iso.dl_title':'从 URL 预下载','iso.dl_ph':'https://releases.ubuntu.com/.../xxx.iso',
@@ -1909,7 +1911,7 @@ ${note}
   const topT=cf.temps?[...(s.temperatures||[])].sort((a,b)=>{const p=h=>h==='Critical'?2:h==='Warning'?1:0;return p(b.health)-p(a.health)||b.reading_celsius-a.reading_celsius;}).slice(0,wide?6:4):[];
   // 右侧温度计
   const mt=maxTemp(s);
-  const thermoHtml=cf.temps&&mt!==null?(()=>{
+  const thermoHtml=cf.thermo&&mt!==null?(()=>{
     const pct=Math.max(2,Math.min(100,(mt-20)/70*100));
     const color=mt>=75?'var(--crit)':mt>=60?'var(--warn)':'var(--ok)';
     // 标签贴在填充顶部，底部时保持可读位置
@@ -2563,6 +2565,7 @@ const CARD_FIELD_DEFS=[
   {key:'fans',    label:'card.field_fans',     default:true},
   {key:'psu',     label:'card.field_psu',      default:true},
   {key:'temps',   label:'card.field_temps',    default:true},
+  {key:'thermo',  label:'card.field_thermo',   default:true},
   {key:'powerbar',label:'card.field_powerbar', default:true},
   {key:'gpu',     label:'card.field_gpu',      default:true},
 ];

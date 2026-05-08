@@ -1116,8 +1116,8 @@ async def collect_redfish(bmc_ip: str, username: str, password: str, timeout: in
                 for proc in await asyncio.gather(*ptasks, return_exceptions=True):
                     if not proc or isinstance(proc, Exception): continue
                     if proc.get("Status", {}).get("State") == "Absent": continue
-                    mhz  = proc.get("MaxSpeedMHz")
-                    ptype = proc.get("ProcessorType", "CPU")
+                    mhz   = proc.get("MaxSpeedMHz")
+                    ptype = proc.get("ProcessorType") or "CPU"
                     entry = {
                         "name":  proc.get("Name", ""),    "model": proc.get("Model", ""),
                         "cores": proc.get("TotalCores"),  "threads": proc.get("TotalThreads"),
@@ -1126,7 +1126,7 @@ async def collect_redfish(bmc_ip: str, username: str, password: str, timeout: in
                         "state":  proc.get("Status", {}).get("State", ""),
                         "type":   ptype,
                     }
-                    if ptype in ("GPU", "Accelerator", "FPGA"):
+                    if _is_gpu_proc(proc):
                         result.setdefault("gpus", []).append(entry)
                     else:
                         result["processors"].append(entry)
@@ -2441,6 +2441,25 @@ async def api_deactivate_license(admin: dict = Depends(require_admin)):
 # ═══════════════════════════════════════════════════════════════════
 
 ISOS_DIR = DATA_DIR / "isos"
+
+# GPU 型号关键词（用于固件未填写 ProcessorType 时的兜底识别）
+_GPU_KEYWORDS = frozenset((
+    "GPU", "GRAPHICS", "DISPLAY",
+    "TESLA", "A100", "H100", "H200", "V100", "A40", "A30", "A16", "A10",
+    "RTX", "GTX", "QUADRO", "GEFORCE",
+    "RADEON", "INSTINCT", "MI100", "MI200", "MI300",
+    "INTEL ARC", "XE",
+))
+
+def _is_gpu_proc(proc: dict) -> bool:
+    """判断一个处理器条目是否为 GPU（ProcessorType 或名称/型号关键词匹配）。"""
+    ptype = proc.get("ProcessorType") or ""
+    if ptype in ("GPU", "Accelerator", "FPGA"):
+        return True
+    # 固件未设置 ProcessorType（常见于部分 AMD/定制服务器）时用关键词兜底
+    name  = (proc.get("Name")  or "").upper()
+    model = (proc.get("Model") or "").upper()
+    return any(kw in name or kw in model for kw in _GPU_KEYWORDS)
 _iso_downloads: Dict[str, dict] = {}   # filename → {status,progress,url,error,size_total,size_done}
 
 def detect_os_from_filename(filename: str) -> str:
