@@ -1057,8 +1057,9 @@ async def collect_redfish(bmc_ip: str, username: str, password: str, timeout: in
 
             tasks: dict = {}
             if chassis_path:
-                tasks["thermal"] = asyncio.create_task(_rf_get(sess, bmc_ip, f"{chassis_path}/Thermal", auth))
-                tasks["power"]   = asyncio.create_task(_rf_get(sess, bmc_ip, f"{chassis_path}/Power",   auth))
+                tasks["thermal"]  = asyncio.create_task(_rf_get(sess, bmc_ip, f"{chassis_path}/Thermal",    auth))
+                tasks["power"]    = asyncio.create_task(_rf_get(sess, bmc_ip, f"{chassis_path}/Power",      auth))
+                tasks["pcie_idx"] = asyncio.create_task(_rf_get(sess, bmc_ip, f"{chassis_path}/PCIeDevices", auth))
             pc = (sd.get("Processors") or {}).get("@odata.id")
             if pc:
                 tasks["procs"] = asyncio.create_task(_rf_get(sess, bmc_ip, pc, auth))
@@ -1132,6 +1133,24 @@ async def collect_redfish(bmc_ip: str, username: str, password: str, timeout: in
                         result["processors"].append(entry)
             if "gpus" not in result:
                 result["gpus"] = []
+
+            # PCIeDevices：补充从 Processors 无法识别的 GPU（如 RTX 5090 via ASUS/GIGABYTE）
+            pcie_idx = gathered.get("pcie_idx")
+            if pcie_idx and pcie_idx.get("Members"):
+                ptasks2 = [asyncio.create_task(_rf_get(sess, bmc_ip, m["@odata.id"], auth))
+                           for m in pcie_idx["Members"][:48] if "@odata.id" in m]
+                for dev in await asyncio.gather(*ptasks2, return_exceptions=True):
+                    if not dev or isinstance(dev, Exception): continue
+                    if (dev.get("Status") or {}).get("State") == "Absent": continue
+                    if _is_gpu_pcie(dev):
+                        result["gpus"].append({
+                            "name":         dev.get("Description", ""),
+                            "model":        dev.get("Description", ""),
+                            "manufacturer": dev.get("Manufacturer", ""),
+                            "health":       (dev.get("Status") or {}).get("Health") or "OK",
+                            "type":         "GPU",
+                            "slot":         ((dev.get("Oem") or {}).get("Public") or {}).get("SlotNumber"),
+                        })
 
             storage_idx = gathered.get("storage_idx")
             if storage_idx and "Members" in storage_idx:
@@ -2442,24 +2461,35 @@ async def api_deactivate_license(admin: dict = Depends(require_admin)):
 
 ISOS_DIR = DATA_DIR / "isos"
 
-# GPU 型号关键词（用于固件未填写 ProcessorType 时的兜底识别）
+# GPU 识别关键词
 _GPU_KEYWORDS = frozenset((
-    "GPU", "GRAPHICS", "DISPLAY",
+    "GPU", "GRAPHICS", "DISPLAY", "GEFORCE", "RTX", "GTX", "QUADRO",
     "TESLA", "A100", "H100", "H200", "V100", "A40", "A30", "A16", "A10",
-    "RTX", "GTX", "QUADRO", "GEFORCE",
     "RADEON", "INSTINCT", "MI100", "MI200", "MI300",
     "INTEL ARC", "XE",
 ))
+# PCIe 卡类型中表示 GPU 的关键词
+_GPU_PCIE_TYPES = frozenset(("VGA", "3D CONTROLLER", "3D", "DISPLAY", "GPU", "GRAPHIC"))
 
 def _is_gpu_proc(proc: dict) -> bool:
-    """判断一个处理器条目是否为 GPU（ProcessorType 或名称/型号关键词匹配）。"""
+    """处理器条目是否为 GPU（ProcessorType 或名称/型号关键词）。"""
     ptype = proc.get("ProcessorType") or ""
     if ptype in ("GPU", "Accelerator", "FPGA"):
         return True
-    # 固件未设置 ProcessorType（常见于部分 AMD/定制服务器）时用关键词兜底
     name  = (proc.get("Name")  or "").upper()
     model = (proc.get("Model") or "").upper()
     return any(kw in name or kw in model for kw in _GPU_KEYWORDS)
+
+def _is_gpu_pcie(dev: dict) -> bool:
+    """PCIe 设备条目是否为 GPU（PCIeCardType / Description / Manufacturer）。"""
+    card_type = ((dev.get("Oem") or {}).get("Public") or {}).get("PCIeCardType") or ""
+    if any(kw in card_type.upper() for kw in _GPU_PCIE_TYPES):
+        return True
+    desc = (dev.get("Description") or "").upper()
+    mfr  = (dev.get("Manufacturer") or "").upper()
+    # 描述含 GPU 关键词且不是音频设备
+    return (any(kw in desc for kw in _GPU_KEYWORDS) and "AUDIO" not in desc) or \
+           (any(kw in mfr  for kw in ("NVIDIA", "AMD")) and "AUDIO" not in desc and desc)
 _iso_downloads: Dict[str, dict] = {}   # filename → {status,progress,url,error,size_total,size_done}
 
 def detect_os_from_filename(filename: str) -> str:
