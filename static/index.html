@@ -114,7 +114,11 @@ main{padding:16px;min-height:60vh}
 /* Grid views */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-items:start}
 .grid-wide{display:grid;grid-template-columns:repeat(auto-fill,minmax(460px,1fr));gap:13px;align-items:start}
-.card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .15s}
+.card{position:relative;background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .15s}
+/* 右侧温度计 */
+.card-thermo{position:absolute;right:0;top:0;bottom:0;width:5px;background:rgba(128,128,128,.08)}
+.card-thermo-fill{position:absolute;bottom:0;left:0;right:0;transition:height .6s ease;border-radius:0 0 2px 0}
+.card-thermo-tip{position:absolute;right:7px;font-size:.58rem;font-weight:700;white-space:nowrap;line-height:1;letter-spacing:-.02em}
 .card:hover{transform:translateY(-2px);border-color:var(--acc);box-shadow:0 4px 16px var(--shadow)}
 /* Offline compact card */
 .card-offline{display:flex;align-items:center;gap:9px;padding:9px 13px}
@@ -1903,6 +1907,18 @@ ${note}
   const cf=getCardFields();
   const proto=s.protocol_used?`<span class="proto-tag">${s.protocol_used}</span>`:'';
   const topT=cf.temps?[...(s.temperatures||[])].sort((a,b)=>{const p=h=>h==='Critical'?2:h==='Warning'?1:0;return p(b.health)-p(a.health)||b.reading_celsius-a.reading_celsius;}).slice(0,wide?6:4):[];
+  // 右侧温度计
+  const mt=maxTemp(s);
+  const thermoHtml=cf.temps&&mt!==null?(()=>{
+    const pct=Math.max(2,Math.min(100,(mt-20)/70*100));
+    const color=mt>=75?'var(--crit)':mt>=60?'var(--warn)':'var(--ok)';
+    // 标签贴在填充顶部，底部时保持可读位置
+    const tipBottom=Math.max(6,Math.round(pct)-12)+'%';
+    return`<div class="card-thermo" title="最高温度：${mt}°C">
+  <div class="card-thermo-fill" style="height:${pct}%;background:${color}"></div>
+  <div class="card-thermo-tip" style="bottom:${tipBottom};color:${color}">${mt}°</div>
+</div>`;
+  })():'';
   const chips=topT.map(tp=>{const c=tp.health==='Critical'?'tchip-crit':tp.health==='Warning'?'tchip-warn':'tchip-ok';const n=tp.name.replace(/temperature/i,'').replace(/\s+/g,' ').trim()||tp.name;return`<span class="tchip ${c}"><span class="tdot" style="background:${tCol(tp.health)}"></span>${esc(n)}: ${tp.reading_celsius}°C</span>`;}).join('');
   const pct=s.power_consumed_watts?Math.min(100,s.power_consumed_watts/2000*100):0;
   const pbar=cf.powerbar&&s.power_consumed_watts!=null?`<div class="pbar-wrap"><div class="pbar-row"><span>${t('c.power')}</span><span>${fmtW(s.power_consumed_watts)}</span></div><div class="pbar-track"><div class="pbar-fill" style="width:${pct}%"></div></div></div>`:'';
@@ -1927,11 +1943,12 @@ ${note}
     cf.gpu&&gpus.length?`<div><div class="ml">GPU</div><div class="mv ${gpuCls}">${gpus.length}个 · ${gpuOk===gpus.length?t('c.normal'):gpuOk+'正常'}</div></div>`:'',
     wide&&procs.length&&!cf.gpu?`<div><div class="ml">CPU</div><div class="mv" style="font-size:.73rem;font-weight:400">${esc((procs[0].model||'').substring(0,30))}</div></div>`:'',
   ].filter(Boolean).join('');
-  return`<div class="card${newCls}" onclick="openDetail('${key}')">
+  return`<div class="card${newCls}" onclick="openDetail('${key}')" style="padding-right:${thermoHtml?'5px':'0'}">
 <div class="card-head"><div class="card-title"><div class="card-name">${esc(displayName)}${newBadge}${flapBadge}${proto}</div><div class="card-sub">${s.bmc_ip} · ${s.model||t('c.unknown_model')}</div></div><span class="hbadge ${hcls}">${hlbl}</span></div>
 <div class="card-div"></div>
 <div class="card-metrics">${metricCells}</div>
 ${topT.length?`<div class="card-temps">${chips}</div>`:''}${scTags}${pbar}${err}
+${thermoHtml}
 </div>`;
 }
 
