@@ -1662,7 +1662,8 @@ function kvmUrl(bmc_ip,manufacturer){
   return`https://${bmc_ip}/`;   // 通用：打开 BMC 根页面，手动进入控制台
 }
 function openKvm(e,bmc_ip,manufacturer){
-  e.stopPropagation();   // 阻止触发卡片 openDetail
+  e.stopPropagation();
+  e.preventDefault();
   window.open(kvmUrl(bmc_ip,manufacturer),'_blank','noopener');
 }
 function hbadge(s){
@@ -1961,7 +1962,7 @@ ${note}
     cf.gpu&&gpus.length?`<div><div class="ml">GPU</div><div class="mv ${gpuCls}">${gpus.length}个 · ${gpuOk===gpus.length?t('c.normal'):gpuOk+'正常'}</div></div>`:'',
     wide&&procs.length&&!cf.gpu?`<div><div class="ml">CPU</div><div class="mv" style="font-size:.73rem;font-weight:400">${esc((procs[0].model||'').substring(0,30))}</div></div>`:'',
   ].filter(Boolean).join('');
-  const kvmBtn=`<button class="kvm-btn" onclick="openKvm(event,'${s.bmc_ip}',${JSON.stringify(s.manufacturer||'')})" title="${kvmUrl(s.bmc_ip,s.manufacturer||'')}">▶ KVM</button>`;
+  const kvmBtn=`<button class="kvm-btn" data-ip="${s.bmc_ip}" data-mfr="${esc(s.manufacturer||'')}" onclick="openKvm(event,this.dataset.ip,this.dataset.mfr)" title="HTML5 KVM Console">▶ KVM</button>`;
   return`<div class="card${newCls}" onclick="openDetail('${key}')" style="padding-right:${thermoHtml?'5px':'0'}">
 <div class="card-head"><div class="card-title"><div class="card-name">${esc(displayName)}${newBadge}${flapBadge}${proto}</div><div class="card-sub">${s.bmc_ip} · ${s.model||t('c.unknown_model')}</div></div><div style="display:flex;align-items:center;gap:6px;flex-shrink:0">${kvmBtn}<span class="hbadge ${hcls}">${hlbl}</span></div></div>
 <div class="card-div"></div>
@@ -2282,7 +2283,7 @@ function openDetail(key){
   $('det-sub').textContent=`BMC: ${s.bmc_ip}  ·  ${t('d.serial')}: ${s.serial||'—'}  ·  ${t('t.proto')}: ${s.protocol_used||'—'}`;
   $('det-badge').innerHTML=`<span class="hbadge ${hcls}">${hlbl}</span>`;
   const kvmEl=$('det-kvm');
-  if(kvmEl) kvmEl.innerHTML=`<button class="kvm-btn" onclick="openKvm(event,'${s.bmc_ip}',${JSON.stringify(s.manufacturer||'')})" title="${kvmUrl(s.bmc_ip,s.manufacturer||'')}">▶ KVM</button>`;
+  if(kvmEl) kvmEl.innerHTML=`<button class="kvm-btn" data-ip="${s.bmc_ip}" data-mfr="${esc(s.manufacturer||'')}" onclick="openKvm(event,this.dataset.ip,this.dataset.mfr)" title="HTML5 KVM Console">▶ KVM</button>`;
   $('det-body').innerHTML=buildDetail(s);
   $('ov-detail').classList.add('open');document.body.style.overflow='hidden';
 }
