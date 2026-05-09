@@ -641,6 +641,11 @@ tr:hover td{background:var(--sf2)}
       <input type="checkbox" id="cfg-try-common" style="width:15px;height:15px;accent-color:var(--acc);cursor:pointer">
       <span id="lbl-cfg-try-common">认证失败时自动尝试厂商默认密码</span>
     </label>
+    <div style="margin-top:10px">
+      <label style="font-size:.72rem;color:var(--tx2);display:block;margin-bottom:4px">KVM URL 模板（外网访问时使用，留空则直接用 BMC IP）</label>
+      <input class="inp" id="cfg-kvm-template" placeholder="例：https://kvm.example.com/{last_octet}/ 或 https://{ip}:5900/" style="font-size:.8rem">
+      <div style="font-size:.66rem;color:var(--tx3);margin-top:3px">占位符：{ip} 完整 IP · {last_octet} 最后一段 · {octet1~3} 各段</div>
+    </div>
     <div style="margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <button class="btn" id="btn-try-global" onclick="tryGlobalCreds()" type="button" style="font-size:.76rem">🔍 <span id="lbl-try-global">尝试常用密码</span></button>
       <span id="try-global-note" style="font-size:.67rem;color:var(--tx3)"></span>
@@ -1653,18 +1658,19 @@ function fanSum(s){const f=s.fans||[],b=f.filter(x=>x.health!=='OK').length;retu
 function psuSum(s){const p=s.power_supplies||[],b=p.filter(x=>x.health!=='OK').length;return p.length===0?'—':b>0?`${b}${t('c.anomaly')}`:`${p.length}${t('c.normal')}`;}
 function fanCls(s){const f=s.fans||[];if(f.some(x=>x.health==='Critical'))return'mv-crit';if(f.some(x=>x.health==='Warning'))return'mv-warn';return'mv-ok';}
 function sdot(h){return{OK:'s-ok',Warning:'s-warn',Critical:'s-crit'}[h]||'s-unk';}
-function kvmUrl(bmc_ip,manufacturer){
+function kvmUrl(bmc_ip, manufacturer, customUrl){
+  if(customUrl) return customUrl;   // 优先使用自定义/模板 URL
   const m=(manufacturer||'').toUpperCase();
-  if(m.includes('HP')||m.includes('HEWLETT'))  return`https://${bmc_ip}/ui/#/console/graphical`; // iLO 5/6
-  if(m.includes('DELL'))                        return`https://${bmc_ip}/console`;                // iDRAC
+  if(m.includes('HP')||m.includes('HEWLETT'))  return`https://${bmc_ip}/ui/#/console/graphical`;
+  if(m.includes('DELL'))                        return`https://${bmc_ip}/console`;
   if(m.includes('SUPERMICRO'))                  return`https://${bmc_ip}/html5/?KVM`;
   if(m.includes('LENOVO')||m.includes('IBM'))   return`https://${bmc_ip}/designs/imm/index.php`;
-  return`https://${bmc_ip}/`;   // 通用：打开 BMC 根页面，手动进入控制台
+  return`https://${bmc_ip}/`;
 }
-function openKvm(e,bmc_ip,manufacturer){
+function openKvm(e,bmc_ip,manufacturer,customUrl){
   e.stopPropagation();
   e.preventDefault();
-  window.open(kvmUrl(bmc_ip,manufacturer),'_blank','noopener');
+  window.open(kvmUrl(bmc_ip,manufacturer,customUrl||''),'_blank','noopener');
 }
 function hbadge(s){
   if(s.status==='offline')     return['hb-unk',  t('h.offline')];
@@ -1962,7 +1968,7 @@ ${note}
     cf.gpu&&gpus.length?`<div><div class="ml">GPU</div><div class="mv ${gpuCls}">${gpus.length}个 · ${gpuOk===gpus.length?t('c.normal'):gpuOk+'正常'}</div></div>`:'',
     wide&&procs.length&&!cf.gpu?`<div><div class="ml">CPU</div><div class="mv" style="font-size:.73rem;font-weight:400">${esc((procs[0].model||'').substring(0,30))}</div></div>`:'',
   ].filter(Boolean).join('');
-  const kvmBtn=`<button class="kvm-btn" data-ip="${s.bmc_ip}" data-mfr="${esc(s.manufacturer||'')}" onclick="openKvm(event,this.dataset.ip,this.dataset.mfr)" title="HTML5 KVM Console">▶ KVM</button>`;
+  const kvmBtn=`<button class="kvm-btn" data-ip="${s.bmc_ip}" data-mfr="${esc(s.manufacturer||'')}" data-url="${esc(s.kvm_url||'')}" onclick="openKvm(event,this.dataset.ip,this.dataset.mfr,this.dataset.url)" title="${esc(kvmUrl(s.bmc_ip,s.manufacturer||'',s.kvm_url||''))}">▶ KVM</button>`;
   return`<div class="card${newCls}" onclick="openDetail('${key}')" style="padding-right:${thermoHtml?'5px':'0'}">
 <div class="card-head"><div class="card-title"><div class="card-name">${esc(displayName)}${newBadge}${flapBadge}${proto}</div><div class="card-sub">${s.bmc_ip} · ${s.model||t('c.unknown_model')}</div></div><div style="display:flex;align-items:center;gap:6px;flex-shrink:0">${kvmBtn}<span class="hbadge ${hcls}">${hlbl}</span></div></div>
 <div class="card-div"></div>
@@ -2116,6 +2122,7 @@ async function openSettingsModal(){
   document.querySelectorAll('.proto-opt').forEach(b=>b.classList.toggle('sel',b.dataset.v===cfgProto));
   updateProtoHint();updateIpCount();
   if($('cfg-try-common')) $('cfg-try-common').checked=!!s.try_common_on_auth_fail;
+  if($('cfg-kvm-template')) $('cfg-kvm-template').value=s.kvm_url_template||'';
   $('try-global-result').textContent='';
   $('try-global-note').textContent=t('cfg.try_note').replace('{n}',16);
   $('lbl-try-global').textContent=t('cfg.try_creds');
@@ -2127,7 +2134,7 @@ function updateProtoHint(){const h={auto:t('cfg.hint_auto'),redfish:t('cfg.hint_
 function countIps(tx){let n=0;for(const e of tx.split(/[\n,;]+/)){const s=e.trim();if(!s||s.startsWith('#'))continue;try{if(s.includes('/')){const b=parseInt(s.split('/')[1]);n+=Math.pow(2,32-b)-2;}else if(s.includes('-')){const[l,r]=s.split('-',2);const ip=o=>o.split('.').reduce((a,x)=>(a<<8)+parseInt(x),0)>>>0;const ei=(r.includes('.')?r:l.split('.').slice(0,3).join('.')+'.'+r);n+=Math.max(0,ip(ei)-ip(l)+1);}else n+=1;}catch(e){}}return n;}
 function updateIpCount(){const n=countIps($('cfg-ip').value);const b=$('ip-cnt-badge');if(n>0){b.style.display='inline-flex';$('ip-cnt-text').textContent=t('cfg.ip_count').replace('{n}',n);}else b.style.display='none';}
 function toggleAdv(){$('adv-toggle').classList.toggle('open');$('adv-body').classList.toggle('open');}
-async function saveSettings(){const b=$('btn-save-cfg');b.disabled=true;$('lbl-cfg-save').textContent=t('cfg.saving');try{await api('POST','/api/settings',{ip_ranges:$('cfg-ip').value,username:$('cfg-user').value,password:$('cfg-pw').value,protocol:cfgProto,refresh_interval:parseInt($('cfg-ri').value)||60,collection_timeout:parseInt($('cfg-to').value)||15,max_concurrent:parseInt($('cfg-cc').value)||10,try_common_on_auth_fail:!!($('cfg-try-common')?.checked)});closeOverlay('ov-cfg');startPolling();}finally{b.disabled=false;$('lbl-cfg-save').textContent=t('cfg.save');}}
+async function saveSettings(){const b=$('btn-save-cfg');b.disabled=true;$('lbl-cfg-save').textContent=t('cfg.saving');try{await api('POST','/api/settings',{ip_ranges:$('cfg-ip').value,username:$('cfg-user').value,password:$('cfg-pw').value,protocol:cfgProto,refresh_interval:parseInt($('cfg-ri').value)||60,collection_timeout:parseInt($('cfg-to').value)||15,max_concurrent:parseInt($('cfg-cc').value)||10,try_common_on_auth_fail:!!($('cfg-try-common')?.checked),kvm_url_template:($('cfg-kvm-template')?.value||'').trim()});closeOverlay('ov-cfg');startPolling();}finally{b.disabled=false;$('lbl-cfg-save').textContent=t('cfg.save');}}
 
 /* ── User Modal (inline edit, no prompt dialogs) ───────────── */
 async function openUsersModal(){
@@ -2283,7 +2290,7 @@ function openDetail(key){
   $('det-sub').textContent=`BMC: ${s.bmc_ip}  ·  ${t('d.serial')}: ${s.serial||'—'}  ·  ${t('t.proto')}: ${s.protocol_used||'—'}`;
   $('det-badge').innerHTML=`<span class="hbadge ${hcls}">${hlbl}</span>`;
   const kvmEl=$('det-kvm');
-  if(kvmEl) kvmEl.innerHTML=`<button class="kvm-btn" data-ip="${s.bmc_ip}" data-mfr="${esc(s.manufacturer||'')}" onclick="openKvm(event,this.dataset.ip,this.dataset.mfr)" title="HTML5 KVM Console">▶ KVM</button>`;
+  if(kvmEl) kvmEl.innerHTML=`<button class="kvm-btn" data-ip="${s.bmc_ip}" data-mfr="${esc(s.manufacturer||'')}" data-url="${esc(s.kvm_url||'')}" onclick="openKvm(event,this.dataset.ip,this.dataset.mfr,this.dataset.url)" title="${esc(kvmUrl(s.bmc_ip,s.manufacturer||'',s.kvm_url||''))}">▶ KVM</button>`;
   $('det-body').innerHTML=buildDetail(s);
   $('ov-detail').classList.add('open');document.body.style.overflow='hidden';
 }
@@ -2309,6 +2316,16 @@ function buildDetail(s){
   <button class="btn btn-acc" onclick="saveAlias('${key}')" style="border:none;font-size:.78rem">${t('d.alias_save')}</button>
   <span id="alias-ok-${key}" style="font-size:.72rem;color:var(--ok);min-width:36px"></span>
 </div>
+</div>
+<div class="alias-row" style="flex-wrap:wrap;gap:8px">
+  <div style="flex:1;min-width:0">
+    <label style="font-size:.72rem;color:var(--tx2);display:block;margin-bottom:4px">KVM URL <span style="font-weight:400;color:var(--tx3)">（覆盖全局模板，留空自动）</span></label>
+    <input class="inp" id="kvm-url-${key}" type="text" value="${esc(s.kvm_url||'')}" placeholder="https://...  留空则使用模板或厂商默认" style="font-size:.8rem">
+  </div>
+  <div style="display:flex;gap:5px;align-items:flex-end">
+    <button class="btn btn-acc" onclick="saveKvmUrl('${key}')" style="border:none;font-size:.78rem">保存</button>
+    <span id="kvm-url-ok-${key}" style="font-size:.72rem;color:var(--ok);min-width:36px"></span>
+  </div>
 </div>
 <div style="padding:12px 14px;background:var(--sf2);border-bottom:1px solid var(--bd)">
   <!-- 正在使用的凭据（信息行） -->
@@ -2619,6 +2636,20 @@ async function tryCommonCreds(key){
     res.style.color='var(--warn)';
     res.textContent=t('cfg.try_none');
   }
+}
+
+async function saveKvmUrl(key){
+  const url=($(`kvm-url-${key}`)?.value||'').trim();
+  const r=await api('PUT',`/api/servers/${key}/kvm-url`,{url});
+  if(!r) return;
+  const d=await r.json();
+  const ok=$(`kvm-url-ok-${key}`);
+  if(ok){ok.textContent='✓';setTimeout(()=>{ok.textContent='';},2000);}
+  // 更新本地缓存并刷新 KVM 按钮
+  const sv=servers.find(x=>x.bmc_ip===key.replace(/-/g,'.'));
+  if(sv){sv.kvm_url=url;}
+  const kvmEl=$('det-kvm');
+  if(kvmEl&&sv) kvmEl.innerHTML=`<button class="kvm-btn" data-ip="${sv.bmc_ip}" data-mfr="${esc(sv.manufacturer||'')}" data-url="${esc(url)}" onclick="openKvm(event,this.dataset.ip,this.dataset.mfr,this.dataset.url)" title="${esc(kvmUrl(sv.bmc_ip,sv.manufacturer||'',url))}">▶ KVM</button>`;
 }
 
 async function saveAlias(key){

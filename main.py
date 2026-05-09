@@ -65,6 +65,7 @@ SUBSCRIPTION_FILE  = DATA_DIR / "subscription.json"
 LICENSE_FILE       = DATA_DIR / "license.json"
 ALIASES_FILE       = DATA_DIR / "aliases.json"
 MACHINE_CREDS_FILE = DATA_DIR / "machine_creds.json"
+KVM_URLS_FILE      = DATA_DIR / "kvm_urls.json"
 INSTALL_CFGS_FILE  = DATA_DIR / "install_configs.json"
 OS_PROFILES_FILE   = DATA_DIR / "os_profiles.json"
 SSL_DIR            = DATA_DIR / "ssl"
@@ -89,6 +90,7 @@ DEFAULT_SETTINGS: dict = {
     "protocol": "auto", "refresh_interval": 60,
     "collection_timeout": 15, "max_concurrent": 10,
     "try_common_on_auth_fail": False,   # 认证失败时自动尝试厂商默认密码
+    "kvm_url_template": "",             # KVM URL 模板，支持 {ip} {last_octet} 等占位符
 }
 
 # ─── 认证数据 ─────────────────────────────────────────────────────
@@ -233,6 +235,19 @@ async def _test_redfish_cred(bmc_ip: str, username: str, password: str) -> bool:
     except Exception:
         pass
     return False
+
+def load_kvm_urls() -> dict:
+    DATA_DIR.mkdir(exist_ok=True)
+    if KVM_URLS_FILE.exists():
+        try:
+            return json.loads(KVM_URLS_FILE.read_text())
+        except Exception:
+            pass
+    return {}
+
+def save_kvm_urls(data: dict) -> None:
+    DATA_DIR.mkdir(exist_ok=True)
+    KVM_URLS_FILE.write_text(json.dumps(data, ensure_ascii=False))
 
 def load_aliases() -> dict:
     DATA_DIR.mkdir(exist_ok=True)
@@ -1737,6 +1752,8 @@ def _build_server_list(user: dict) -> dict:
 
     aliases           = load_aliases()
     machine_creds_map = load_machine_creds()
+    kvm_urls_map      = load_kvm_urls()
+    kvm_template      = settings.get("kvm_url_template", "")
     global_username   = settings.get("username", "")
     global_password   = settings.get("password", "")
     is_admin          = user.get("role") == "admin"
@@ -1758,9 +1775,20 @@ def _build_server_list(user: dict) -> dict:
             cred_source    = mc.get("source", "manual")   # "auto" | "manual"
             cred_username  = mc.get("username", "")
             cred_password  = mc.get("password", "") if is_admin else ""
+        # KVM URL：独立设置 > 全局模板 > 空（客户端用厂商默认）
+        kvm_url = kvm_urls_map.get(ip, "")
+        if not kvm_url and kvm_template:
+            parts = ip.split(".")
+            kvm_url = (kvm_template
+                       .replace("{ip}", ip)
+                       .replace("{last_octet}", parts[-1] if parts else "")
+                       .replace("{octet1}", parts[0] if len(parts) > 0 else "")
+                       .replace("{octet2}", parts[1] if len(parts) > 1 else "")
+                       .replace("{octet3}", parts[2] if len(parts) > 2 else ""))
         extra = {
             "subcluster_ids":   ip_to_scs.get(ip, []),
             "alias":            alias,
+            "kvm_url":          kvm_url,
             "first_seen":       first_seen,
             "is_new":           is_new,
             "flapping":         flapping,
@@ -1873,6 +1901,20 @@ async def api_parse_ranges(req: Request, admin: dict = Depends(require_admin)):
 # ═══════════════════════════════════════════════════════════════════
 # BMC 密码修改 API
 # ═══════════════════════════════════════════════════════════════════
+
+@app.put("/api/servers/{bmc_ip_enc}/kvm-url")
+async def api_set_kvm_url(bmc_ip_enc: str, req: Request,
+                           admin: dict = Depends(require_admin)):
+    bmc_ip = bmc_ip_enc.replace("-", ".")
+    body   = await req.json()
+    url    = (body.get("url") or "").strip()
+    urls   = load_kvm_urls()
+    if url:
+        urls[bmc_ip] = url
+    else:
+        urls.pop(bmc_ip, None)
+    save_kvm_urls(urls)
+    return {"ok": True, "kvm_url": url}
 
 @app.put("/api/servers/{bmc_ip_enc}/alias")
 async def api_set_alias(bmc_ip_enc: str, req: Request,
