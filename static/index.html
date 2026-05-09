@@ -1668,11 +1668,10 @@ function kvmUrl(bmc_ip, manufacturer, customUrl){
   // 默认走 Server Manager 内置反代
   const base=kvmProxyBase(bmc_ip);
   const m=(manufacturer||'').toUpperCase();
-  if(m.includes('HP')||m.includes('HEWLETT'))  return`${base}/ui/#/console/graphical`;
-  if(m.includes('DELL'))                        return`${base}/console`;
-  if(m.includes('SUPERMICRO'))                  return`${base}/html5/?KVM`;
+  if(m.includes('HP')||m.includes('HEWLETT'))  return`${base}/ui/`;           // HPE iLO 5/6
+  if(m.includes('DELL'))                        return`${base}/`;             // Dell iDRAC（根页面登录）
   if(m.includes('LENOVO')||m.includes('IBM'))   return`${base}/designs/imm/index.php`;
-  return`${base}/`;   // 通用：BMC 根页面
+  return`${base}/`;   // 通用（含 Supermicro）：BMC 根页面，用户自行登录后进入 KVM
 }
 function openKvm(e,bmc_ip,manufacturer,customUrl){
   e.stopPropagation();

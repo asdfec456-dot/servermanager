@@ -3481,19 +3481,32 @@ async def bmc_http_proxy(bmc_ip_enc: str, path: str, request: Request):
     fwd_proto = request.headers.get("x-forwarded-proto", "https")
     fwd_host  = request.headers.get("x-forwarded-host", request.headers.get("host", ""))
 
-    # 转发请求头（过滤逐跳头，修正 Host）
-    headers = {k: v for k, v in request.headers.items()
-               if k.lower() not in _HOP_HEADERS | {"host"}}
+    # 转发请求头（过滤逐跳头、SM 专用 cookie、修正 Host）
+    _SM_COOKIES = frozenset(("sm_proxy",))   # 不转发给 BMC 的 SM 专用 cookie
+    headers = {}
+    for k, v in request.headers.items():
+        kl = k.lower()
+        if kl in _HOP_HEADERS | {"host"}:
+            continue
+        if kl == "cookie":
+            # 过滤掉 sm_* cookie，只把真正的 BMC session cookie 转发
+            filtered = "; ".join(
+                c for c in v.split(";")
+                if not any(c.strip().startswith(s) for s in _SM_COOKIES)
+            )
+            if filtered.strip():
+                headers["cookie"] = filtered
+            continue
+        headers[k] = v
     headers["host"] = bmc_ip
+    # 不注入 BasicAuth：让 BMC 自己决定鉴权方式（Web UI 通常用 Session Cookie，
+    # 若 BMC 需要 BasicAuth，用户可在 BMC 自己的登录页完成认证）
 
     body = await request.body()
     ctx  = _ssl_ctx()
 
     try:
-        async with aiohttp.ClientSession(
-            auth=_bmc_proxy_auth(bmc_ip),
-            connector=aiohttp.TCPConnector(ssl=ctx),
-        ) as sess:
+        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=ctx)) as sess:
             async with sess.request(
                 method   = request.method,
                 url      = url,
@@ -3507,20 +3520,37 @@ async def bmc_http_proxy(bmc_ip_enc: str, path: str, request: Request):
                 content = _rewrite_bmc_urls(content, ct, bmc_ip, bmc_ip_enc,
                                             fwd_host, fwd_proto)
 
-                # 重写 Location 重定向头
+                # 构建响应头，处理 Set-Cookie 和 Location
                 out_headers: dict = {}
+                set_cookies: list = []
                 for k, v in resp.headers.items():
-                    if k.lower() in _HOP_HEADERS:
+                    kl = k.lower()
+                    if kl in _HOP_HEADERS:
                         continue
-                    if k.lower() == "location":
+                    if kl == "location":
                         v = v.replace(f"https://{bmc_ip}", f"/bmc/{bmc_ip_enc}")
                         v = v.replace(f"http://{bmc_ip}",  f"/bmc/{bmc_ip_enc}")
-                    out_headers[k] = v
+                        out_headers[k] = v
+                    elif kl == "set-cookie":
+                        # 去掉 domain= 属性，让浏览器用当前域（SM 域）存储，
+                        # 下次请求时会自动携带，代理再转发给 BMC
+                        v = re.sub(r';\s*[Dd]omain=[^;,]+', '', v)
+                        set_cookies.append(v)
+                    else:
+                        out_headers[k] = v
+
+                # Set-Cookie 必须作为多个 header 返回
+                if set_cookies:
+                    out_headers["set-cookie"] = set_cookies[0]   # 第一个放正常位置
 
                 from fastapi.responses import Response as _Resp
                 response = _Resp(content=content, status_code=resp.status,
                                  headers=out_headers, media_type=ct)
-                # 首次携带 sm_token 时设置 Cookie，后续请求靠 Cookie 鉴权
+                # 追加其余 Set-Cookie（FastAPI 不直接支持多值，绕过方式）
+                for sc in set_cookies[1:]:
+                    response.headers.append("set-cookie", sc)
+
+                # 首次携带 sm_token 时设置 SM 鉴权 Cookie
                 sm_token = request.query_params.get("sm_token", "")
                 if sm_token:
                     response.set_cookie("sm_proxy", sm_token,
