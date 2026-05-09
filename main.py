@@ -3427,19 +3427,38 @@ def _rewrite_bmc_urls(content: bytes, content_type: str,
         text = text.replace(f'"{prot}://{bmc_ip}"', f'"{http_proxy}"')
         text = text.replace(f"'{prot}://{bmc_ip}'", f"'{http_proxy}'")
 
-    # HTML 属性绝对路径替换（href="/ src="/ action="/ 等）
-    for attr in ("href", "src", "action", "data-url", "content", "poster", "data"):
+    # HTML 属性绝对路径替换（包含 RequireJS 的 data-main 等所有 data-* 属性）
+    for attr in ("href", "src", "action", "data-url", "content", "poster",
+                 "data", "data-main", "data-src", "data-href"):
         text = re.sub(rf'({attr}=["\'])/', rf'\g<1>{http_proxy}/', text)
 
-    # CSS url() 里的绝对路径（background-image: url('/...')）
+    # CSS url() 里的绝对路径
     text = re.sub(r'(url\(["\']?)/', rf'\g<1>{http_proxy}/', text)
 
-    # JS 里常见的绝对路径字符串（fetch('/api/...')、axios.get('/...')）
-    text = re.sub(r'((?:fetch|axios\.get|axios\.post|XMLHttpRequest|open)\s*\(["\'])/',
-                  rf'\g<1>{http_proxy}/', text)
-
-    # 替换 window.location / location.origin 拼接的路径
+    # 替换 window.location.origin / location.origin 拼接的路径
     text = text.replace("window.location.origin", f'"{http_proxy}"')
+    text = text.replace("location.origin",         f'"{http_proxy}"')
+
+    # 在 HTML 页面的 <head> 开头注入：
+    # 1. <base> 标签处理相对路径资源
+    # 2. 最早执行的 JS，覆盖 fetch / XHR / jQuery AJAX，使绝对路径经过代理
+    if "text/html" in content_type:
+        inject_base = f'<base href="{http_proxy}/">'
+        inject_js = (
+            f'<script>!function(){{var p="{http_proxy}";'
+            r'function r(u){return u&&"string"==typeof u&&u[0]==="/"&&u[1]!=="/"?p+u:u}'
+            r'var F=window.fetch;if(F)window.fetch=function(u,o){return F.call(this,r(u),o)};'
+            r'var X=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(){arguments[1]=r(arguments[1]);return X.apply(this,arguments)};'
+            r'document.addEventListener("DOMContentLoaded",function(){'
+            r'if(window.$&&window.$.ajaxPrefilter)window.$.ajaxPrefilter(function(o){o.url=r(o.url)});'
+            r'if(window.jQuery&&window.jQuery.ajaxPrefilter)window.jQuery.ajaxPrefilter(function(o){o.url=r(o.url)});'
+            r'})}'
+            r'();</script>'
+        )
+        # 去掉已有 <base> 标签（避免冲突）
+        text = re.sub(r'<base[^>]+>', '', text, flags=re.I)
+        # 插入到 <head> 之后
+        text = re.sub(r'(<head[^>]*>)', r'\1' + inject_base + inject_js, text, flags=re.I, count=1)
 
     return text.encode("utf-8")
 
