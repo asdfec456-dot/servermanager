@@ -42,7 +42,7 @@ from datetime import datetime
 import urllib.parse
 import platform as _platform
 
-from fastapi import FastAPI, BackgroundTasks, Request, Depends, HTTPException, UploadFile, File, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, BackgroundTasks, Request, Depends, HTTPException, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -3391,300 +3391,68 @@ async def api_system_restart(bg: BackgroundTasks, admin: dict = Depends(require_
     return {"ok": True, "msg": "服务将在 1 秒后重启"}
 
 # ═══════════════════════════════════════════════════════════════════
-# BMC 反向代理（HTTP + WebSocket，供外网访问 KVM 控制台）
+# Nginx 反代配置生成（用于外网访问 KVM 控制台）
 # ═══════════════════════════════════════════════════════════════════
 
-def _bmc_proxy_auth(bmc_ip: str) -> aiohttp.BasicAuth:
-    mc = load_machine_creds().get(bmc_ip, {})
-    s  = load_settings()
-    return aiohttp.BasicAuth(mc.get("username") or s.get("username", ""),
-                             mc.get("password") or s.get("password", ""))
+NGINX_CONF_FILE = Path("/etc/nginx/conf.d/bmc-proxy.conf")
 
-def _rewrite_bmc_urls(content: bytes, content_type: str,
-                      bmc_ip: str, bmc_ip_enc: str,
-                      public_host: str, scheme: str) -> bytes:
-    """将响应体中的 BMC 内网 URL 替换为 Server Manager 代理路径。"""
-    if not any(t in content_type for t in ("text/html", "text/css",
-                                            "application/javascript", "text/javascript",
-                                            "application/json")):
-        return content
-    try:
-        text = content.decode("utf-8", errors="replace")
-    except Exception:
-        return content
 
-    http_proxy = f"/bmc/{bmc_ip_enc}"
-    ws_proxy   = f"{scheme.replace('http','ws')}://{public_host}/bmc-ws/{bmc_ip_enc}"
-
-    # WebSocket URL 替换（wss:// / ws://）
-    for ws_prot in ("wss", "ws"):
-        text = text.replace(f"{ws_prot}://{bmc_ip}/", f"{ws_proxy}/")
-        text = text.replace(f"{ws_prot}://{bmc_ip}:", f"{ws_proxy}:")
-
-    # HTTP(S) URL 替换
-    for prot in ("https", "http"):
-        text = text.replace(f"{prot}://{bmc_ip}/", f"{http_proxy}/")
-        text = text.replace(f'"{prot}://{bmc_ip}"', f'"{http_proxy}"')
-        text = text.replace(f"'{prot}://{bmc_ip}'", f"'{http_proxy}'")
-
-    # HTML 属性绝对路径替换
-    # 注意：data-main 不重写 — RequireJS bundle 里模块以原始路径注册，
-    #       重写后模块 ID 不匹配，导致 RequireJS 从服务器重新 fetch → 404 → 崩溃
-    for attr in ("href", "src", "action", "data-url", "content", "poster",
-                 "data", "data-src", "data-href"):
-        text = re.sub(rf'({attr}=["\'])/', rf'\g<1>{http_proxy}/', text)
-
-    # CSS url() 里的绝对路径
-    text = re.sub(r'(url\(["\']?)/', rf'\g<1>{http_proxy}/', text)
-
-    # 替换 window.location.origin / location.origin 拼接的路径
-    text = text.replace("window.location.origin", f'"{http_proxy}"')
-    text = text.replace("location.origin",         f'"{http_proxy}"')
-
-    # 在 HTML 页面的 <head> 开头注入：
-    # 1. <base> 标签处理相对路径资源
-    # 2. 最早执行的 JS，覆盖 fetch / XHR / jQuery AJAX，使绝对路径经过代理
-    if "text/html" in content_type:
-        inject_base = f'<base href="{http_proxy}/">'
-        inject_js = (
-            f'<script>!function(){{var p="{http_proxy}";'
-            # r(u): rewrite absolute paths (starting with /) but not module IDs already
-            # containing the proxy prefix and not protocol-relative URLs
-            r'function r(u){if(!u||typeof u!=="string")return u;'
-            r'if(u.indexOf("//")===0||/^https?:\/\//.test(u))return u;'
-            r'if(u[0]==="/"&&u.indexOf(p)!==0)return p+u;return u}'
-            # Override fetch
-            r'var F=window.fetch;if(F)window.fetch=function(u,o){return F.call(this,typeof u==="string"?r(u):u,o)};'
-            # Override XHR
-            r'var X=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(){arguments[1]=r(arguments[1]);return X.apply(this,arguments)};'
-            # Override document.createElement to catch dynamically injected <script>/<link>
-            r'var CE=document.createElement.bind(document);'
-            r'document.createElement=function(t){'
-            r'var e=CE(t);var tl=t.toLowerCase();'
-            r'if(tl==="script"){var ds=Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype,"src");'
-            r'if(ds)Object.defineProperty(e,"src",{set:function(v){ds.set.call(this,r(v))},get:function(){return ds.get.call(this)}});}'
-            r'if(tl==="link"){var dl=Object.getOwnPropertyDescriptor(HTMLLinkElement.prototype,"href");'
-            r'if(dl)Object.defineProperty(e,"href",{set:function(v){dl.set.call(this,r(v))},get:function(){return dl.get.call(this)}});}'
-            r'return e};'
-            # jQuery AJAX prefilter (on DOMContentLoaded)
-            r'document.addEventListener("DOMContentLoaded",function(){'
-            r'["$","jQuery"].forEach(function(k){if(window[k]&&window[k].ajaxPrefilter)'
-            r'window[k].ajaxPrefilter(function(o){o.url=r(o.url)})});'
-            r'})}();</script>'
-        )
-        # 去掉已有 <base> 标签（避免冲突）
-        text = re.sub(r'<base[^>]+>', '', text, flags=re.I)
-        # 插入到 <head> 之后
-        text = re.sub(r'(<head[^>]*>)', r'\1' + inject_base + inject_js, text, flags=re.I, count=1)
-
-    return text.encode("utf-8")
-
-_HOP_HEADERS = frozenset((
-    "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
-    "te", "trailers", "transfer-encoding", "upgrade", "content-encoding",
-    "content-length",
-))
-
-def _proxy_auth(request: Request) -> Optional[dict]:
-    """代理鉴权：Authorization 头 → sm_token 参数 → sm_proxy Cookie，任一有效即通过。"""
-    # 1. Authorization header（API 直接调用时）
-    auth = request.headers.get("authorization", "")
-    if auth.startswith("Bearer "):
-        s = get_session(auth[7:])
-        if s: return s
-    # 2. sm_token query param（KVM 按钮首次打开新标签时）
-    t = request.query_params.get("sm_token", "")
-    if t:
-        s = get_session(t)
-        if s: return s
-    # 3. sm_proxy cookie（后续页面/资源请求）
-    c = request.cookies.get("sm_proxy", "")
-    if c:
-        s = get_session(c)
-        if s: return s
-    return None
-
-@app.api_route("/bmc/{bmc_ip_enc}/{path:path}",
-               methods=["GET","POST","PUT","DELETE","OPTIONS","HEAD","PATCH"])
-async def bmc_http_proxy(bmc_ip_enc: str, path: str, request: Request):
-    """HTTP 反向代理：将请求转发至 BMC，重写响应中的内网 URL。"""
-    user = _proxy_auth(request)
-    if not user:
-        from fastapi.responses import HTMLResponse as _HTML
-        return _HTML("<h2>请先在 Server Manager 登录后再点击 KVM 按钮</h2>", status_code=401)
-
-    bmc_ip = bmc_ip_enc.replace("-", ".")
+@app.get("/api/nginx/bmc-proxy-config")
+async def api_nginx_bmc_config(admin: dict = Depends(require_admin)):
+    """生成 nginx BMC 反代配置，用于将外网 KVM 访问代理到内网 BMC。"""
     settings = load_settings()
-    all_ips  = parse_ip_ranges(settings.get("ip_ranges", ""))
-    if bmc_ip not in all_ips:
-        raise HTTPException(403, f"{bmc_ip} 未在 IP 范围中配置")
+    ips = parse_ip_ranges(settings.get("ip_ranges", ""))
+    if not ips:
+        raise HTTPException(400, "尚未配置 IP 范围")
 
-    # 去除 sm_token，不转发给 BMC
-    import urllib.parse as _up
-    fwd_params = {k: v for k, v in request.query_params.items() if k != "sm_token"}
-    qs  = ("?" + _up.urlencode(fwd_params)) if fwd_params else ""
-    url = f"https://{bmc_ip}/{path}{qs}"
-    fwd_proto = request.headers.get("x-forwarded-proto", "https")
-    fwd_host  = request.headers.get("x-forwarded-host", request.headers.get("host", ""))
+    lines_out = [
+        "# Server Manager — BMC Reverse Proxy Config",
+        f"# Generated at {time.strftime('%Y-%m-%d %H:%M:%S')}",
+        "# Usage: include this file in your nginx server { } block",
+        "#   e.g. include /etc/nginx/conf.d/bmc-proxy.conf;",
+        "",
+        "# WebSocket upgrade map (add once globally if not already present)",
+        "# map $http_upgrade $connection_upgrade {",
+        "#     default upgrade;",
+        "#     \'\' close;",
+        "# }",
+        "",
+    ]
+    for ip in sorted(ips):
+        lines_out += [
+            f"# BMC: {ip}",
+            f"location /bmc/{ip}/ {{",
+            f"    proxy_pass          https://{ip}/;",
+             "    proxy_ssl_verify    off;",
+            f"    proxy_set_header    Host {ip};",
+             "    proxy_http_version  1.1;",
+             "    proxy_set_header    Upgrade $http_upgrade;",
+             "    proxy_set_header    Connection $connection_upgrade;",
+             "    proxy_set_header    X-Real-IP $remote_addr;",
+             "    proxy_read_timeout  86400;",
+             "    proxy_send_timeout  86400;",
+             "    proxy_buffering     off;",
+            "}",
+            "",
+        ]
+    return {"config": "\n".join(lines_out), "ip_count": len(ips)}
 
-    # 转发请求头（过滤逐跳头、SM 专用 cookie、修正 Host/Origin/Referer）
-    _SM_COOKIES = frozenset(("sm_proxy",))
-    headers = {}
-    for k, v in request.headers.items():
-        kl = k.lower()
-        if kl in _HOP_HEADERS | {"host"}:
-            continue
-        if kl == "cookie":
-            filtered = "; ".join(
-                c for c in v.split(";")
-                if not any(c.strip().startswith(s) for s in _SM_COOKIES)
-            )
-            if filtered.strip():
-                headers["cookie"] = filtered
-            continue
-        # 关键修复：将 Origin/Referer 改写为 BMC 域名，否则 BMC 的 CSRF 防护会拒绝登录请求
-        if kl == "origin":
-            headers["origin"] = f"https://{bmc_ip}"
-            continue
-        if kl == "referer":
-            # 把 https://sm-domain/bmc/ip-enc/... → https://bmc_ip/...
-            v = re.sub(
-                rf'https?://{re.escape(fwd_host)}/bmc/{re.escape(bmc_ip_enc)}',
-                f'https://{bmc_ip}', v)
-            v = re.sub(rf'https?://{re.escape(fwd_host)}', f'https://{bmc_ip}', v)
-            headers["referer"] = v
-            continue
-        headers[k] = v
-    headers["host"] = bmc_ip
-
-    body = await request.body()
-    ctx  = _ssl_ctx()
-
+@app.post("/api/nginx/apply-bmc-proxy")
+async def api_nginx_apply(admin: dict = Depends(require_admin)):
+    """将 BMC 反代配置写入 nginx 并重载（需要服务器上已安装 nginx 并有 sudo 权限）。"""
+    data = await api_nginx_bmc_config(admin)
+    cfg_text = data["config"]
+    import subprocess as _sp
     try:
-        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=ctx)) as sess:
-            async with sess.request(
-                method   = request.method,
-                url      = url,
-                headers  = headers,
-                data     = body or None,
-                allow_redirects = False,
-                timeout  = aiohttp.ClientTimeout(total=30),
-            ) as resp:
-                ct      = resp.headers.get("content-type", "")
-                content = await resp.read()
-                content = _rewrite_bmc_urls(content, ct, bmc_ip, bmc_ip_enc,
-                                            fwd_host, fwd_proto)
+        tmp = Path("/tmp/sm_bmc_proxy.conf")
+        tmp.write_text(cfg_text)
+        _sp.run(["sudo", "cp", str(tmp), str(NGINX_CONF_FILE)], check=True, timeout=5)
+        _sp.run(["sudo", "nginx", "-t"], check=True, timeout=10)
+        _sp.run(["sudo", "systemctl", "reload", "nginx"], check=True, timeout=10)
+        return {"ok": True, "path": str(NGINX_CONF_FILE)}
+    except Exception as e:
+        raise HTTPException(500, f"写入/重载 nginx 失败：{e}")
 
-                # 需要剥离的安全响应头（会阻止代理页面正常工作）
-                _STRIP_RESP = frozenset((
-                    "content-security-policy",
-                    "content-security-policy-report-only",
-                    "x-frame-options",
-                    "x-xss-protection",
-                ))
-                # 构建响应头，处理 Set-Cookie / Location / 安全头
-                out_headers: dict = {}
-                set_cookies: list = []
-                for k, v in resp.headers.items():
-                    kl = k.lower()
-                    if kl in _HOP_HEADERS | _STRIP_RESP:
-                        continue   # 逐跳头 & 会干扰代理的安全头一律去掉
-                    if kl == "location":
-                        v = v.replace(f"https://{bmc_ip}", f"/bmc/{bmc_ip_enc}")
-                        v = v.replace(f"http://{bmc_ip}",  f"/bmc/{bmc_ip_enc}")
-                        out_headers[k] = v
-                    elif kl == "set-cookie":
-                        # 去掉 domain= 让浏览器用当前域（SM 域）存储
-                        v = re.sub(r';\s*[Dd]omain=[^;,]+', '', v)
-                        set_cookies.append(v)
-                    else:
-                        out_headers[k] = v
-
-                # Set-Cookie 必须作为多个 header 返回
-                if set_cookies:
-                    out_headers["set-cookie"] = set_cookies[0]   # 第一个放正常位置
-
-                from fastapi.responses import Response as _Resp
-                response = _Resp(content=content, status_code=resp.status,
-                                 headers=out_headers, media_type=ct)
-                # 追加其余 Set-Cookie（FastAPI 不直接支持多值，绕过方式）
-                for sc in set_cookies[1:]:
-                    response.headers.append("set-cookie", sc)
-
-                # 首次携带 sm_token 时设置 SM 鉴权 Cookie
-                sm_token = request.query_params.get("sm_token", "")
-                if sm_token:
-                    response.set_cookie("sm_proxy", sm_token,
-                                        httponly=True, samesite="lax",
-                                        max_age=86400, secure=False)
-                return response
-    except aiohttp.ClientError as e:
-        raise HTTPException(502, f"BMC 连接失败：{e}")
-
-@app.websocket("/bmc-ws/{bmc_ip_enc}/{path:path}")
-async def bmc_ws_proxy(ws_client: WebSocket, bmc_ip_enc: str, path: str,
-                        sm_token: str = ""):
-    """WebSocket 反向代理：桥接浏览器与 BMC KVM 的 WebSocket 连接。"""
-    # WebSocket 无法带 Authorization 头，优先 sm_token 参数，其次 sm_proxy Cookie
-    sess = get_session(sm_token) if sm_token else None
-    if not sess:
-        cookie_t = ws_client.cookies.get("sm_proxy", "")
-        if cookie_t:
-            sess = get_session(cookie_t)
-    if not sess:
-        await ws_client.close(1008)
-        return
-
-    bmc_ip   = bmc_ip_enc.replace("-", ".")
-    settings = load_settings()
-    all_ips  = parse_ip_ranges(settings.get("ip_ranges", ""))
-    if bmc_ip not in all_ips:
-        await ws_client.close(1008)
-        return
-
-    # 接受浏览器的 WebSocket（透传子协议）
-    subprotocols = ws_client.headers.get("sec-websocket-protocol", "")
-    await ws_client.accept(subprotocol=subprotocols.split(",")[0].strip() if subprotocols else None)
-
-    ctx = _ssl_ctx()
-    try:
-        async with aiohttp.ClientSession(
-            auth=_bmc_proxy_auth(bmc_ip),
-            connector=aiohttp.TCPConnector(ssl=ctx),
-        ) as http_sess:
-            ws_url = f"wss://{bmc_ip}/{path}"
-            async with http_sess.ws_connect(
-                ws_url,
-                timeout=aiohttp.ClientTimeout(total=3600),
-                heartbeat=30,
-            ) as ws_bmc:
-                async def c2b():
-                    try:
-                        async for msg in ws_client.iter_bytes():
-                            await ws_bmc.send_bytes(msg)
-                    except (WebSocketDisconnect, Exception):
-                        pass
-
-                async def b2c():
-                    try:
-                        async for msg in ws_bmc:
-                            if msg.type == aiohttp.WSMsgType.BINARY:
-                                await ws_client.send_bytes(msg.data)
-                            elif msg.type == aiohttp.WSMsgType.TEXT:
-                                await ws_client.send_text(msg.data)
-                            elif msg.type in (aiohttp.WSMsgType.CLOSE, aiohttp.WSMsgType.ERROR):
-                                break
-                    except (WebSocketDisconnect, Exception):
-                        pass
-
-                await asyncio.gather(c2b(), b2c())
-    except Exception:
-        pass
-    finally:
-        try:
-            await ws_client.close()
-        except Exception:
-            pass
 
 if __name__ == "__main__":
     import uvicorn
