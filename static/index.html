@@ -1072,6 +1072,7 @@ zh:{
   'sc.no_list':'暂无子集群','sc.no_mach':'暂无机器','sc.scan_first':'请先配置 IP 范围并等待扫描',
   'sc.err_name':'请输入名称','sc.count_unit':'台','sc.confirm_del':'确认删除子集群',
   'sc.confirm_note':'注意：机器本身不会被删除，仅移除分组。',
+  'd.gpu':'GPU / 加速卡','d.gpu_mfr':'厂商','d.gpu_slot':'插槽',
   'd.sysinfo':'系统信息','d.hostname':'主机名','d.mfr':'制造商','d.model':'型号','d.serial':'序列号',
   'd.bios':'BIOS / 固件','d.power':'电源状态','d.mem':'总内存','d.draw':'当前功耗',
   'd.proc':'处理器','d.name':'名称','d.cores':'核心','d.freq':'频率',
@@ -2323,6 +2324,28 @@ function buildDetail(s){
   <div id="mc-result-${key}" style="margin-top:8px;font-size:.75rem;min-height:18px"></div>
 </div>`);
   }
+  // ── 辅助：按健康状态排序（Critical 优先）──────────────────────
+  const sortByHealth=arr=>[...arr].sort((a,b)=>{
+    const r={Critical:0,Warning:1}; return (r[a.health]??2)-(r[b.health]??2);
+  });
+  const worstHealth=arr=>{
+    if(arr.some(i=>i.health==='Critical')) return 'Critical';
+    if(arr.some(i=>i.health==='Warning'))  return 'Warning';
+    return 'OK';
+  };
+  // sec 带健康色标
+  const secH=(title,body,h='OK')=>{
+    const bc=h==='Critical'?'var(--crit)':h==='Warning'?'var(--warn)':'transparent';
+    const dot=h!=='OK'?`<span class="sdot ${sdot(h)}" style="margin-right:5px"></span>`:'';
+    return`<div style="margin-bottom:16px;border-left:3px solid ${bc};padding-left:${h!=='OK'?'10px':'0'}">
+<div class="sec-title">${dot}${title}</div>${body}</div>`;
+  };
+
+  // ── ① 错误 / 告警（优先显示）──────────────────────────────────
+  if(s.error)parts.push(secH(t('d.error'),`<div style="color:var(--crit);font-size:.8rem;padding:8px 10px;background:rgba(239,68,68,.07);border-radius:6px">${esc(s.error)}</div>`,'Critical'));
+  if((s.alerts||[]).length)parts.push(secH(t('d.alerts'),`<div style="color:var(--warn);font-size:.8rem">${s.alerts.map(esc).join('<br>')}</div>`,'Warning'));
+
+  // ── ② 系统概览（紧凑）──────────────────────────────────────────
   parts.push(sec(t('d.sysinfo'),`<div class="info-grid">
 <div><div class="ik">${t('d.hostname')}</div><div class="iv">${s.hostname||'—'}</div></div>
 <div><div class="ik">${t('d.mfr')}</div><div class="iv">${s.manufacturer||'—'}</div></div>
@@ -2330,16 +2353,54 @@ function buildDetail(s){
 <div><div class="ik">${t('d.serial')}</div><div class="iv">${s.serial||'—'}</div></div>
 <div><div class="ik">${t('d.bios')}</div><div class="iv">${s.bios_version||'—'}</div></div>
 <div><div class="ik">${t('d.power')}</div><div class="iv">${s.power_state||'—'}</div></div>
-${ms.total_gib?`<div><div class="ik">${t('d.mem')}</div><div class="iv">${ms.total_gib} GiB</div></div>`:''}
+${ms.total_gib?`<div><div class="ik">${t('d.mem')}</div><div class="iv">${ms.total_gib} GiB (${ms.health||'—'})</div></div>`:''}
 <div><div class="ik">${t('d.draw')}</div><div class="iv">${fmtW(s.power_consumed_watts)}</div></div>
 </div>`));
-  if((s.processors||[]).length){const rows=s.processors.map(p=>`<tr><td>${esc(p.name)}</td><td>${esc(p.model||'—')}</td><td>${p.cores??'—'}</td><td>${p.speed_ghz!=null?p.speed_ghz+' GHz':'—'}</td><td><span class="sdot ${sdot(p.health)}"></span>${p.health||'—'}</td></tr>`).join('');parts.push(sec(t('d.proc'),`<table><thead><tr><th>${t('d.name')}</th><th>${t('d.model')}</th><th>${t('d.cores')}</th><th>${t('d.freq')}</th><th>${t('t.health')}</th></tr></thead><tbody>${rows}</tbody></table>`));}
-  if((s.temperatures||[]).length){const rows=s.temperatures.map(tp=>`<tr><td>${esc(tp.name)}</td><td style="font-weight:600;color:${tCol(tp.health)}">${tp.reading_celsius} °C</td><td>${tp.upper_caution!=null?tp.upper_caution+' °C':'—'}</td><td>${tp.upper_critical!=null?tp.upper_critical+' °C':'—'}</td><td><span class="sdot ${sdot(tp.health)}"></span>${tp.health||'OK'}</td></tr>`).join('');parts.push(sec(t('d.temp'),`<table><thead><tr><th>${t('d.sensor')}</th><th>${t('d.current')}</th><th>${t('d.warn')}</th><th>${t('d.crit')}</th><th>${t('t.health')}</th></tr></thead><tbody>${rows}</tbody></table>`));}
-  if((s.fans||[]).length){const rows=s.fans.map(f=>`<tr><td>${esc(f.name)}</td><td>${f.reading!=null?f.reading+' '+(f.reading_units||'RPM'):'—'}</td><td><span class="sdot ${sdot(f.health)}"></span>${f.health||'—'}</td></tr>`).join('');parts.push(sec(t('d.fans'),`<table><thead><tr><th>${t('d.name')}</th><th>${t('d.speed')}</th><th>${t('t.health')}</th></tr></thead><tbody>${rows}</tbody></table>`));}
-  if((s.power_supplies||[]).length){const rows=s.power_supplies.map(p=>`<tr><td>${esc(p.name)}</td><td>${esc(p.model||'—')}</td><td>${p.line_input_voltage!=null?p.line_input_voltage+' V':'—'}</td><td>${p.power_output_watts!=null?p.power_output_watts+' W':'—'}</td><td><span class="sdot ${sdot(p.health)}"></span>${p.health||'—'}</td></tr>`).join('');parts.push(sec(t('d.psus'),`<table><thead><tr><th>${t('d.name')}</th><th>${t('d.model')}</th><th>${t('d.input_v')}</th><th>${t('d.output_w')}</th><th>${t('t.health')}</th></tr></thead><tbody>${rows}</tbody></table>`));}
-  if((s.storage||[]).length){const rows=s.storage.map(c=>`<tr><td>${esc(c.name)}</td><td>${c.drives_count??'—'}</td><td><span class="sdot ${sdot(c.health)}"></span>${c.health||'—'}</td></tr>`).join('');parts.push(sec(t('d.storage'),`<table><thead><tr><th>${t('d.name')}</th><th>${t('d.drives')}</th><th>${t('t.health')}</th></tr></thead><tbody>${rows}</tbody></table>`));}
-  if((s.alerts||[]).length)parts.push(sec(t('d.alerts'),`<div style="color:var(--warn);font-size:.8rem">${s.alerts.map(esc).join('<br>')}</div>`));
-  if(s.error)parts.push(sec(t('d.error'),`<div style="color:var(--crit);font-size:.77rem">${esc(s.error)}</div>`));
+
+  // ── ③ CPU ──────────────────────────────────────────────────────
+  if((s.processors||[]).length){
+    const items=sortByHealth(s.processors);
+    const rows=items.map(p=>`<tr><td>${esc(p.name)}</td><td>${esc(p.model||'—')}</td><td>${p.cores??'—'}</td><td>${p.speed_ghz!=null?p.speed_ghz+' GHz':'—'}</td><td><span class="sdot ${sdot(p.health)}"></span>${p.health||'—'}</td></tr>`).join('');
+    parts.push(secH(t('d.proc'),`<table><thead><tr><th>${t('d.name')}</th><th>${t('d.model')}</th><th>${t('d.cores')}</th><th>${t('d.freq')}</th><th>${t('t.health')}</th></tr></thead><tbody>${rows}</tbody></table>`,worstHealth(items)));
+  }
+
+  // ── ④ GPU ──────────────────────────────────────────────────────
+  if((s.gpus||[]).length){
+    const items=sortByHealth(s.gpus);
+    const rows=items.map(g=>`<tr><td>${esc(g.name||g.model||'—')}</td><td>${esc(g.manufacturer||'—')}</td><td>${g.slot!=null?'Slot '+g.slot:'—'}</td><td><span class="sdot ${sdot(g.health)}"></span>${g.health||'—'}</td></tr>`).join('');
+    parts.push(secH(t('d.gpu'),`<table><thead><tr><th>${t('d.name')}</th><th>${t('d.gpu_mfr')}</th><th>${t('d.gpu_slot')}</th><th>${t('t.health')}</th></tr></thead><tbody>${rows}</tbody></table>`,worstHealth(items)));
+  }
+
+  // ── ⑤ 存储 ────────────────────────────────────────────────────
+  if((s.storage||[]).length){
+    const items=sortByHealth(s.storage);
+    const rows=items.map(c=>`<tr><td>${esc(c.name)}</td><td>${c.drives_count??'—'}</td><td><span class="sdot ${sdot(c.health)}"></span>${c.health||'—'}</td></tr>`).join('');
+    parts.push(secH(t('d.storage'),`<table><thead><tr><th>${t('d.name')}</th><th>${t('d.drives')}</th><th>${t('t.health')}</th></tr></thead><tbody>${rows}</tbody></table>`,worstHealth(items)));
+  }
+
+  // ── 分隔线 ──────────────────────────────────────────────────────
+  parts.push(`<div style="border-top:2px dashed var(--bd);margin:6px 0 16px;opacity:.5"></div>`);
+
+  // ── ⑥ 风扇 ────────────────────────────────────────────────────
+  if((s.fans||[]).length){
+    const items=sortByHealth(s.fans);
+    const rows=items.map(f=>`<tr><td>${esc(f.name)}</td><td>${f.reading!=null?f.reading+' '+(f.reading_units||'RPM'):'—'}</td><td><span class="sdot ${sdot(f.health)}"></span>${f.health||'—'}</td></tr>`).join('');
+    parts.push(secH(t('d.fans'),`<table><thead><tr><th>${t('d.name')}</th><th>${t('d.speed')}</th><th>${t('t.health')}</th></tr></thead><tbody>${rows}</tbody></table>`,worstHealth(items)));
+  }
+
+  // ── ⑦ 温度 ────────────────────────────────────────────────────
+  if((s.temperatures||[]).length){
+    const items=sortByHealth(s.temperatures);
+    const rows=items.map(tp=>`<tr><td>${esc(tp.name)}</td><td style="font-weight:600;color:${tCol(tp.health)}">${tp.reading_celsius} °C</td><td>${tp.upper_caution!=null?tp.upper_caution+' °C':'—'}</td><td>${tp.upper_critical!=null?tp.upper_critical+' °C':'—'}</td><td><span class="sdot ${sdot(tp.health)}"></span>${tp.health||'OK'}</td></tr>`).join('');
+    parts.push(secH(t('d.temp'),`<table><thead><tr><th>${t('d.sensor')}</th><th>${t('d.current')}</th><th>${t('d.warn')}</th><th>${t('d.crit')}</th><th>${t('t.health')}</th></tr></thead><tbody>${rows}</tbody></table>`,worstHealth(items)));
+  }
+
+  // ── ⑧ 电源模块 ────────────────────────────────────────────────
+  if((s.power_supplies||[]).length){
+    const items=sortByHealth(s.power_supplies);
+    const rows=items.map(p=>`<tr><td>${esc(p.name)}</td><td>${esc(p.model||'—')}</td><td>${p.line_input_voltage!=null?p.line_input_voltage+' V':'—'}</td><td>${p.power_output_watts!=null?p.power_output_watts+' W':'—'}</td><td><span class="sdot ${sdot(p.health)}"></span>${p.health||'—'}</td></tr>`).join('');
+    parts.push(secH(t('d.psus'),`<table><thead><tr><th>${t('d.name')}</th><th>${t('d.model')}</th><th>${t('d.input_v')}</th><th>${t('d.output_w')}</th><th>${t('t.health')}</th></tr></thead><tbody>${rows}</tbody></table>`,worstHealth(items)));
+  }
 
   // 电源控制（管理员）
   if(currentUser?.role==='admin'){
@@ -3362,8 +3423,8 @@ async function loadSubscription(){
 
 function updateSubBadge(){
   const badge = $('sub-badge');
-  if(!badge) return;
-  badge.style.display = '';
+  if(badge) badge.style.display = 'none';   // 会员按钮已隐藏
+  return;
   const s = _subInfo;
   if(!s){ badge.style.display='none'; return; }
   badge.className = 'sub-badge ';
