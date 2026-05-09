@@ -42,7 +42,7 @@ from datetime import datetime
 import urllib.parse
 import platform as _platform
 
-from fastapi import FastAPI, BackgroundTasks, Request, Depends, HTTPException, UploadFile, File
+from fastapi import FastAPI, BackgroundTasks, Request, Depends, HTTPException, UploadFile, File, WebSocket, WebSocketDisconnect
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -3389,6 +3389,175 @@ async def api_system_restart(bg: BackgroundTasks, admin: dict = Depends(require_
         _sp.run(["sudo", "systemctl", "restart", "servermanager"], timeout=10)
     bg.add_task(_do)
     return {"ok": True, "msg": "服务将在 1 秒后重启"}
+
+# ═══════════════════════════════════════════════════════════════════
+# BMC 反向代理（HTTP + WebSocket，供外网访问 KVM 控制台）
+# ═══════════════════════════════════════════════════════════════════
+
+def _bmc_proxy_auth(bmc_ip: str) -> aiohttp.BasicAuth:
+    mc = load_machine_creds().get(bmc_ip, {})
+    s  = load_settings()
+    return aiohttp.BasicAuth(mc.get("username") or s.get("username", ""),
+                             mc.get("password") or s.get("password", ""))
+
+def _rewrite_bmc_urls(content: bytes, content_type: str,
+                      bmc_ip: str, bmc_ip_enc: str,
+                      public_host: str, scheme: str) -> bytes:
+    """将响应体中的 BMC 内网 URL 替换为 Server Manager 代理路径。"""
+    if not any(t in content_type for t in ("text/html", "text/css",
+                                            "application/javascript", "text/javascript",
+                                            "application/json")):
+        return content
+    try:
+        text = content.decode("utf-8", errors="replace")
+    except Exception:
+        return content
+
+    http_proxy = f"/bmc/{bmc_ip_enc}"
+    ws_proxy   = f"{scheme.replace('http','ws')}://{public_host}/bmc-ws/{bmc_ip_enc}"
+
+    # WebSocket URL 替换（wss:// / ws://）
+    for ws_prot in ("wss", "ws"):
+        text = text.replace(f"{ws_prot}://{bmc_ip}/", f"{ws_proxy}/")
+        text = text.replace(f"{ws_prot}://{bmc_ip}:", f"{ws_proxy}:")
+
+    # HTTP(S) URL 替换
+    for prot in ("https", "http"):
+        text = text.replace(f"{prot}://{bmc_ip}/", f"{http_proxy}/")
+        text = text.replace(f'"{prot}://{bmc_ip}"', f'"{http_proxy}"')
+        text = text.replace(f"'{prot}://{bmc_ip}'", f"'{http_proxy}'")
+
+    # 绝对路径属性替换（href="/  src="/ 等）
+    for attr in ("href", "src", "action", "data-url", "content"):
+        text = re.sub(rf'({attr}=["\'])/', rf'\g<1>{http_proxy}/', text)
+
+    return text.encode("utf-8")
+
+_HOP_HEADERS = frozenset((
+    "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
+    "te", "trailers", "transfer-encoding", "upgrade", "content-encoding",
+    "content-length",
+))
+
+@app.api_route("/bmc/{bmc_ip_enc}/{path:path}",
+               methods=["GET","POST","PUT","DELETE","OPTIONS","HEAD","PATCH"])
+async def bmc_http_proxy(bmc_ip_enc: str, path: str,
+                          request: Request,
+                          user: dict = Depends(get_current_user)):
+    """HTTP 反向代理：将请求转发至 BMC，重写响应中的内网 URL。"""
+    bmc_ip = bmc_ip_enc.replace("-", ".")
+    settings = load_settings()
+    all_ips  = parse_ip_ranges(settings.get("ip_ranges", ""))
+    if bmc_ip not in all_ips:
+        raise HTTPException(403, f"{bmc_ip} 未在 IP 范围中配置")
+
+    qs  = ("?" + str(request.query_params)) if request.query_params else ""
+    url = f"https://{bmc_ip}/{path}{qs}"
+    fwd_proto = request.headers.get("x-forwarded-proto", "https")
+    fwd_host  = request.headers.get("x-forwarded-host", request.headers.get("host", ""))
+
+    # 转发请求头（过滤逐跳头，修正 Host）
+    headers = {k: v for k, v in request.headers.items()
+               if k.lower() not in _HOP_HEADERS | {"host"}}
+    headers["host"] = bmc_ip
+
+    body = await request.body()
+    ctx  = _ssl_ctx()
+
+    try:
+        async with aiohttp.ClientSession(
+            auth=_bmc_proxy_auth(bmc_ip),
+            connector=aiohttp.TCPConnector(ssl=ctx),
+        ) as sess:
+            async with sess.request(
+                method   = request.method,
+                url      = url,
+                headers  = headers,
+                data     = body or None,
+                allow_redirects = False,
+                timeout  = aiohttp.ClientTimeout(total=30),
+            ) as resp:
+                ct      = resp.headers.get("content-type", "")
+                content = await resp.read()
+                content = _rewrite_bmc_urls(content, ct, bmc_ip, bmc_ip_enc,
+                                            fwd_host, fwd_proto)
+
+                # 重写 Location 重定向头
+                out_headers: dict = {}
+                for k, v in resp.headers.items():
+                    if k.lower() in _HOP_HEADERS:
+                        continue
+                    if k.lower() == "location":
+                        v = v.replace(f"https://{bmc_ip}", f"/bmc/{bmc_ip_enc}")
+                        v = v.replace(f"http://{bmc_ip}",  f"/bmc/{bmc_ip_enc}")
+                    out_headers[k] = v
+
+                from fastapi.responses import Response as _Resp
+                return _Resp(content=content, status_code=resp.status,
+                             headers=out_headers, media_type=ct)
+    except aiohttp.ClientError as e:
+        raise HTTPException(502, f"BMC 连接失败：{e}")
+
+@app.websocket("/bmc-ws/{bmc_ip_enc}/{path:path}")
+async def bmc_ws_proxy(ws_client: WebSocket, bmc_ip_enc: str, path: str,
+                        token: str = ""):
+    """WebSocket 反向代理：桥接浏览器与 BMC KVM 的 WebSocket 连接。"""
+    # WebSocket 无法带 Authorization 头，通过 query param token 鉴权
+    sess = get_session(token) if token else None
+    if not sess:
+        await ws_client.close(1008)
+        return
+
+    bmc_ip   = bmc_ip_enc.replace("-", ".")
+    settings = load_settings()
+    all_ips  = parse_ip_ranges(settings.get("ip_ranges", ""))
+    if bmc_ip not in all_ips:
+        await ws_client.close(1008)
+        return
+
+    # 接受浏览器的 WebSocket（透传子协议）
+    subprotocols = ws_client.headers.get("sec-websocket-protocol", "")
+    await ws_client.accept(subprotocol=subprotocols.split(",")[0].strip() if subprotocols else None)
+
+    ctx = _ssl_ctx()
+    try:
+        async with aiohttp.ClientSession(
+            auth=_bmc_proxy_auth(bmc_ip),
+            connector=aiohttp.TCPConnector(ssl=ctx),
+        ) as http_sess:
+            ws_url = f"wss://{bmc_ip}/{path}"
+            async with http_sess.ws_connect(
+                ws_url,
+                timeout=aiohttp.ClientTimeout(total=3600),
+                heartbeat=30,
+            ) as ws_bmc:
+                async def c2b():
+                    try:
+                        async for msg in ws_client.iter_bytes():
+                            await ws_bmc.send_bytes(msg)
+                    except (WebSocketDisconnect, Exception):
+                        pass
+
+                async def b2c():
+                    try:
+                        async for msg in ws_bmc:
+                            if msg.type == aiohttp.WSMsgType.BINARY:
+                                await ws_client.send_bytes(msg.data)
+                            elif msg.type == aiohttp.WSMsgType.TEXT:
+                                await ws_client.send_text(msg.data)
+                            elif msg.type in (aiohttp.WSMsgType.CLOSE, aiohttp.WSMsgType.ERROR):
+                                break
+                    except (WebSocketDisconnect, Exception):
+                        pass
+
+                await asyncio.gather(c2b(), b2c())
+    except Exception:
+        pass
+    finally:
+        try:
+            await ws_client.close()
+        except Exception:
+            pass
 
 if __name__ == "__main__":
     import uvicorn

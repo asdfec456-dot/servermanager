@@ -643,8 +643,8 @@ tr:hover td{background:var(--sf2)}
     </label>
     <div style="margin-top:10px">
       <label style="font-size:.72rem;color:var(--tx2);display:block;margin-bottom:4px">KVM URL 模板（外网访问时使用，留空则直接用 BMC IP）</label>
-      <input class="inp" id="cfg-kvm-template" placeholder="例：https://kvm.example.com/{last_octet}/ 或 https://{ip}:5900/" style="font-size:.8rem">
-      <div style="font-size:.66rem;color:var(--tx3);margin-top:3px">占位符：{ip} 完整 IP · {last_octet} 最后一段 · {octet1~3} 各段</div>
+      <input class="inp" id="cfg-kvm-template" placeholder="留空 = 使用内置反代（推荐），或填写自定义 URL 模板" style="font-size:.8rem">
+      <div style="font-size:.66rem;color:var(--tx3);margin-top:3px">留空时自动通过 Server Manager 反代访问 BMC（内外网均可）。自定义时支持：{ip} 完整 IP · {last_octet} 末段 · {octet1~3} 各段</div>
     </div>
     <div style="margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <button class="btn" id="btn-try-global" onclick="tryGlobalCreds()" type="button" style="font-size:.76rem">🔍 <span id="lbl-try-global">尝试常用密码</span></button>
@@ -1658,19 +1658,32 @@ function fanSum(s){const f=s.fans||[],b=f.filter(x=>x.health!=='OK').length;retu
 function psuSum(s){const p=s.power_supplies||[],b=p.filter(x=>x.health!=='OK').length;return p.length===0?'—':b>0?`${b}${t('c.anomaly')}`:`${p.length}${t('c.normal')}`;}
 function fanCls(s){const f=s.fans||[];if(f.some(x=>x.health==='Critical'))return'mv-crit';if(f.some(x=>x.health==='Warning'))return'mv-warn';return'mv-ok';}
 function sdot(h){return{OK:'s-ok',Warning:'s-warn',Critical:'s-crit'}[h]||'s-unk';}
+function kvmProxyBase(bmc_ip){
+  // 通过 Server Manager 反代路径（内外网都能用）
+  const enc=bmc_ip.replace(/\./g,'-');
+  return `/bmc/${enc}`;
+}
 function kvmUrl(bmc_ip, manufacturer, customUrl){
-  if(customUrl) return customUrl;   // 优先使用自定义/模板 URL
+  if(customUrl) return customUrl;   // 优先使用管理员配置的自定义 URL
+  // 默认走 Server Manager 内置反代
+  const base=kvmProxyBase(bmc_ip);
   const m=(manufacturer||'').toUpperCase();
-  if(m.includes('HP')||m.includes('HEWLETT'))  return`https://${bmc_ip}/ui/#/console/graphical`;
-  if(m.includes('DELL'))                        return`https://${bmc_ip}/console`;
-  if(m.includes('SUPERMICRO'))                  return`https://${bmc_ip}/html5/?KVM`;
-  if(m.includes('LENOVO')||m.includes('IBM'))   return`https://${bmc_ip}/designs/imm/index.php`;
-  return`https://${bmc_ip}/`;
+  if(m.includes('HP')||m.includes('HEWLETT'))  return`${base}/ui/#/console/graphical`;
+  if(m.includes('DELL'))                        return`${base}/console`;
+  if(m.includes('SUPERMICRO'))                  return`${base}/html5/?KVM`;
+  if(m.includes('LENOVO')||m.includes('IBM'))   return`${base}/designs/imm/index.php`;
+  return`${base}/`;   // 通用：BMC 根页面
 }
 function openKvm(e,bmc_ip,manufacturer,customUrl){
   e.stopPropagation();
   e.preventDefault();
-  window.open(kvmUrl(bmc_ip,manufacturer,customUrl||''),'_blank','noopener');
+  // 注入 token 以便 WebSocket 代理鉴权
+  const url=kvmUrl(bmc_ip,manufacturer,customUrl||'');
+  const sep=url.includes('?')?'&':'?';
+  const finalUrl=url.includes('#')
+    ?url.replace('#',`${sep}sm_token=${token}#`)
+    :url+(token?`${sep}sm_token=${token}`:'');
+  window.open(finalUrl,'_blank','noopener');
 }
 function hbadge(s){
   if(s.status==='offline')     return['hb-unk',  t('h.offline')];
