@@ -3439,19 +3439,44 @@ _HOP_HEADERS = frozenset((
     "content-length",
 ))
 
+def _proxy_auth(request: Request) -> Optional[dict]:
+    """代理鉴权：Authorization 头 → sm_token 参数 → sm_proxy Cookie，任一有效即通过。"""
+    # 1. Authorization header（API 直接调用时）
+    auth = request.headers.get("authorization", "")
+    if auth.startswith("Bearer "):
+        s = get_session(auth[7:])
+        if s: return s
+    # 2. sm_token query param（KVM 按钮首次打开新标签时）
+    t = request.query_params.get("sm_token", "")
+    if t:
+        s = get_session(t)
+        if s: return s
+    # 3. sm_proxy cookie（后续页面/资源请求）
+    c = request.cookies.get("sm_proxy", "")
+    if c:
+        s = get_session(c)
+        if s: return s
+    return None
+
 @app.api_route("/bmc/{bmc_ip_enc}/{path:path}",
                methods=["GET","POST","PUT","DELETE","OPTIONS","HEAD","PATCH"])
-async def bmc_http_proxy(bmc_ip_enc: str, path: str,
-                          request: Request,
-                          user: dict = Depends(get_current_user)):
+async def bmc_http_proxy(bmc_ip_enc: str, path: str, request: Request):
     """HTTP 反向代理：将请求转发至 BMC，重写响应中的内网 URL。"""
+    user = _proxy_auth(request)
+    if not user:
+        from fastapi.responses import HTMLResponse as _HTML
+        return _HTML("<h2>请先在 Server Manager 登录后再点击 KVM 按钮</h2>", status_code=401)
+
     bmc_ip = bmc_ip_enc.replace("-", ".")
     settings = load_settings()
     all_ips  = parse_ip_ranges(settings.get("ip_ranges", ""))
     if bmc_ip not in all_ips:
         raise HTTPException(403, f"{bmc_ip} 未在 IP 范围中配置")
 
-    qs  = ("?" + str(request.query_params)) if request.query_params else ""
+    # 去除 sm_token，不转发给 BMC
+    import urllib.parse as _up
+    fwd_params = {k: v for k, v in request.query_params.items() if k != "sm_token"}
+    qs  = ("?" + _up.urlencode(fwd_params)) if fwd_params else ""
     url = f"https://{bmc_ip}/{path}{qs}"
     fwd_proto = request.headers.get("x-forwarded-proto", "https")
     fwd_host  = request.headers.get("x-forwarded-host", request.headers.get("host", ""))
@@ -3493,17 +3518,28 @@ async def bmc_http_proxy(bmc_ip_enc: str, path: str,
                     out_headers[k] = v
 
                 from fastapi.responses import Response as _Resp
-                return _Resp(content=content, status_code=resp.status,
-                             headers=out_headers, media_type=ct)
+                response = _Resp(content=content, status_code=resp.status,
+                                 headers=out_headers, media_type=ct)
+                # 首次携带 sm_token 时设置 Cookie，后续请求靠 Cookie 鉴权
+                sm_token = request.query_params.get("sm_token", "")
+                if sm_token:
+                    response.set_cookie("sm_proxy", sm_token,
+                                        httponly=True, samesite="lax",
+                                        max_age=86400, secure=False)
+                return response
     except aiohttp.ClientError as e:
         raise HTTPException(502, f"BMC 连接失败：{e}")
 
 @app.websocket("/bmc-ws/{bmc_ip_enc}/{path:path}")
 async def bmc_ws_proxy(ws_client: WebSocket, bmc_ip_enc: str, path: str,
-                        token: str = ""):
+                        sm_token: str = ""):
     """WebSocket 反向代理：桥接浏览器与 BMC KVM 的 WebSocket 连接。"""
-    # WebSocket 无法带 Authorization 头，通过 query param token 鉴权
-    sess = get_session(token) if token else None
+    # WebSocket 无法带 Authorization 头，优先 sm_token 参数，其次 sm_proxy Cookie
+    sess = get_session(sm_token) if sm_token else None
+    if not sess:
+        cookie_t = ws_client.cookies.get("sm_proxy", "")
+        if cookie_t:
+            sess = get_session(cookie_t)
     if not sess:
         await ws_client.close(1008)
         return
