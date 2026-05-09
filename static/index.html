@@ -907,8 +907,8 @@ tr:hover td{background:var(--sf2)}
     </div>
     <!-- 操作按钮 -->
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
-      <button class="btn btn-acc" onclick="loadNginxConfig()" style="border:none">生成配置</button>
-      <button class="btn" onclick="applyNginxConfig()" id="btn-nginx-apply">写入 nginx 并重载</button>
+      <button class="btn btn-acc" onclick="loadNginxConfig()" style="border:none">① 生成配置</button>
+      <button class="btn" onclick="applyNginxConfig()" id="btn-nginx-apply">② 获取安装命令</button>
       <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;cursor:pointer;margin-left:8px">
         <input type="checkbox" id="nginx-kvm-enable" onchange="_kvmNginxEnabled=this.checked;renderGrid()"
                style="width:14px;height:14px;accent-color:var(--acc)">
@@ -921,12 +921,12 @@ tr:hover td{background:var(--sf2)}
     <textarea id="nginx-config-text" class="inp" readonly
       style="width:100%;min-height:260px;font-family:monospace;font-size:.74rem;resize:vertical;background:var(--sf2)"
       placeholder="点击「生成配置」按钮..."></textarea>
-    <div style="font-size:.7rem;color:var(--tx3);margin-top:8px;line-height:1.7">
-      <b>手动配置步骤：</b>
-      1. 复制上方配置内容<br>
-      2. 粘贴到 <code>/etc/nginx/sites-enabled/servermanager</code> 的 <code>server { }</code> 块内<br>
-      3. 运行 <code>sudo nginx -t && sudo systemctl reload nginx</code><br>
-      4. 勾选「KVM 按钮使用 nginx 代理路径」
+    <div style="font-size:.7rem;color:var(--tx3);margin-top:8px;line-height:1.8">
+      <b>使用步骤：</b><br>
+      1. 点「生成配置」查看 nginx location 配置块<br>
+      2. 点「获取安装命令」— 配置保存到 Server Manager 数据目录，并显示 shell 命令<br>
+      3. 用 SSH 连接服务器，复制并执行显示的命令（安装 nginx + 应用配置）<br>
+      4. 命令执行成功后，勾选「KVM 按钮使用 nginx 代理路径」
     </div>
   </div>
 </div>
@@ -2731,15 +2731,22 @@ async function loadNginxConfig(){
   else{if(st){st.style.color='var(--crit)';st.textContent=d.detail||'生成失败';}}
 }
 async function applyNginxConfig(){
-  if(!confirm('将自动写入 /etc/nginx/conf.d/bmc-proxy.conf 并执行 nginx -t && systemctl reload nginx，确认继续？'))return;
   const st=$('nginx-status'), btn=$('btn-nginx-apply');
-  btn.disabled=true; st.style.color='var(--tx2)'; st.textContent='写入中...';
+  btn.disabled=true; st.style.color='var(--tx2)'; st.textContent='处理中...';
   const r=await api('POST','/api/nginx/apply-bmc-proxy',{});
   btn.disabled=false;
   if(!r){st.style.color='var(--crit)';st.textContent='请求失败';return;}
   const d=await r.json();
-  if(r.ok){st.style.color='var(--ok)';st.textContent=`✓ 已写入 ${d.path} 并重载 nginx`;}
-  else{st.style.color='var(--crit)';st.textContent=d.detail||'操作失败';}
+  if(d.ok){
+    st.style.color='var(--ok)';
+    st.textContent=`✓ 配置已保存至 ${d.saved_path}`;
+    // Show commands in textarea
+    const ta=$('nginx-config-text');
+    const notice=d.nginx_installed?'# nginx 已安装，执行以下命令应用配置：\n':'# nginx 未安装，请先安装再应用配置：\n';
+    if(ta) ta.value=notice+d.steps.join('\n')+'\n\n'+ta.value;
+  } else {
+    st.style.color='var(--crit)';st.textContent=d.detail||'操作失败';
+  }
 }
 
 /* ── 卡片显示设置 ───────────────────────────────────────────── */

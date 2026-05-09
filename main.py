@@ -3439,19 +3439,36 @@ async def api_nginx_bmc_config(admin: dict = Depends(require_admin)):
 
 @app.post("/api/nginx/apply-bmc-proxy")
 async def api_nginx_apply(admin: dict = Depends(require_admin)):
-    """将 BMC 反代配置写入 nginx 并重载（需要服务器上已安装 nginx 并有 sudo 权限）。"""
+    """保存 BMC 反代配置到数据目录，并返回手动执行步骤。"""
     data = await api_nginx_bmc_config(admin)
     cfg_text = data["config"]
-    import subprocess as _sp
-    try:
-        tmp = Path("/tmp/sm_bmc_proxy.conf")
-        tmp.write_text(cfg_text)
-        _sp.run(["sudo", "cp", str(tmp), str(NGINX_CONF_FILE)], check=True, timeout=5)
-        _sp.run(["sudo", "nginx", "-t"], check=True, timeout=10)
-        _sp.run(["sudo", "systemctl", "reload", "nginx"], check=True, timeout=10)
-        return {"ok": True, "path": str(NGINX_CONF_FILE)}
-    except Exception as e:
-        raise HTTPException(500, f"写入/重载 nginx 失败：{e}")
+
+    DATA_DIR.mkdir(exist_ok=True)
+    save_path = DATA_DIR / "nginx-bmc-proxy.conf"
+    save_path.write_text(cfg_text)
+
+    import shutil as _sh
+    nginx_installed = _sh.which("nginx") is not None
+    dest = "/etc/nginx/conf.d/bmc-proxy.conf"
+
+    if nginx_installed:
+        steps = [
+            f"sudo cp {save_path} {dest}",
+            "sudo nginx -t && sudo systemctl reload nginx",
+        ]
+    else:
+        steps = [
+            "sudo apt update && sudo apt install -y nginx",
+            f"sudo cp {save_path} {dest}",
+            "sudo nginx -t && sudo systemctl reload nginx",
+        ]
+
+    return {
+        "ok": True,
+        "saved_path": str(save_path),
+        "nginx_installed": nginx_installed,
+        "steps": steps,
+    }
 
 
 if __name__ == "__main__":
