@@ -3427,9 +3427,11 @@ def _rewrite_bmc_urls(content: bytes, content_type: str,
         text = text.replace(f'"{prot}://{bmc_ip}"', f'"{http_proxy}"')
         text = text.replace(f"'{prot}://{bmc_ip}'", f"'{http_proxy}'")
 
-    # HTML 属性绝对路径替换（包含 RequireJS 的 data-main 等所有 data-* 属性）
+    # HTML 属性绝对路径替换
+    # 注意：data-main 不重写 — RequireJS bundle 里模块以原始路径注册，
+    #       重写后模块 ID 不匹配，导致 RequireJS 从服务器重新 fetch → 404 → 崩溃
     for attr in ("href", "src", "action", "data-url", "content", "poster",
-                 "data", "data-main", "data-src", "data-href"):
+                 "data", "data-src", "data-href"):
         text = re.sub(rf'({attr}=["\'])/', rf'\g<1>{http_proxy}/', text)
 
     # CSS url() 里的绝对路径
@@ -3446,14 +3448,29 @@ def _rewrite_bmc_urls(content: bytes, content_type: str,
         inject_base = f'<base href="{http_proxy}/">'
         inject_js = (
             f'<script>!function(){{var p="{http_proxy}";'
-            r'function r(u){return u&&"string"==typeof u&&u[0]==="/"&&u[1]!=="/"?p+u:u}'
-            r'var F=window.fetch;if(F)window.fetch=function(u,o){return F.call(this,r(u),o)};'
+            # r(u): rewrite absolute paths (starting with /) but not module IDs already
+            # containing the proxy prefix and not protocol-relative URLs
+            r'function r(u){if(!u||typeof u!=="string")return u;'
+            r'if(u.indexOf("//")===0||/^https?:\/\//.test(u))return u;'
+            r'if(u[0]==="/"&&u.indexOf(p)!==0)return p+u;return u}'
+            # Override fetch
+            r'var F=window.fetch;if(F)window.fetch=function(u,o){return F.call(this,typeof u==="string"?r(u):u,o)};'
+            # Override XHR
             r'var X=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(){arguments[1]=r(arguments[1]);return X.apply(this,arguments)};'
+            # Override document.createElement to catch dynamically injected <script>/<link>
+            r'var CE=document.createElement.bind(document);'
+            r'document.createElement=function(t){'
+            r'var e=CE(t);var tl=t.toLowerCase();'
+            r'if(tl==="script"){var ds=Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype,"src");'
+            r'if(ds)Object.defineProperty(e,"src",{set:function(v){ds.set.call(this,r(v))},get:function(){return ds.get.call(this)}});}'
+            r'if(tl==="link"){var dl=Object.getOwnPropertyDescriptor(HTMLLinkElement.prototype,"href");'
+            r'if(dl)Object.defineProperty(e,"href",{set:function(v){dl.set.call(this,r(v))},get:function(){return dl.get.call(this)}});}'
+            r'return e};'
+            # jQuery AJAX prefilter (on DOMContentLoaded)
             r'document.addEventListener("DOMContentLoaded",function(){'
-            r'if(window.$&&window.$.ajaxPrefilter)window.$.ajaxPrefilter(function(o){o.url=r(o.url)});'
-            r'if(window.jQuery&&window.jQuery.ajaxPrefilter)window.jQuery.ajaxPrefilter(function(o){o.url=r(o.url)});'
-            r'})}'
-            r'();</script>'
+            r'["$","jQuery"].forEach(function(k){if(window[k]&&window[k].ajaxPrefilter)'
+            r'window[k].ajaxPrefilter(function(o){o.url=r(o.url)})});'
+            r'})}();</script>'
         )
         # 去掉已有 <base> 标签（避免冲突）
         text = re.sub(r'<base[^>]+>', '', text, flags=re.I)
