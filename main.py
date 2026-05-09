@@ -3427,9 +3427,19 @@ def _rewrite_bmc_urls(content: bytes, content_type: str,
         text = text.replace(f'"{prot}://{bmc_ip}"', f'"{http_proxy}"')
         text = text.replace(f"'{prot}://{bmc_ip}'", f"'{http_proxy}'")
 
-    # 绝对路径属性替换（href="/  src="/ 等）
-    for attr in ("href", "src", "action", "data-url", "content"):
+    # HTML 属性绝对路径替换（href="/ src="/ action="/ 等）
+    for attr in ("href", "src", "action", "data-url", "content", "poster", "data"):
         text = re.sub(rf'({attr}=["\'])/', rf'\g<1>{http_proxy}/', text)
+
+    # CSS url() 里的绝对路径（background-image: url('/...')）
+    text = re.sub(r'(url\(["\']?)/', rf'\g<1>{http_proxy}/', text)
+
+    # JS 里常见的绝对路径字符串（fetch('/api/...')、axios.get('/...')）
+    text = re.sub(r'((?:fetch|axios\.get|axios\.post|XMLHttpRequest|open)\s*\(["\'])/',
+                  rf'\g<1>{http_proxy}/', text)
+
+    # 替换 window.location / location.origin 拼接的路径
+    text = text.replace("window.location.origin", f'"{http_proxy}"')
 
     return text.encode("utf-8")
 
@@ -3481,15 +3491,14 @@ async def bmc_http_proxy(bmc_ip_enc: str, path: str, request: Request):
     fwd_proto = request.headers.get("x-forwarded-proto", "https")
     fwd_host  = request.headers.get("x-forwarded-host", request.headers.get("host", ""))
 
-    # 转发请求头（过滤逐跳头、SM 专用 cookie、修正 Host）
-    _SM_COOKIES = frozenset(("sm_proxy",))   # 不转发给 BMC 的 SM 专用 cookie
+    # 转发请求头（过滤逐跳头、SM 专用 cookie、修正 Host/Origin/Referer）
+    _SM_COOKIES = frozenset(("sm_proxy",))
     headers = {}
     for k, v in request.headers.items():
         kl = k.lower()
         if kl in _HOP_HEADERS | {"host"}:
             continue
         if kl == "cookie":
-            # 过滤掉 sm_* cookie，只把真正的 BMC session cookie 转发
             filtered = "; ".join(
                 c for c in v.split(";")
                 if not any(c.strip().startswith(s) for s in _SM_COOKIES)
@@ -3497,10 +3506,20 @@ async def bmc_http_proxy(bmc_ip_enc: str, path: str, request: Request):
             if filtered.strip():
                 headers["cookie"] = filtered
             continue
+        # 关键修复：将 Origin/Referer 改写为 BMC 域名，否则 BMC 的 CSRF 防护会拒绝登录请求
+        if kl == "origin":
+            headers["origin"] = f"https://{bmc_ip}"
+            continue
+        if kl == "referer":
+            # 把 https://sm-domain/bmc/ip-enc/... → https://bmc_ip/...
+            v = re.sub(
+                rf'https?://{re.escape(fwd_host)}/bmc/{re.escape(bmc_ip_enc)}',
+                f'https://{bmc_ip}', v)
+            v = re.sub(rf'https?://{re.escape(fwd_host)}', f'https://{bmc_ip}', v)
+            headers["referer"] = v
+            continue
         headers[k] = v
     headers["host"] = bmc_ip
-    # 不注入 BasicAuth：让 BMC 自己决定鉴权方式（Web UI 通常用 Session Cookie，
-    # 若 BMC 需要 BasicAuth，用户可在 BMC 自己的登录页完成认证）
 
     body = await request.body()
     ctx  = _ssl_ctx()
@@ -3520,20 +3539,26 @@ async def bmc_http_proxy(bmc_ip_enc: str, path: str, request: Request):
                 content = _rewrite_bmc_urls(content, ct, bmc_ip, bmc_ip_enc,
                                             fwd_host, fwd_proto)
 
-                # 构建响应头，处理 Set-Cookie 和 Location
+                # 需要剥离的安全响应头（会阻止代理页面正常工作）
+                _STRIP_RESP = frozenset((
+                    "content-security-policy",
+                    "content-security-policy-report-only",
+                    "x-frame-options",
+                    "x-xss-protection",
+                ))
+                # 构建响应头，处理 Set-Cookie / Location / 安全头
                 out_headers: dict = {}
                 set_cookies: list = []
                 for k, v in resp.headers.items():
                     kl = k.lower()
-                    if kl in _HOP_HEADERS:
-                        continue
+                    if kl in _HOP_HEADERS | _STRIP_RESP:
+                        continue   # 逐跳头 & 会干扰代理的安全头一律去掉
                     if kl == "location":
                         v = v.replace(f"https://{bmc_ip}", f"/bmc/{bmc_ip_enc}")
                         v = v.replace(f"http://{bmc_ip}",  f"/bmc/{bmc_ip_enc}")
                         out_headers[k] = v
                     elif kl == "set-cookie":
-                        # 去掉 domain= 属性，让浏览器用当前域（SM 域）存储，
-                        # 下次请求时会自动携带，代理再转发给 BMC
+                        # 去掉 domain= 让浏览器用当前域（SM 域）存储
                         v = re.sub(r';\s*[Dd]omain=[^;,]+', '', v)
                         set_cookies.append(v)
                     else:
