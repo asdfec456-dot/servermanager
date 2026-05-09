@@ -115,6 +115,9 @@ main{padding:16px;min-height:60vh}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-items:start}
 .grid-wide{display:grid;grid-template-columns:repeat(auto-fill,minmax(460px,1fr));gap:13px;align-items:start}
 .card{position:relative;background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .15s}
+/* KVM 按钮 */
+.kvm-btn{display:inline-flex;align-items:center;gap:2px;padding:2px 7px;border-radius:4px;border:1px solid var(--bd);background:transparent;color:var(--tx3);font-size:.6rem;font-weight:600;cursor:pointer;transition:all .15s;letter-spacing:.03em;line-height:1.5}
+.kvm-btn:hover{border-color:var(--acc);color:var(--acc);background:rgba(56,189,248,.08)}
 /* 右侧温度计 */
 .card-thermo{position:absolute;right:0;top:0;bottom:0;width:5px;background:rgba(128,128,128,.08)}
 .card-thermo-fill{position:absolute;bottom:0;left:0;right:0;transition:height .6s ease;border-radius:0 0 2px 0}
@@ -1025,7 +1028,7 @@ tr:hover td{background:var(--sf2)}
 <div class="modal modal-wide">
   <div class="modal-hdr">
     <div><div class="modal-title" id="det-title"></div><div class="modal-sub" id="det-sub"></div></div>
-    <div style="display:flex;align-items:center;gap:7px"><span id="det-badge"></span><button class="mclose" onclick="closeOverlay('ov-detail')">✕</button></div>
+    <div style="display:flex;align-items:center;gap:7px"><span id="det-badge"></span><span id="det-kvm"></span><button class="mclose" onclick="closeOverlay('ov-detail')">✕</button></div>
   </div>
   <div class="modal-body" id="det-body"></div>
 </div>
@@ -1650,6 +1653,18 @@ function fanSum(s){const f=s.fans||[],b=f.filter(x=>x.health!=='OK').length;retu
 function psuSum(s){const p=s.power_supplies||[],b=p.filter(x=>x.health!=='OK').length;return p.length===0?'—':b>0?`${b}${t('c.anomaly')}`:`${p.length}${t('c.normal')}`;}
 function fanCls(s){const f=s.fans||[];if(f.some(x=>x.health==='Critical'))return'mv-crit';if(f.some(x=>x.health==='Warning'))return'mv-warn';return'mv-ok';}
 function sdot(h){return{OK:'s-ok',Warning:'s-warn',Critical:'s-crit'}[h]||'s-unk';}
+function kvmUrl(bmc_ip,manufacturer){
+  const m=(manufacturer||'').toUpperCase();
+  if(m.includes('HP')||m.includes('HEWLETT'))  return`https://${bmc_ip}/ui/#/console/graphical`; // iLO 5/6
+  if(m.includes('DELL'))                        return`https://${bmc_ip}/console`;                // iDRAC
+  if(m.includes('SUPERMICRO'))                  return`https://${bmc_ip}/html5/?KVM`;
+  if(m.includes('LENOVO')||m.includes('IBM'))   return`https://${bmc_ip}/designs/imm/index.php`;
+  return`https://${bmc_ip}/`;   // 通用：打开 BMC 根页面，手动进入控制台
+}
+function openKvm(e,bmc_ip,manufacturer){
+  e.stopPropagation();   // 阻止触发卡片 openDetail
+  window.open(kvmUrl(bmc_ip,manufacturer),'_blank','noopener');
+}
 function hbadge(s){
   if(s.status==='offline')     return['hb-unk',  t('h.offline')];
   if(s.status==='auth_failed') return['hb-auth', t('h.auth_failed')];
@@ -1946,8 +1961,9 @@ ${note}
     cf.gpu&&gpus.length?`<div><div class="ml">GPU</div><div class="mv ${gpuCls}">${gpus.length}个 · ${gpuOk===gpus.length?t('c.normal'):gpuOk+'正常'}</div></div>`:'',
     wide&&procs.length&&!cf.gpu?`<div><div class="ml">CPU</div><div class="mv" style="font-size:.73rem;font-weight:400">${esc((procs[0].model||'').substring(0,30))}</div></div>`:'',
   ].filter(Boolean).join('');
+  const kvmBtn=`<button class="kvm-btn" onclick="openKvm(event,'${s.bmc_ip}',${JSON.stringify(s.manufacturer||'')})" title="${kvmUrl(s.bmc_ip,s.manufacturer||'')}">▶ KVM</button>`;
   return`<div class="card${newCls}" onclick="openDetail('${key}')" style="padding-right:${thermoHtml?'5px':'0'}">
-<div class="card-head"><div class="card-title"><div class="card-name">${esc(displayName)}${newBadge}${flapBadge}${proto}</div><div class="card-sub">${s.bmc_ip} · ${s.model||t('c.unknown_model')}</div></div><span class="hbadge ${hcls}">${hlbl}</span></div>
+<div class="card-head"><div class="card-title"><div class="card-name">${esc(displayName)}${newBadge}${flapBadge}${proto}</div><div class="card-sub">${s.bmc_ip} · ${s.model||t('c.unknown_model')}</div></div><div style="display:flex;align-items:center;gap:6px;flex-shrink:0">${kvmBtn}<span class="hbadge ${hcls}">${hlbl}</span></div></div>
 <div class="card-div"></div>
 <div class="card-metrics">${metricCells}</div>
 ${topT.length?`<div class="card-temps">${chips}</div>`:''}${scTags}${pbar}${err}
@@ -2265,6 +2281,8 @@ function openDetail(key){
   $('det-title').textContent=s.alias||s.name;
   $('det-sub').textContent=`BMC: ${s.bmc_ip}  ·  ${t('d.serial')}: ${s.serial||'—'}  ·  ${t('t.proto')}: ${s.protocol_used||'—'}`;
   $('det-badge').innerHTML=`<span class="hbadge ${hcls}">${hlbl}</span>`;
+  const kvmEl=$('det-kvm');
+  if(kvmEl) kvmEl.innerHTML=`<button class="kvm-btn" onclick="openKvm(event,'${s.bmc_ip}',${JSON.stringify(s.manufacturer||'')})" title="${kvmUrl(s.bmc_ip,s.manufacturer||'')}">▶ KVM</button>`;
   $('det-body').innerHTML=buildDetail(s);
   $('ov-detail').classList.add('open');document.body.style.overflow='hidden';
 }
