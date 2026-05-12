@@ -317,10 +317,21 @@ except: pass
   echo "    SSLProxyCheckPeerExpire off"
   echo "    RewriteEngine on"
   echo "    RewriteCond %{HTTP:Upgrade} websocket [NC]"
-  echo "    RewriteRule ^/bmc/([^/]+)/(.*)$ wss://\$1/\$2 [P,L]"
+  echo '    RewriteRule ^/bmc/([^/]+)/(.*)$ wss://$1/$2 [P,L]'
   for ip in $raw_ips; do
-    echo "    ProxyPass        /bmc/${ip}/ https://${ip}/"
-    echo "    ProxyPassReverse /bmc/${ip}/ https://${ip}/"
+    echo "    <Location /bmc/${ip}/>"
+    echo "        ProxyPass https://${ip}/"
+    echo "        ProxyPassReverse https://${ip}/"
+    echo "        RequestHeader unset Accept-Encoding"
+    echo "        Header always unset Content-Security-Policy"
+    echo "        Header always unset X-Frame-Options"
+    echo "        Header always unset X-Content-Type-Options"
+    echo "        AddOutputFilterByType SUBSTITUTE text/html text/css text/javascript application/javascript"
+    echo "        Substitute \"s|src=\\\"/(?!bmc/)|src=\\\"/bmc/${ip}/|ni\""
+    echo "        Substitute \"s|href=\\\"/(?!bmc/)|href=\\\"/bmc/${ip}/|ni\""
+    echo "        Substitute \"s|action=\\\"/(?!bmc/)|action=\\\"/bmc/${ip}/|ni\""
+    echo "        Substitute \"s|url\\\\(/(?!bmc/)|url(/bmc/${ip}/|ni\""
+    echo "    </Location>"
   done
   echo "    # ──────────────────────────────────────────────────────────────"
   echo ""
@@ -331,7 +342,7 @@ write_apache_conf(){
   local conf="/etc/apache2/sites-available/servermanager.conf"
 
   # 启用必要模块（含 WebSocket 和 SSL 代理）
-  sudo a2enmod proxy proxy_http proxy_wstunnel ssl headers rewrite 2>/dev/null | grep -v "already" || true
+  sudo a2enmod proxy proxy_http proxy_wstunnel ssl headers rewrite substitute 2>/dev/null | grep -v "already" || true
 
   # 若端口非 80/443，确保 apache 监听该端口
   if [[ "$proxy_port" != "80" && "$proxy_port" != "443" ]]; then

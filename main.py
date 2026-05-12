@@ -3391,82 +3391,82 @@ async def api_system_restart(bg: BackgroundTasks, admin: dict = Depends(require_
     return {"ok": True, "msg": "服务将在 1 秒后重启"}
 
 # ═══════════════════════════════════════════════════════════════════
-# Nginx 反代配置生成（用于外网访问 KVM 控制台）
+# Apache 反代配置生成（用于外网访问 KVM 控制台）
 # ═══════════════════════════════════════════════════════════════════
 
-NGINX_CONF_FILE = Path("/etc/nginx/conf.d/bmc-proxy.conf")
+def _gen_apache_location_blocks(ips: list[str]) -> str:
+    """为给定 IP 列表生成带 mod_substitute 路径重写的 Apache Location 块。"""
+    lines: list[str] = [
+        "    # ── BMC KVM 反向代理（mod_substitute 路径重写）────────────",
+        "    SSLProxyEngine on",
+        "    SSLProxyVerify none",
+        "    SSLProxyCheckPeerCN off",
+        "    SSLProxyCheckPeerName off",
+        "    SSLProxyCheckPeerExpire off",
+        "    RewriteEngine on",
+        "    RewriteCond %{HTTP:Upgrade} websocket [NC]",
+        r"    RewriteRule ^/bmc/([^/]+)/(.*)$ wss://$1/$2 [P,L]",
+        "",
+    ]
+    for ip in sorted(ips):
+        lines += [
+            f"    <Location /bmc/{ip}/>",
+            f"        ProxyPass https://{ip}/",
+            f"        ProxyPassReverse https://{ip}/",
+            "        RequestHeader unset Accept-Encoding",
+            "        Header always unset Content-Security-Policy",
+            "        Header always unset X-Frame-Options",
+            "        Header always unset X-Content-Type-Options",
+            "        AddOutputFilterByType SUBSTITUTE text/html text/css text/javascript application/javascript",
+            f'        Substitute "s|src=\\"/(?!bmc/)|src=\\"/bmc/{ip}/|ni"',
+            f'        Substitute "s|href=\\"/(?!bmc/)|href=\\"/bmc/{ip}/|ni"',
+            f'        Substitute "s|action=\\"/(?!bmc/)|action=\\"/bmc/{ip}/|ni"',
+            f'        Substitute "s|url\\\\(/(?!bmc/)|url(/bmc/{ip}/|ni"',
+            "    </Location>",
+            "",
+        ]
+    lines.append("    # ──────────────────────────────────────────────────────────────")
+    return "\n".join(lines)
 
 
 @app.get("/api/nginx/bmc-proxy-config")
 async def api_nginx_bmc_config(admin: dict = Depends(require_admin)):
-    """生成 nginx BMC 反代配置，用于将外网 KVM 访问代理到内网 BMC。"""
+    """生成 Apache BMC 反代 Location 块配置。"""
+    settings = load_settings()
+    ips = parse_ip_ranges(settings.get("ip_ranges", ""))
+    if not ips:
+        raise HTTPException(400, "尚未配置 IP 范围")
+    config = _gen_apache_location_blocks(list(ips))
+    return {"config": config, "ip_count": len(ips)}
+
+
+@app.post("/api/nginx/apply-bmc-proxy")
+async def api_nginx_apply(admin: dict = Depends(require_admin)):
+    """保存 BMC Apache 反代配置到数据目录，并返回手动执行步骤。"""
     settings = load_settings()
     ips = parse_ip_ranges(settings.get("ip_ranges", ""))
     if not ips:
         raise HTTPException(400, "尚未配置 IP 范围")
 
-    lines_out = [
-        "# Server Manager — BMC Reverse Proxy Config",
-        f"# Generated at {time.strftime('%Y-%m-%d %H:%M:%S')}",
-        "# Usage: include this file in your nginx server { } block",
-        "#   e.g. include /etc/nginx/conf.d/bmc-proxy.conf;",
-        "",
-        "# WebSocket upgrade map (add once globally if not already present)",
-        "# map $http_upgrade $connection_upgrade {",
-        "#     default upgrade;",
-        "#     \'\' close;",
-        "# }",
-        "",
-    ]
-    for ip in sorted(ips):
-        lines_out += [
-            f"# BMC: {ip}",
-            f"location /bmc/{ip}/ {{",
-            f"    proxy_pass          https://{ip}/;",
-             "    proxy_ssl_verify    off;",
-            f"    proxy_set_header    Host {ip};",
-             "    proxy_http_version  1.1;",
-             "    proxy_set_header    Upgrade $http_upgrade;",
-             "    proxy_set_header    Connection $connection_upgrade;",
-             "    proxy_set_header    X-Real-IP $remote_addr;",
-             "    proxy_read_timeout  86400;",
-             "    proxy_send_timeout  86400;",
-             "    proxy_buffering     off;",
-            "}",
-            "",
-        ]
-    return {"config": "\n".join(lines_out), "ip_count": len(ips)}
-
-@app.post("/api/nginx/apply-bmc-proxy")
-async def api_nginx_apply(admin: dict = Depends(require_admin)):
-    """保存 BMC 反代配置到数据目录，并返回手动执行步骤。"""
-    data = await api_nginx_bmc_config(admin)
-    cfg_text = data["config"]
-
+    blocks = _gen_apache_location_blocks(list(ips))
     DATA_DIR.mkdir(exist_ok=True)
-    save_path = DATA_DIR / "nginx-bmc-proxy.conf"
-    save_path.write_text(cfg_text)
+    save_path = DATA_DIR / "apache-bmc-proxy.conf"
+    save_path.write_text(blocks)
 
-    import shutil as _sh
-    nginx_installed = _sh.which("nginx") is not None
-    dest = "/etc/nginx/conf.d/bmc-proxy.conf"
-
-    if nginx_installed:
-        steps = [
-            f"sudo cp {save_path} {dest}",
-            "sudo nginx -t && sudo systemctl reload nginx",
-        ]
-    else:
-        steps = [
-            "sudo apt update && sudo apt install -y nginx",
-            f"sudo cp {save_path} {dest}",
-            "sudo nginx -t && sudo systemctl reload nginx",
-        ]
+    apache_conf = "/etc/apache2/sites-available/servermanager.conf"
+    steps = [
+        "# 1. 确认 mod_substitute 已启用",
+        "sudo a2enmod substitute headers",
+        "# 2. 将以下 Location 块内容插入 /etc/apache2/sites-available/servermanager.conf",
+        f"#    的 <VirtualHost *:443> 段（ProxyPass / 之前），或从保存文件复制：",
+        f"cat {save_path}",
+        "# 3. 测试并重载",
+        "sudo apache2ctl configtest && sudo systemctl reload apache2",
+    ]
 
     return {
         "ok": True,
         "saved_path": str(save_path),
-        "nginx_installed": nginx_installed,
         "steps": steps,
     }
 
