@@ -383,6 +383,11 @@ ${alias_line}
     SSLEngine on
     SSLCertificateFile    /etc/ssl/certs/${domain}.crt
     SSLCertificateKeyFile /etc/ssl/private/${domain}.key
+
+    # WebSocket proxy for noVNC KVM (/api/kvm/IP/ws)
+    RewriteEngine on
+    RewriteCond %{HTTP:Upgrade} websocket [NC]
+    RewriteRule ^/(.*)$ ws://127.0.0.1:${PORT}/\$1 [P,L]
 ${bmc_rules}
     ProxyPreserveHost On
     ProxyPass        / http://127.0.0.1:${PORT}/
