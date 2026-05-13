@@ -3493,6 +3493,8 @@ _KVM_NOVNC_HTML = """\
   /* screen 紧贴工具栏下方，高度精确 */
   #screen{{position:fixed;top:36px;left:0;right:0;bottom:0;background:#000;overflow:hidden;}}
   #screen.scroll{{overflow:auto;}}
+  /* 原始尺寸：让 noVNC 内部 wrapper 撑开而非锁死 100% */
+  #screen.scroll > div{{width:max-content !important;height:max-content !important;}}
   #screen canvas{{display:block;}}
   #pw-dlg{{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);
            z-index:99;align-items:center;justify-content:center;}}
@@ -3537,7 +3539,7 @@ function connect() {{
   try {{
     rfb = new RFB(document.getElementById('screen'), ws);
     rfb.scaleViewport = scaleMode;
-    rfb.resizeSession = false;
+    rfb.resizeSession = scaleMode;  // 适应窗口时请求 BMC 把分辨率调成窗口大小
     rfb.addEventListener('connect', () => {{
       pwDlg.classList.remove('show');
       status.textContent = '已连接';
