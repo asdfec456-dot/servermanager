@@ -3484,17 +3484,15 @@ _KVM_NOVNC_HTML = """\
   *{{box-sizing:border-box;margin:0;padding:0;}}
   html,body{{height:100%;overflow:hidden;background:#000;}}
   #toolbar{{position:fixed;top:0;left:0;right:0;height:36px;display:flex;align-items:center;
-            gap:8px;padding:0 10px;background:#0f172a;border-bottom:1px solid #1e293b;z-index:10;}}
-  #tb-ip{{color:#64748b;font:12px/1 sans-serif;margin-right:auto;}}
-  #status{{color:#94a3b8;font:12px/1 sans-serif;}}
+            gap:6px;padding:0 10px;background:#0f172a;border-bottom:1px solid #1e293b;z-index:10;}}
+  #tb-ip{{color:#475569;font:12px/1 sans-serif;margin-right:auto;}}
+  #status{{color:#94a3b8;font:12px/1 sans-serif;margin-right:4px;}}
   #toolbar button{{background:#1e293b;color:#94a3b8;border:1px solid #334155;
-                   border-radius:4px;padding:3px 10px;font:12px sans-serif;cursor:pointer;white-space:nowrap;}}
+                   border-radius:4px;padding:3px 9px;font:12px sans-serif;cursor:pointer;white-space:nowrap;}}
   #toolbar button:hover{{background:#0ea5e9;border-color:#0ea5e9;color:#fff;}}
-  /* screen 紧贴工具栏下方，高度精确 */
+  #zoom-label{{color:#64748b;font:12px/1 sans-serif;min-width:36px;text-align:center;}}
   #screen{{position:fixed;top:36px;left:0;right:0;bottom:0;background:#000;overflow:hidden;}}
-  #screen.scroll{{overflow:auto;}}
-  /* 原始尺寸：让 noVNC 内部 wrapper 撑开而非锁死 100% */
-  #screen.scroll > div{{width:max-content !important;height:max-content !important;}}
+  #screen.zoomed{{overflow:auto;}}
   #screen canvas{{display:block;}}
   #pw-dlg{{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);
            z-index:99;align-items:center;justify-content:center;}}
@@ -3514,8 +3512,10 @@ _KVM_NOVNC_HTML = """\
 <div id="toolbar">
   <span id="tb-ip">KVM — {ip}</span>
   <span id="status">正在连接…</span>
-  <button id="btn-scale" title="切换缩放/滚动模式">适应窗口</button>
-  <button id="btn-fs" title="全屏">⛶ 全屏</button>
+  <button id="btn-zm">－</button>
+  <span id="zoom-label">适应</span>
+  <button id="btn-zp">＋</button>
+  <button id="btn-fs">⛶ 全屏</button>
 </div>
 <div id="screen"></div>
 <div id="pw-dlg">
@@ -3530,16 +3530,60 @@ _KVM_NOVNC_HTML = """\
 import RFB from 'https://cdn.jsdelivr.net/npm/@novnc/novnc@1.4.0/core/rfb.js';
 const proto = location.protocol === 'https:' ? 'wss' : 'ws';
 const ws = `${{proto}}://${{location.host}}/api/kvm/{ip}/ws`;
-const status = document.getElementById('status');
-const pwDlg  = document.getElementById('pw-dlg');
-const pwInput = document.getElementById('pw-input');
+const screen   = document.getElementById('screen');
+const status   = document.getElementById('status');
+const pwDlg    = document.getElementById('pw-dlg');
+const pwInput  = document.getElementById('pw-input');
+const zoomLabel = document.getElementById('zoom-label');
 let rfb;
-let scaleMode = true;  // true=适应窗口, false=原始尺寸
+
+// ── 缩放逻辑 ────────────────────────────────────────────────────────
+// zoomStep=0 → 适应窗口（scaleViewport+resizeSession）
+// zoomStep>0 → 放大，用 CSS zoom 撑开布局，滚轮拦截给容器
+const STEPS = [0, 125, 150, 175, 200, 250];  // 0 = 适应窗口
+let zoomStep = 0;
+
+function applyZoom() {{
+  const wrapper = screen.querySelector('div');
+  if (!wrapper) return;
+  if (zoomStep === 0) {{
+    // 适应窗口
+    screen.classList.remove('zoomed');
+    wrapper.style.zoom = '';
+    if(rfb) {{ rfb.scaleViewport = true; rfb.resizeSession = true; }}
+    zoomLabel.textContent = '适应';
+  }} else {{
+    const pct = STEPS[zoomStep];
+    // CSS zoom 影响布局流，父容器 overflow:auto 就能出现滚动条
+    screen.classList.add('zoomed');
+    wrapper.style.zoom = pct / 100;
+    if(rfb) {{ rfb.scaleViewport = true; rfb.resizeSession = false; }}
+    zoomLabel.textContent = pct + '%';
+  }}
+}}
+
+document.getElementById('btn-zp').onclick = () => {{
+  if(zoomStep < STEPS.length - 1) {{ zoomStep++; applyZoom(); }}
+}};
+document.getElementById('btn-zm').onclick = () => {{
+  if(zoomStep > 0) {{ zoomStep--; applyZoom(); }}
+}};
+
+// 放大状态下拦截 canvas 滚轮事件，转为容器滚动（否则 noVNC 会把滚动发给远程桌面）
+screen.addEventListener('wheel', e => {{
+  if(zoomStep > 0) {{
+    e.preventDefault();
+    e.stopPropagation();
+    screen.scrollBy({{ left: e.deltaX, top: e.deltaY, behavior: 'instant' }});
+  }}
+}}, {{ passive: false, capture: true }});
+
+// ── noVNC ────────────────────────────────────────────────────────────
 function connect() {{
   try {{
-    rfb = new RFB(document.getElementById('screen'), ws);
-    rfb.scaleViewport = scaleMode;
-    rfb.resizeSession = scaleMode;  // 适应窗口时请求 BMC 把分辨率调成窗口大小
+    rfb = new RFB(screen, ws);
+    rfb.scaleViewport = true;
+    rfb.resizeSession = true;
     rfb.addEventListener('connect', () => {{
       pwDlg.classList.remove('show');
       status.textContent = '已连接';
@@ -3563,32 +3607,16 @@ function connect() {{
     }});
   }} catch(e) {{ status.textContent = '错误：' + e; }}
 }}
-document.getElementById('pw-btn').addEventListener('click', () => {{
+
+document.getElementById('pw-btn').onclick = () => {{
   if(rfb) rfb.sendCredentials({{password: pwInput.value}});
   pwDlg.classList.remove('show');
-}});
+}};
 pwInput.addEventListener('keydown', e => {{ if(e.key==='Enter') document.getElementById('pw-btn').click(); }});
-
-// 缩放切换：适应窗口（overflow:hidden + scaleViewport）↔ 原始尺寸（overflow:auto 滚动条）
-document.getElementById('btn-scale').addEventListener('click', () => {{
-  scaleMode = !scaleMode;
-  const screen = document.getElementById('screen');
-  if(scaleMode) {{
-    screen.classList.remove('scroll');
-    if(rfb) rfb.scaleViewport = true;
-    document.getElementById('btn-scale').textContent = '适应窗口';
-  }} else {{
-    screen.classList.add('scroll');
-    if(rfb) rfb.scaleViewport = false;
-    document.getElementById('btn-scale').textContent = '原始尺寸';
-  }}
-}});
-
-// 全屏
-document.getElementById('btn-fs').addEventListener('click', () => {{
+document.getElementById('btn-fs').onclick = () => {{
   if(!document.fullscreenElement) document.documentElement.requestFullscreen();
   else document.exitFullscreen();
-}});
+}};
 
 connect();
 </script>
