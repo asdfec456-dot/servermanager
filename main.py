@@ -3481,18 +3481,19 @@ _KVM_NOVNC_HTML = """\
 <title>KVM — {ip}</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-  *{{box-sizing:border-box;}}
-  html,body{{margin:0;padding:0;background:#111;height:100%;overflow:hidden;display:flex;flex-direction:column;}}
-  #toolbar{{flex:0 0 36px;display:flex;align-items:center;gap:8px;padding:0 10px;
-            background:#0f172a;border-bottom:1px solid #1e293b;z-index:9;}}
-  #tb-ip{{color:#64748b;font:12px sans-serif;margin-right:auto;}}
-  #status{{color:#94a3b8;font:12px sans-serif;}}
+  *{{box-sizing:border-box;margin:0;padding:0;}}
+  html,body{{height:100%;overflow:hidden;background:#000;}}
+  #toolbar{{position:fixed;top:0;left:0;right:0;height:36px;display:flex;align-items:center;
+            gap:8px;padding:0 10px;background:#0f172a;border-bottom:1px solid #1e293b;z-index:10;}}
+  #tb-ip{{color:#64748b;font:12px/1 sans-serif;margin-right:auto;}}
+  #status{{color:#94a3b8;font:12px/1 sans-serif;}}
   #toolbar button{{background:#1e293b;color:#94a3b8;border:1px solid #334155;
-                   border-radius:4px;padding:2px 10px;font:12px sans-serif;cursor:pointer;white-space:nowrap;}}
+                   border-radius:4px;padding:3px 10px;font:12px sans-serif;cursor:pointer;white-space:nowrap;}}
   #toolbar button:hover{{background:#0ea5e9;border-color:#0ea5e9;color:#fff;}}
-  #screen{{flex:1 1 0;overflow:auto;background:#000;}}
-  #screen.scale{{overflow:hidden;}}
-  #screen canvas{{display:block;image-rendering:auto;}}
+  /* screen 紧贴工具栏下方，高度精确 */
+  #screen{{position:fixed;top:36px;left:0;right:0;bottom:0;background:#000;overflow:hidden;}}
+  #screen.scroll{{overflow:auto;}}
+  #screen canvas{{display:block;}}
   #pw-dlg{{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);
            z-index:99;align-items:center;justify-content:center;}}
   #pw-dlg.show{{display:flex;}}
@@ -3514,7 +3515,7 @@ _KVM_NOVNC_HTML = """\
   <button id="btn-scale" title="切换缩放/滚动模式">适应窗口</button>
   <button id="btn-fs" title="全屏">⛶ 全屏</button>
 </div>
-<div id="screen" class="scale"></div>
+<div id="screen"></div>
 <div id="pw-dlg">
   <div id="pw-box">
     <h3>VNC 密码 — {ip}</h3>
@@ -3535,8 +3536,8 @@ let scaleMode = true;  // true=适应窗口, false=原始尺寸
 function connect() {{
   try {{
     rfb = new RFB(document.getElementById('screen'), ws);
-    rfb.scaleViewport = true;
-    rfb.resizeSession = true;  // 请求服务端匹配窗口分辨率，改善清晰度
+    rfb.scaleViewport = scaleMode;
+    rfb.resizeSession = false;
     rfb.addEventListener('connect', () => {{
       pwDlg.classList.remove('show');
       status.textContent = '已连接';
@@ -3566,17 +3567,17 @@ document.getElementById('pw-btn').addEventListener('click', () => {{
 }});
 pwInput.addEventListener('keydown', e => {{ if(e.key==='Enter') document.getElementById('pw-btn').click(); }});
 
-// 缩放切换：适应窗口（scale，overflow:hidden）↔ 原始尺寸（no scale，overflow:auto 滚动条）
+// 缩放切换：适应窗口（overflow:hidden + scaleViewport）↔ 原始尺寸（overflow:auto 滚动条）
 document.getElementById('btn-scale').addEventListener('click', () => {{
   scaleMode = !scaleMode;
   const screen = document.getElementById('screen');
   if(scaleMode) {{
-    screen.classList.add('scale');
-    if(rfb) {{ rfb.scaleViewport = true; rfb.resizeSession = true; }}
+    screen.classList.remove('scroll');
+    if(rfb) rfb.scaleViewport = true;
     document.getElementById('btn-scale').textContent = '适应窗口';
   }} else {{
-    screen.classList.remove('scale');
-    if(rfb) {{ rfb.scaleViewport = false; rfb.resizeSession = false; }}
+    screen.classList.add('scroll');
+    if(rfb) rfb.scaleViewport = false;
     document.getElementById('btn-scale').textContent = '原始尺寸';
   }}
 }});
