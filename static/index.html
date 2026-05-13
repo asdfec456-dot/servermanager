@@ -1706,7 +1706,8 @@ function kvmUrl(bmc_ip, manufacturer, customUrl){
 function openKvm(e,bmc_ip,manufacturer,customUrl){
   e.stopPropagation();
   e.preventDefault();
-  window.open(kvmUrl(bmc_ip,manufacturer,customUrl||''),'_blank','noopener,width=1280,height=800');
+  const url = customUrl || `/kvm/${bmc_ip}?token=${encodeURIComponent(token)}`;
+  window.open(url,'_blank','noopener,width=1280,height=800');
 }
 function hbadge(s){
   if(s.status==='offline')     return['hb-unk',  t('h.offline')];
