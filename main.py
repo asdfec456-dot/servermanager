@@ -42,7 +42,7 @@ from datetime import datetime
 import urllib.parse
 import platform as _platform
 
-from fastapi import FastAPI, BackgroundTasks, Request, Depends, HTTPException, UploadFile, File
+from fastapi import FastAPI, BackgroundTasks, Request, Depends, HTTPException, UploadFile, File, WebSocket, WebSocketDisconnect
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -3467,6 +3467,99 @@ async def api_nginx_apply(admin: dict = Depends(require_admin)):
         "saved_path": str(save_path),
         "steps": steps,
     }
+
+
+# ═══════════════════════════════════════════════════════════════════
+# noVNC KVM 代理（WebSocket → BMC VNC TCP）
+# ═══════════════════════════════════════════════════════════════════
+
+_KVM_NOVNC_HTML = """\
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>KVM — {ip}</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  html,body{{margin:0;padding:0;background:#111;height:100%;overflow:hidden;}}
+  #screen{{width:100vw;height:100vh;}}
+  #status{{position:fixed;top:8px;left:50%;transform:translateX(-50%);
+           background:rgba(0,0,0,.7);color:#fff;padding:4px 14px;border-radius:4px;
+           font:13px/1.4 sans-serif;z-index:9;pointer-events:none;}}
+</style>
+</head>
+<body>
+<div id="status">正在连接 {ip}…</div>
+<div id="screen"></div>
+<script type="module">
+import RFB from 'https://cdn.jsdelivr.net/npm/@novnc/novnc@1.4.0/core/rfb.js';
+const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+const ws = `${{proto}}://${{location.host}}/api/kvm/{ip}/ws`;
+const status = document.getElementById('status');
+try {{
+  const rfb = new RFB(document.getElementById('screen'), ws);
+  rfb.scaleViewport = true;
+  rfb.resizeSession = false;
+  rfb.addEventListener('connect', () => {{ status.textContent = '{ip} 已连接'; setTimeout(()=>status.style.display='none',2000); }});
+  rfb.addEventListener('disconnect', e => {{ status.style.display=''; status.textContent = '已断开：' + (e.detail.reason||''); }});
+  rfb.addEventListener('credentialsrequired', () => {{
+    const pw = prompt('VNC 密码：');
+    if(pw!==null) rfb.sendCredentials({{password:pw}});
+  }});
+}} catch(e) {{ status.textContent = '错误：' + e; }}
+</script>
+</body>
+</html>
+"""
+
+
+@app.get("/kvm/{ip}", response_class=HTMLResponse)
+async def kvm_novnc_page(ip: str, request: Request):
+    """返回 noVNC 查看器页面（需要登录 cookie）。"""
+    token = request.cookies.get("sm_token") or request.query_params.get("token", "")
+    if not token or not get_session(token):
+        return RedirectResponse(url="/?kvm=" + ip)
+    return HTMLResponse(_KVM_NOVNC_HTML.format(ip=ip))
+
+
+@app.websocket("/api/kvm/{ip}/ws")
+async def kvm_ws_proxy(websocket: WebSocket, ip: str):
+    """将浏览器 WebSocket 双向代理到 BMC VNC TCP 端口（5900）。"""
+    await websocket.accept(subprotocol="binary")
+    try:
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(ip, 5900), timeout=10
+        )
+    except Exception as exc:
+        await websocket.close(code=1011, reason=str(exc))
+        return
+
+    async def ws_to_tcp():
+        try:
+            async for data in websocket.iter_bytes():
+                writer.write(data)
+                await writer.drain()
+        except (WebSocketDisconnect, Exception):
+            pass
+        finally:
+            writer.close()
+
+    async def tcp_to_ws():
+        try:
+            while True:
+                data = await reader.read(32768)
+                if not data:
+                    break
+                await websocket.send_bytes(data)
+        except (WebSocketDisconnect, Exception):
+            pass
+        finally:
+            try:
+                await websocket.close()
+            except Exception:
+                pass
+
+    await asyncio.gather(ws_to_tcp(), tcp_to_ws())
 
 
 if __name__ == "__main__":
