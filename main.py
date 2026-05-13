@@ -3545,18 +3545,30 @@ let zoomStep = 0;
 
 function applyZoom() {{
   const wrapper = screen.querySelector('div');
+  const canvas  = screen.querySelector('canvas');
   if (!wrapper) return;
   if (zoomStep === 0) {{
-    // 适应窗口
+    // 适应窗口 — 还原 noVNC wrapper 原样
     screen.classList.remove('zoomed');
     wrapper.style.zoom = '';
+    wrapper.style.overflow = '';
+    wrapper.style.width = '';
+    wrapper.style.height = '';
     if(rfb) {{ rfb.scaleViewport = true; rfb.resizeSession = true; }}
     zoomLabel.textContent = '适应';
   }} else {{
-    const pct = STEPS[zoomStep];
-    // CSS zoom 影响布局流，父容器 overflow:auto 就能出现滚动条
+    const pct   = STEPS[zoomStep];
+    const scale = pct / 100;
+    // 取当前 canvas 尺寸作为缩放基准
+    const cw = canvas ? canvas.clientWidth  || screen.clientWidth  : screen.clientWidth;
+    const ch = canvas ? canvas.clientHeight || screen.clientHeight : screen.clientHeight;
+    // noVNC wrapper 本身有 overflow:auto 会把溢出吸收掉，改成 visible 让溢出传到 #screen
+    wrapper.style.overflow = 'visible';
+    // 显式撑开到缩放后的真实尺寸，触发 #screen 的滚动条
+    wrapper.style.width  = Math.ceil(cw * scale) + 'px';
+    wrapper.style.height = Math.ceil(ch * scale) + 'px';
+    wrapper.style.zoom   = scale;
     screen.classList.add('zoomed');
-    wrapper.style.zoom = pct / 100;
     if(rfb) {{ rfb.scaleViewport = true; rfb.resizeSession = false; }}
     zoomLabel.textContent = pct + '%';
   }}
