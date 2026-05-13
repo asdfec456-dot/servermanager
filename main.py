@@ -3481,16 +3481,18 @@ _KVM_NOVNC_HTML = """\
 <title>KVM — {ip}</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-  html,body{{margin:0;padding:0;background:#111;height:100%;overflow:hidden;}}
-  #screen{{width:100vw;height:100vh;}}
-  #screen canvas{{image-rendering:auto;}}
-  #status{{position:fixed;top:8px;left:50%;transform:translateX(-50%);
-           background:rgba(0,0,0,.75);color:#fff;padding:4px 14px;border-radius:4px;
-           font:13px/1.4 sans-serif;z-index:9;pointer-events:none;}}
-  #toolbar{{position:fixed;top:8px;right:12px;display:flex;gap:6px;z-index:9;}}
-  #toolbar button{{background:rgba(0,0,0,.65);color:#ccc;border:1px solid #444;
-                   border-radius:4px;padding:3px 9px;font:12px sans-serif;cursor:pointer;}}
-  #toolbar button:hover{{background:rgba(56,189,248,.2);border-color:#38bdf8;color:#fff;}}
+  *{{box-sizing:border-box;}}
+  html,body{{margin:0;padding:0;background:#111;height:100%;overflow:hidden;display:flex;flex-direction:column;}}
+  #toolbar{{flex:0 0 36px;display:flex;align-items:center;gap:8px;padding:0 10px;
+            background:#0f172a;border-bottom:1px solid #1e293b;z-index:9;}}
+  #tb-ip{{color:#64748b;font:12px sans-serif;margin-right:auto;}}
+  #status{{color:#94a3b8;font:12px sans-serif;}}
+  #toolbar button{{background:#1e293b;color:#94a3b8;border:1px solid #334155;
+                   border-radius:4px;padding:2px 10px;font:12px sans-serif;cursor:pointer;white-space:nowrap;}}
+  #toolbar button:hover{{background:#0ea5e9;border-color:#0ea5e9;color:#fff;}}
+  #screen{{flex:1 1 0;overflow:auto;background:#000;}}
+  #screen.scale{{overflow:hidden;}}
+  #screen canvas{{display:block;image-rendering:auto;}}
   #pw-dlg{{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);
            z-index:99;align-items:center;justify-content:center;}}
   #pw-dlg.show{{display:flex;}}
@@ -3506,12 +3508,13 @@ _KVM_NOVNC_HTML = """\
 </style>
 </head>
 <body>
-<div id="status">正在连接 {ip}…</div>
 <div id="toolbar">
-  <button id="btn-scale" title="切换缩放模式">适应窗口</button>
+  <span id="tb-ip">KVM — {ip}</span>
+  <span id="status">正在连接…</span>
+  <button id="btn-scale" title="切换缩放/滚动模式">适应窗口</button>
   <button id="btn-fs" title="全屏">⛶ 全屏</button>
 </div>
-<div id="screen"></div>
+<div id="screen" class="scale"></div>
 <div id="pw-dlg">
   <div id="pw-box">
     <h3>VNC 密码 — {ip}</h3>
@@ -3536,20 +3539,19 @@ function connect() {{
     rfb.resizeSession = true;  // 请求服务端匹配窗口分辨率，改善清晰度
     rfb.addEventListener('connect', () => {{
       pwDlg.classList.remove('show');
-      status.textContent = '{ip} 已连接';
-      setTimeout(() => status.style.display='none', 2000);
+      status.textContent = '已连接';
+      status.style.color = '#4ade80';
     }});
     rfb.addEventListener('disconnect', e => {{
       pwDlg.classList.remove('show');
-      status.style.display='';
+      status.style.color = '#f87171';
       const reason = e.detail.reason || '';
       if(reason.includes('会话令牌') || reason.includes('session')) {{
-        status.textContent = '⚠ 该 BMC 的 KVM 需要 web 会话，请直接访问 BMC 管理页面';
-        status.style.pointerEvents = 'auto';
+        status.textContent = '⚠ 需要 web 会话';
         status.style.cursor = 'pointer';
         status.onclick = () => window.open('https://{ip}/', '_blank');
       }} else {{
-        status.textContent = '已断开：' + reason;
+        status.textContent = reason ? '已断开：' + reason : '已断开';
       }}
     }});
     rfb.addEventListener('credentialsrequired', () => {{
@@ -3564,11 +3566,19 @@ document.getElementById('pw-btn').addEventListener('click', () => {{
 }});
 pwInput.addEventListener('keydown', e => {{ if(e.key==='Enter') document.getElementById('pw-btn').click(); }});
 
-// 缩放切换：适应窗口 ↔ 原始尺寸
+// 缩放切换：适应窗口（scale，overflow:hidden）↔ 原始尺寸（no scale，overflow:auto 滚动条）
 document.getElementById('btn-scale').addEventListener('click', () => {{
   scaleMode = !scaleMode;
-  if(rfb) {{ rfb.scaleViewport = scaleMode; rfb.resizeSession = scaleMode; }}
-  document.getElementById('btn-scale').textContent = scaleMode ? '适应窗口' : '原始尺寸';
+  const screen = document.getElementById('screen');
+  if(scaleMode) {{
+    screen.classList.add('scale');
+    if(rfb) {{ rfb.scaleViewport = true; rfb.resizeSession = true; }}
+    document.getElementById('btn-scale').textContent = '适应窗口';
+  }} else {{
+    screen.classList.remove('scale');
+    if(rfb) {{ rfb.scaleViewport = false; rfb.resizeSession = false; }}
+    document.getElementById('btn-scale').textContent = '原始尺寸';
+  }}
 }});
 
 // 全屏
