@@ -3483,15 +3483,21 @@ _KVM_NOVNC_HTML = """\
 <style>
   html,body{{margin:0;padding:0;background:#111;height:100%;overflow:hidden;}}
   #screen{{width:100vw;height:100vh;}}
+  #screen canvas{{image-rendering:auto;}}
   #status{{position:fixed;top:8px;left:50%;transform:translateX(-50%);
            background:rgba(0,0,0,.75);color:#fff;padding:4px 14px;border-radius:4px;
            font:13px/1.4 sans-serif;z-index:9;pointer-events:none;}}
+  #toolbar{{position:fixed;top:8px;right:12px;display:flex;gap:6px;z-index:9;}}
+  #toolbar button{{background:rgba(0,0,0,.65);color:#ccc;border:1px solid #444;
+                   border-radius:4px;padding:3px 9px;font:12px sans-serif;cursor:pointer;}}
+  #toolbar button:hover{{background:rgba(56,189,248,.2);border-color:#38bdf8;color:#fff;}}
   #pw-dlg{{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);
            z-index:99;align-items:center;justify-content:center;}}
   #pw-dlg.show{{display:flex;}}
   #pw-box{{background:#1e2530;border:1px solid #38bdf8;border-radius:8px;
-           padding:24px;min-width:280px;text-align:center;}}
-  #pw-box h3{{margin:0 0 12px;color:#38bdf8;font:600 15px sans-serif;}}
+           padding:24px;min-width:300px;text-align:center;}}
+  #pw-box h3{{margin:0 0 6px;color:#38bdf8;font:600 15px sans-serif;}}
+  #pw-box .hint{{margin:0 0 14px;color:#94a3b8;font:12px sans-serif;}}
   #pw-box input{{width:100%;box-sizing:border-box;padding:7px 10px;border-radius:5px;
                 border:1px solid #444;background:#111;color:#fff;font:14px sans-serif;outline:none;}}
   #pw-box input:focus{{border-color:#38bdf8;}}
@@ -3501,11 +3507,16 @@ _KVM_NOVNC_HTML = """\
 </head>
 <body>
 <div id="status">正在连接 {ip}…</div>
+<div id="toolbar">
+  <button id="btn-scale" title="切换缩放模式">适应窗口</button>
+  <button id="btn-fs" title="全屏">⛶ 全屏</button>
+</div>
 <div id="screen"></div>
 <div id="pw-dlg">
   <div id="pw-box">
     <h3>VNC 密码 — {ip}</h3>
-    <input id="pw-input" type="password" placeholder="BMC VNC 密码" autofocus>
+    <p class="hint">默认与 BMC 密码一致</p>
+    <input id="pw-input" type="password" placeholder="输入 VNC 密码" autofocus>
     <button id="pw-btn">连接</button>
   </div>
 </div>
@@ -3517,11 +3528,12 @@ const status = document.getElementById('status');
 const pwDlg  = document.getElementById('pw-dlg');
 const pwInput = document.getElementById('pw-input');
 let rfb;
+let scaleMode = true;  // true=适应窗口, false=原始尺寸
 function connect() {{
   try {{
     rfb = new RFB(document.getElementById('screen'), ws);
     rfb.scaleViewport = true;
-    rfb.resizeSession = false;
+    rfb.resizeSession = true;  // 请求服务端匹配窗口分辨率，改善清晰度
     rfb.addEventListener('connect', () => {{
       pwDlg.classList.remove('show');
       status.textContent = '{ip} 已连接';
@@ -3551,6 +3563,20 @@ document.getElementById('pw-btn').addEventListener('click', () => {{
   pwDlg.classList.remove('show');
 }});
 pwInput.addEventListener('keydown', e => {{ if(e.key==='Enter') document.getElementById('pw-btn').click(); }});
+
+// 缩放切换：适应窗口 ↔ 原始尺寸
+document.getElementById('btn-scale').addEventListener('click', () => {{
+  scaleMode = !scaleMode;
+  if(rfb) {{ rfb.scaleViewport = scaleMode; rfb.resizeSession = scaleMode; }}
+  document.getElementById('btn-scale').textContent = scaleMode ? '适应窗口' : '原始尺寸';
+}});
+
+// 全屏
+document.getElementById('btn-fs').addEventListener('click', () => {{
+  if(!document.fullscreenElement) document.documentElement.requestFullscreen();
+  else document.exitFullscreen();
+}});
+
 connect();
 </script>
 </body>
