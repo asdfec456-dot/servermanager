@@ -3528,8 +3528,17 @@ function connect() {{
       setTimeout(() => status.style.display='none', 2000);
     }});
     rfb.addEventListener('disconnect', e => {{
+      pwDlg.classList.remove('show');
       status.style.display='';
-      status.textContent = '已断开：' + (e.detail.reason||'');
+      const reason = e.detail.reason || '';
+      if(reason.includes('会话令牌') || reason.includes('session')) {{
+        status.textContent = '⚠ 该 BMC 的 KVM 需要 web 会话，请直接访问 BMC 管理页面';
+        status.style.pointerEvents = 'auto';
+        status.style.cursor = 'pointer';
+        status.onclick = () => window.open('https://{ip}/', '_blank');
+      }} else {{
+        status.textContent = '已断开：' + reason;
+      }}
     }});
     rfb.addEventListener('credentialsrequired', () => {{
       pwDlg.classList.add('show');
@@ -3585,6 +3594,16 @@ async def kvm_ws_proxy(websocket: WebSocket, ip: str):
 
     async def tcp_to_ws():
         try:
+            # 首次读取加 8 秒超时——ATEN/需要会话令牌的 BMC 不会主动发 RFB 握手
+            try:
+                first = await asyncio.wait_for(reader.read(32768), timeout=8.0)
+            except asyncio.TimeoutError:
+                await websocket.close(code=1011, reason="VNC 服务器无响应（该 BMC 的 KVM 需要先通过 web 界面登录获取会话令牌）")
+                writer.close()
+                return
+            if not first:
+                return
+            await websocket.send_bytes(first)
             while True:
                 data = await reader.read(32768)
                 if not data:
@@ -3595,6 +3614,10 @@ async def kvm_ws_proxy(websocket: WebSocket, ip: str):
         finally:
             try:
                 await websocket.close()
+            except Exception:
+                pass
+            try:
+                writer.close()
             except Exception:
                 pass
 
