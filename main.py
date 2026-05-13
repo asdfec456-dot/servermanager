@@ -3525,7 +3525,10 @@ async def kvm_novnc_page(ip: str, request: Request):
 @app.websocket("/api/kvm/{ip}/ws")
 async def kvm_ws_proxy(websocket: WebSocket, ip: str):
     """将浏览器 WebSocket 双向代理到 BMC VNC TCP 端口（5900）。"""
-    await websocket.accept(subprotocol="binary")
+    # 只在客户端请求了 binary 子协议时才响应，否则不带子协议接受
+    requested = websocket.headers.get("sec-websocket-protocol", "")
+    subproto = "binary" if "binary" in requested else None
+    await websocket.accept(subprotocol=subproto)
     try:
         reader, writer = await asyncio.wait_for(
             asyncio.open_connection(ip, 5900), timeout=10
