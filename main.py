@@ -3484,29 +3484,65 @@ _KVM_NOVNC_HTML = """\
   html,body{{margin:0;padding:0;background:#111;height:100%;overflow:hidden;}}
   #screen{{width:100vw;height:100vh;}}
   #status{{position:fixed;top:8px;left:50%;transform:translateX(-50%);
-           background:rgba(0,0,0,.7);color:#fff;padding:4px 14px;border-radius:4px;
+           background:rgba(0,0,0,.75);color:#fff;padding:4px 14px;border-radius:4px;
            font:13px/1.4 sans-serif;z-index:9;pointer-events:none;}}
+  #pw-dlg{{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);
+           z-index:99;align-items:center;justify-content:center;}}
+  #pw-dlg.show{{display:flex;}}
+  #pw-box{{background:#1e2530;border:1px solid #38bdf8;border-radius:8px;
+           padding:24px;min-width:280px;text-align:center;}}
+  #pw-box h3{{margin:0 0 12px;color:#38bdf8;font:600 15px sans-serif;}}
+  #pw-box input{{width:100%;box-sizing:border-box;padding:7px 10px;border-radius:5px;
+                border:1px solid #444;background:#111;color:#fff;font:14px sans-serif;outline:none;}}
+  #pw-box input:focus{{border-color:#38bdf8;}}
+  #pw-box button{{margin-top:12px;padding:7px 28px;border-radius:5px;border:none;
+                  background:#38bdf8;color:#000;font:600 13px sans-serif;cursor:pointer;}}
 </style>
 </head>
 <body>
 <div id="status">正在连接 {ip}…</div>
 <div id="screen"></div>
+<div id="pw-dlg">
+  <div id="pw-box">
+    <h3>VNC 密码 — {ip}</h3>
+    <input id="pw-input" type="password" placeholder="BMC VNC 密码" autofocus>
+    <button id="pw-btn">连接</button>
+  </div>
+</div>
 <script type="module">
 import RFB from 'https://cdn.jsdelivr.net/npm/@novnc/novnc@1.4.0/core/rfb.js';
 const proto = location.protocol === 'https:' ? 'wss' : 'ws';
 const ws = `${{proto}}://${{location.host}}/api/kvm/{ip}/ws`;
 const status = document.getElementById('status');
-try {{
-  const rfb = new RFB(document.getElementById('screen'), ws);
-  rfb.scaleViewport = true;
-  rfb.resizeSession = false;
-  rfb.addEventListener('connect', () => {{ status.textContent = '{ip} 已连接'; setTimeout(()=>status.style.display='none',2000); }});
-  rfb.addEventListener('disconnect', e => {{ status.style.display=''; status.textContent = '已断开：' + (e.detail.reason||''); }});
-  rfb.addEventListener('credentialsrequired', () => {{
-    const pw = prompt('VNC 密码：');
-    if(pw!==null) rfb.sendCredentials({{password:pw}});
-  }});
-}} catch(e) {{ status.textContent = '错误：' + e; }}
+const pwDlg  = document.getElementById('pw-dlg');
+const pwInput = document.getElementById('pw-input');
+let rfb;
+function connect() {{
+  try {{
+    rfb = new RFB(document.getElementById('screen'), ws);
+    rfb.scaleViewport = true;
+    rfb.resizeSession = false;
+    rfb.addEventListener('connect', () => {{
+      pwDlg.classList.remove('show');
+      status.textContent = '{ip} 已连接';
+      setTimeout(() => status.style.display='none', 2000);
+    }});
+    rfb.addEventListener('disconnect', e => {{
+      status.style.display='';
+      status.textContent = '已断开：' + (e.detail.reason||'');
+    }});
+    rfb.addEventListener('credentialsrequired', () => {{
+      pwDlg.classList.add('show');
+      pwInput.focus();
+    }});
+  }} catch(e) {{ status.textContent = '错误：' + e; }}
+}}
+document.getElementById('pw-btn').addEventListener('click', () => {{
+  if(rfb) rfb.sendCredentials({{password: pwInput.value}});
+  pwDlg.classList.remove('show');
+}});
+pwInput.addEventListener('keydown', e => {{ if(e.key==='Enter') document.getElementById('pw-btn').click(); }});
+connect();
 </script>
 </body>
 </html>
