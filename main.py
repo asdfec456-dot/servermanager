@@ -3548,28 +3548,29 @@ function applyZoom() {{
   const canvas  = screen.querySelector('canvas');
   if (!wrapper) return;
   if (zoomStep === 0) {{
-    // 适应窗口 — 还原 noVNC wrapper 原样
+    // 适应窗口 — 还原 noVNC wrapper、canvas 原样
     screen.classList.remove('zoomed');
-    wrapper.style.zoom = '';
     wrapper.style.overflow = '';
-    wrapper.style.width = '';
-    wrapper.style.height = '';
+    wrapper.style.width    = '';
+    wrapper.style.height   = '';
+    canvas && (canvas.style.zoom = '');
     if(rfb) {{ rfb.scaleViewport = true; rfb.resizeSession = true; }}
     zoomLabel.textContent = '适应';
   }} else {{
     const pct   = STEPS[zoomStep];
     const scale = pct / 100;
-    // 取当前 canvas 尺寸作为缩放基准
-    const cw = canvas ? canvas.clientWidth  || screen.clientWidth  : screen.clientWidth;
-    const ch = canvas ? canvas.clientHeight || screen.clientHeight : screen.clientHeight;
-    // noVNC wrapper 本身有 overflow:auto 会把溢出吸收掉，改成 visible 让溢出传到 #screen
+    // 1. 先关 scaleViewport，防止 noVNC 自己调整 canvas 尺寸
+    if(rfb) {{ rfb.scaleViewport = false; rfb.resizeSession = false; }}
+    // 2. canvas 此时为 VNC 帧缓冲尺寸（如 1200×750），对它直接 zoom
+    const cw = canvas ? canvas.clientWidth  : screen.clientWidth;
+    const ch = canvas ? canvas.clientHeight : screen.clientHeight;
+    canvas && (canvas.style.zoom = scale);
+    // 3. wrapper overflow:visible 让 canvas 溢出传到 #screen；
+    //    显式宽高 = 缩放后尺寸，让 #screen scrollHeight 展开
     wrapper.style.overflow = 'visible';
-    // 显式撑开到缩放后的真实尺寸，触发 #screen 的滚动条
-    wrapper.style.width  = Math.ceil(cw * scale) + 'px';
-    wrapper.style.height = Math.ceil(ch * scale) + 'px';
-    wrapper.style.zoom   = scale;
+    wrapper.style.width    = Math.ceil(cw * scale) + 'px';
+    wrapper.style.height   = Math.ceil(ch * scale) + 'px';
     screen.classList.add('zoomed');
-    if(rfb) {{ rfb.scaleViewport = true; rfb.resizeSession = false; }}
     zoomLabel.textContent = pct + '%';
   }}
 }}
