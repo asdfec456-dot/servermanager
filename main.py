@@ -3767,6 +3767,17 @@ Util.load_scripts_paths = ["/api/bmc-static/{ip}/novnc/include/"];
 """
 
 
+@app.get("/novnc/{path:path}")
+async def novnc_auto_proxy(path: str, request: Request):
+    """拦截 ATEN noVNC 动态加载的 /novnc/* 请求，从 Referer 提取 BMC IP 转发。"""
+    referer = request.headers.get("referer", "")
+    m = re.search(r'/kvm/([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)', referer)
+    if not m:
+        raise HTTPException(status_code=404, detail="unknown BMC IP from referer")
+    ip = m.group(1)
+    return await bmc_static_proxy(ip, f"novnc/{path}")
+
+
 @app.get("/api/bmc-static/{ip}/{path:path}")
 async def bmc_static_proxy(ip: str, path: str):
     """代理 ATEN BMC 的静态文件（noVNC JS/CSS）。"""
