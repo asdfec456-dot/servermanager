@@ -3780,7 +3780,7 @@ async def novnc_auto_proxy(path: str, request: Request):
 
 @app.get("/api/bmc-static/{ip}/{path:path}")
 async def bmc_static_proxy(ip: str, path: str):
-    """代理 ATEN BMC 的静态文件（noVNC JS/CSS）。"""
+    """代理 ATEN BMC 的静态文件（noVNC JS/CSS）；对 nav_ui.js 注入代理路径。"""
     import aiohttp as _aio
     url = f"https://{ip}/{path}"
     connector = _aio.TCPConnector(ssl=False)
@@ -3790,6 +3790,21 @@ async def bmc_static_proxy(ip: str, path: str):
             content = await resp.read()
             ct = resp.headers.get("Content-Type", "application/octet-stream")
             from fastapi.responses import Response
+
+            # 对 nav_ui.js 注入正确的 WebSocket 代理路径
+            if path.endswith("nav_ui.js"):
+                text = content.decode("utf-8", errors="replace")
+                # 替换 path="" 为我们的代理路径
+                proxy_path = f"api/kvm-aten/{ip}/ws"
+                text = text.replace('var path="";', f'var path="{proxy_path}";', 1)
+                # 同时把 host 指向我们的服务器（不是 BMC IP）
+                text = text.replace(
+                    'var host=WebUtil.getQueryVar("host",window.location.hostname);',
+                    'var host=window.location.hostname;',
+                    1
+                )
+                return Response(content=text.encode(), media_type="application/javascript")
+
             return Response(content=content, media_type=ct)
     except Exception as e:
         from fastapi.responses import Response
