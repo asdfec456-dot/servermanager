@@ -3795,15 +3795,67 @@ async def kvm_novnc_page(ip: str, request: Request):
     # 检测是否为 ATEN IPMI（port 5900 不主动发 RFB 握手）
     is_aten = await _probe_aten(ip)
     if is_aten:
-        # 获取 BMC 凭据
         creds = load_machine_creds()
         mc = creds.get(ip, {})
         user = mc.get("username") or load_settings().get("username", "ADMIN")
         pwd  = mc.get("password") or load_settings().get("password", "ADMIN")
         sid = await _aten_login(ip, user, pwd) or ""
-        return HTMLResponse(_KVM_ATEN_HTML.format(ip=ip, sid=sid))
+        return await _serve_aten_kvm(ip, sid)
 
     return HTMLResponse(_KVM_NOVNC_HTML.format(ip=ip))
+
+
+async def _serve_aten_kvm(ip: str, sid: str) -> HTMLResponse:
+    """代理 ATEN HTML5 iKVM 页面，注入路径覆盖和 SID。"""
+    import aiohttp as _aio
+    connector = _aio.TCPConnector(ssl=False)
+    try:
+        async with _aio.ClientSession(connector=connector) as session:
+            resp = await session.get(
+                f"https://{ip}/cgi/url_redirect.cgi?url_name=man_ikvm_html5_bootstrap",
+                headers={"Cookie": f"SID={sid}"},
+                timeout=_aio.ClientTimeout(total=10),
+            )
+            html = await resp.text(errors="replace")
+    except Exception as e:
+        return HTMLResponse(f"<h3>无法连接 ATEN BMC: {e}</h3>", status_code=502)
+
+    # 把所有相对路径改为通过我们的代理
+    import re
+    html = re.sub(r'src=["\']\.\./', f'src="/api/bmc-static/{ip}/', html)
+    html = re.sub(r'href=["\']\.\./', f'href="/api/bmc-static/{ip}/', html)
+    html = re.sub(r'src=["\']([^/\'"http][^\'"]*)["\']',
+                  lambda m: f'src="/api/bmc-static/{ip}/novnc/include/{m.group(1)}"', html)
+
+    # 注入覆盖脚本：设置 SID 和 WebSocket 路径
+    inject = f"""<script>
+// Server Manager 注入：覆盖 WebSocket 路径使其通过代理
+window._SM_IP  = '{ip}';
+window._SM_SID = '{sid}';
+window.onscriptsload_orig = window.onscriptsload;
+window.onscriptsload = function() {{
+  // 等待 UI 对象准备好后注入
+  setTimeout(function patchUI() {{
+    if(typeof UI === 'undefined') {{ setTimeout(patchUI, 50); return; }}
+    var _origConn = UI.connect.bind(UI);
+    UI.connect = function() {{
+      var host = window.location.hostname;
+      var port = window.location.port || 443;
+      UI.rfb.connect(host, port, window._SM_SID, window._SM_SID,
+                     'api/kvm-aten/{ip}/ws');
+    }};
+    // 设置 entry_value（SID 作为密码）
+    var ev = document.getElementById('entry_value');
+    if(ev) ev.value = window._SM_SID;
+    if(window.onscriptsload_orig) window.onscriptsload_orig();
+    else if(typeof UI !== 'undefined') UI.load();
+  }}, 0);
+}};
+</script>"""
+
+    # 在 <head> 后立即注入
+    html = html.replace("<head>", "<head>" + inject, 1)
+    return HTMLResponse(html)
 
 
 @app.websocket("/api/kvm-aten/{ip}/ws")
