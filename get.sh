@@ -1,22 +1,29 @@
 #!/usr/bin/env bash
-# Server Manager v1.3.0 — 安装 / 升级 / 卸载 / 代理配置
+# Server Manager v1.7.1 — 安装 / 升级 / 卸载 / 代理配置
 # © CATNETWORK  https://github.com/asdfec456-dot/servermanager
 #
-# 安装:      curl -fsSL https://asdfec456-dot.github.io/servermanager/get.sh | bash
-# 升级:      curl -fsSL https://asdfec456-dot.github.io/servermanager/get.sh | bash -s upgrade
-# 卸载:      curl -fsSL https://asdfec456-dot.github.io/servermanager/get.sh | bash -s uninstall
-# 仅配置代理: curl -fsSL https://asdfec456-dot.github.io/servermanager/get.sh | bash -s proxy
+# ── 一键安装（推荐）──────────────────────────────────────────────────
+#   bash <(curl -fsSL https://raw.githubusercontent.com/asdfec456-dot/servermanager/main/get.sh)
 #
-# 非交互模式（--yes 跳过所有确认）：
-#   curl ... | bash -s install --yes
+# ── 其他操作 ─────────────────────────────────────────────────────────
+#   升级:      bash get.sh upgrade
+#   卸载:      bash get.sh uninstall
+#   仅配置代理: bash get.sh proxy
 #
-# 非交互代理配置：
-#   DOMAIN=sm.example.com PROXY_PORT=80 PUBLIC_IP=1.2.3.4 \
-#     curl ... | bash -s install --yes
+# ── 非交互模式（CI/脚本中使用）──────────────────────────────────────
+#   DOMAIN=sm.example.com PROXY_PORT=443 PUBLIC_IP=1.2.3.4 \
+#     bash get.sh install --yes
+#
+# ── 反向代理危险提示 ─────────────────────────────────────────────────
+#   配置反向代理会修改 nginx/apache2 的站点配置文件，并可能影响服务器上
+#   其他正在运行的 Web 服务。安装脚本会在修改前：
+#   1. 自动检测已安装的 Web 服务器（优先使用现有组件，不额外安装）
+#   2. 备份被修改的配置文件（备份路径会在操作前显示）
+#   3. 明确列出将执行的所有操作，需安装者手动确认后才继续
 
 set -euo pipefail
 
-VERSION="1.4.0"
+VERSION="1.7.1"
 REPO_URL="https://github.com/asdfec456-dot/servermanager.git"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/servermanager}"
 SERVICE_NAME="servermanager"
@@ -230,6 +237,15 @@ domain_conflict(){
   return 1
 }
 
+# ── 备份配置文件（修改前调用）────────────────────────────────────
+backup_conf(){
+  local file="$1"
+  [ -f "$file" ] || return 0
+  local bak="${file}.bak.$(date +%Y%m%d_%H%M%S)"
+  sudo cp "$file" "$bak"
+  ok "已备份：$file  →  $bak"
+}
+
 # ── 写入 nginx vhost ─────────────────────────────────────────────
 write_nginx_conf(){
   local domain="$1" proxy_port="$2" public_ip="$3"
@@ -237,6 +253,7 @@ write_nginx_conf(){
   local server_names="$domain"
   [ -n "$public_ip" ] && server_names="$domain $public_ip"
 
+  backup_conf "$conf"
   sudo tee "$conf" > /dev/null <<EOF
 # Server Manager — © CATNETWORK
 # 由安装脚本自动生成，请勿手动修改
@@ -338,6 +355,9 @@ except: pass
 write_apache_conf(){
   local domain="$1" proxy_port="$2" public_ip="$3"
   local conf="/etc/apache2/sites-available/servermanager.conf"
+
+  backup_conf "$conf"
+  backup_conf "/etc/apache2/ports.conf"
 
   # 启用必要模块（含 WebSocket 和 SSL 代理）
   sudo a2enmod proxy proxy_http proxy_wstunnel ssl headers rewrite substitute 2>/dev/null | grep -v "already" || true
@@ -448,7 +468,7 @@ install_apache2(){
 setup_web_proxy(){
   echo
   sep
-  info "Web 代理配置（将域名/端口映射到应用）"
+  info "Web 反向代理配置"
   sep
 
   local domain="" proxy_port="80" public_ip=""
@@ -493,11 +513,10 @@ setup_web_proxy(){
     return
   fi
   if [[ "$proxy_port" == "443" ]]; then
-    warn "端口 443（HTTPS）需要 SSL 证书（如 Let's Encrypt），当前仅配置 HTTP。"
-    confirm "是否继续以 HTTP 方式配置端口 443？" || { info "已取消代理配置"; return; }
+    warn "端口 443（HTTPS）需要 SSL 证书，请确认证书文件已就绪。"
   fi
 
-  # 检测 / 安装 Web 服务器
+  # ── 检测 Web 服务器（优先使用已安装组件）────────────────────────
   local webserver
   webserver=$(detect_webserver)
 
@@ -526,7 +545,7 @@ setup_web_proxy(){
       esac
     fi
   else
-    info "检测到已安装：$webserver"
+    ok "检测到已安装的 Web 服务器：$webserver（将使用现有组件）"
   fi
 
   # 端口冲突检测
@@ -576,6 +595,47 @@ setup_web_proxy(){
       warn "自动模式下无法解决域名冲突，跳过代理配置"
       return
     fi
+  fi
+
+  # ── ⚠ 危险操作确认 ───────────────────────────────────────────────
+  # 列出即将执行的操作，要求安装者明确确认
+  local conf_file=""
+  local ports_file="/etc/apache2/ports.conf"
+  case "$webserver" in
+    nginx)   conf_file="/etc/nginx/sites-available/servermanager" ;;
+    apache2) conf_file="/etc/apache2/sites-available/servermanager.conf" ;;
+  esac
+
+  echo
+  echo -e "  ${R}╔══════════════════════════════════════════════════════════╗${N}"
+  echo -e "  ${R}║              ⚠  反向代理 — 危险操作警告                  ║${N}"
+  echo -e "  ${R}╚══════════════════════════════════════════════════════════╝${N}"
+  echo
+  echo "  以下操作将修改系统的 Web 服务器配置："
+  echo
+  echo -e "  Web 服务器  : ${Y}${webserver}${N}"
+  echo -e "  写入配置文件: ${Y}${conf_file}${N}"
+  [ -f "$conf_file" ] && echo -e "  （已存在，将先备份到 ${Y}${conf_file}.bak.YYYYMMDD_HHMMSS${N}）"
+  if [[ "$webserver" == "apache2" ]]; then
+    echo -e "  启用模块    : ${Y}proxy proxy_http proxy_wstunnel headers rewrite substitute${N}"
+    if [[ "$proxy_port" != "80" && "$proxy_port" != "443" ]]; then
+      echo -e "  修改 ports.conf：添加 Listen ${proxy_port}"
+      [ -f "$ports_file" ] && echo -e "  （已存在，将先备份到 ${Y}${ports_file}.bak.YYYYMMDD_HHMMSS${N}）"
+    fi
+  fi
+  echo -e "  重载服务    : ${Y}sudo systemctl reload ${webserver}${N}"
+  echo
+  echo "  这可能影响该服务器上其他已有的 Web 站点，尤其当："
+  echo "    · 目标端口已被其他站点使用（脚本已检测，如通过则安全）"
+  echo "    · Web 服务器的全局配置（如 nginx.conf）存在冲突指令"
+  echo "    · 在生产服务器上操作且未提前测试"
+  echo
+  echo -e "  ${G}所有被修改的配置文件均会在操作前自动备份。${N}"
+  echo
+
+  if ! confirm "我已知晓上述风险，确认继续配置反向代理？"; then
+    info "已取消代理配置。应用仍可通过 http://$(local_ip):${PORT} 直接访问"
+    return
   fi
 
   # 写入配置
