@@ -57,6 +57,237 @@ warn(){ echo -e "${Y}[!]${N} $*"; }
 die() { echo -e "${R}[✗]${N} $*" >&2; exit 1; }
 sep() { echo -e "  ${Y}──────────────────────────────────────────${N}"; }
 
+# ════════════════════════════════════════════════════════════════════
+# 语言检测与 i18n
+# ════════════════════════════════════════════════════════════════════
+
+# 安装器语言（zh / en / ja），由 detect_and_set_lang() 设置
+INSTALLER_LANG="zh"
+
+# ── 翻译函数 ─────────────────────────────────────────────────────
+t(){
+  local key="$1"
+  case "${INSTALLER_LANG}" in
+  # ──────────────────────── 中文 ─────────────────────────────────
+  zh) case "$key" in
+    banner_install)   echo "安装" ;;
+    banner_upgrade)   echo "升级" ;;
+    banner_uninstall) echo "卸载" ;;
+    banner_proxy)     echo "Web 代理配置" ;;
+    lang_saved)       echo "已将界面默认语言设置为：中文" ;;
+    deps_missing)     echo "以下组件缺失，将自动安装：" ;;
+    deps_ready)       echo "所有依赖组件已就绪" ;;
+    clone_repo)       echo "克隆仓库" ;;
+    venv_ready)       echo "Python 环境就绪" ;;
+    proxy_section)    echo "Web 反向代理配置（将域名/端口映射到应用）" ;;
+    proxy_skip_nodom) echo "未输入域名，跳过代理配置。" ;;
+    proxy_skip_noenv) echo "未设置 DOMAIN 环境变量，跳过代理配置" ;;
+    proxy_direct)     echo "直接访问：" ;;
+    proxy_existing)   echo "检测到已安装的 Web 服务器（将使用现有组件）：" ;;
+    proxy_none)       echo "未检测到 nginx 或 apache2。" ;;
+    proxy_choice1)    echo "  1) 安装 apache2（默认）" ;;
+    proxy_choice2)    echo "  2) 安装 nginx" ;;
+    proxy_choice3)    echo "  3) 跳过代理配置" ;;
+    proxy_choose)     echo "请选择 [1]: " ;;
+    proxy_skip)       echo "已跳过代理配置" ;;
+    proxy_port_ask)   echo "外部访问端口 [80]: " ;;
+    proxy_domain_ask) echo "域名（留空则跳过代理配置）: " ;;
+    proxy_ip_ask)     echo "本机公网 IP（留空则自动检测）: " ;;
+    proxy_ip_detect)  echo "正在检测公网 IP..." ;;
+    proxy_ip_fail)    echo "公网 IP 检测失败，跳过" ;;
+    proxy_danger_box) echo "⚠  反向代理 — 危险操作警告" ;;
+    proxy_danger1)    echo "  以下操作将修改系统的 Web 服务器配置：" ;;
+    proxy_danger2)    echo "  这可能影响该服务器上其他已有的 Web 站点，尤其当：" ;;
+    proxy_danger3)    echo "    · 目标端口已被其他站点使用（脚本已检测，如通过则安全）" ;;
+    proxy_danger4)    echo "    · Web 服务器的全局配置存在冲突指令" ;;
+    proxy_danger5)    echo "    · 在生产服务器上操作且未提前测试" ;;
+    proxy_backup_note)echo "  所有被修改的配置文件均会在操作前自动备份。" ;;
+    proxy_confirm)    echo "我已知晓上述风险，确认继续配置反向代理？" ;;
+    proxy_cancel)     echo "已取消代理配置。应用仍可通过以下地址直接访问：" ;;
+    proxy_writing)    echo "写入代理配置..." ;;
+    proxy_ok)         echo "访问地址：" ;;
+    proxy_pub_ok)     echo "公网访问：" ;;
+    svc_ask)          echo "是否配置为开机自启服务？[Y/n] " ;;
+    svc_skip)         echo "已跳过，手动启动：" ;;
+    svc_done)         echo "服务已配置并启动" ;;
+    svc_nosudo)       echo "当前用户无法执行 sudo，服务未自动配置" ;;
+    install_done)     echo "安装完成！" ;;
+    upgrade_done)     echo "升级完成" ;;
+    uninstall_confirm)echo "确认卸载 Server Manager？此操作不可恢复" ;;
+    uninstall_cancel) echo "已取消" ;;
+    uninstall_done)   echo "卸载完成" ;;
+    internal_url)     echo "内部地址：" ;;
+    config_hint)      echo "配置入口：右上角「设置」→ 填写 BMC IP 范围和凭据" ;;
+  esac ;;
+  # ──────────────────────── English ──────────────────────────────
+  en) case "$key" in
+    banner_install)   echo "Install" ;;
+    banner_upgrade)   echo "Upgrade" ;;
+    banner_uninstall) echo "Uninstall" ;;
+    banner_proxy)     echo "Web Proxy Setup" ;;
+    lang_saved)       echo "Default UI language set to: English" ;;
+    deps_missing)     echo "Missing packages, installing automatically:" ;;
+    deps_ready)       echo "All dependencies are ready" ;;
+    clone_repo)       echo "Cloning repository" ;;
+    venv_ready)       echo "Python environment ready" ;;
+    proxy_section)    echo "Web Reverse Proxy (map domain/port to the app)" ;;
+    proxy_skip_nodom) echo "No domain entered, skipping proxy setup." ;;
+    proxy_skip_noenv) echo "DOMAIN not set, skipping proxy setup" ;;
+    proxy_direct)     echo "Direct access:" ;;
+    proxy_existing)   echo "Detected existing web server (will reuse): " ;;
+    proxy_none)       echo "No nginx or apache2 detected." ;;
+    proxy_choice1)    echo "  1) Install apache2 (default)" ;;
+    proxy_choice2)    echo "  2) Install nginx" ;;
+    proxy_choice3)    echo "  3) Skip proxy setup" ;;
+    proxy_choose)     echo "Select [1]: " ;;
+    proxy_skip)       echo "Proxy setup skipped" ;;
+    proxy_port_ask)   echo "External port [80]: " ;;
+    proxy_domain_ask) echo "Domain (leave blank to skip proxy): " ;;
+    proxy_ip_ask)     echo "Public IP (leave blank to auto-detect): " ;;
+    proxy_ip_detect)  echo "Detecting public IP..." ;;
+    proxy_ip_fail)    echo "Could not detect public IP, skipping" ;;
+    proxy_danger_box) echo "⚠  Reverse Proxy — Danger Warning" ;;
+    proxy_danger1)    echo "  The following will modify your web server config:" ;;
+    proxy_danger2)    echo "  This may affect other sites on this server, especially if:" ;;
+    proxy_danger3)    echo "    · The target port is already used by another site (checked above)" ;;
+    proxy_danger4)    echo "    · Global web server config has conflicting directives" ;;
+    proxy_danger5)    echo "    · You are operating on a production server without prior testing" ;;
+    proxy_backup_note)echo "  All modified config files will be backed up before changes." ;;
+    proxy_confirm)    echo "I understand the risks. Proceed with reverse proxy setup?" ;;
+    proxy_cancel)     echo "Proxy setup cancelled. App is still accessible at:" ;;
+    proxy_writing)    echo "Writing proxy config..." ;;
+    proxy_ok)         echo "Access URL:" ;;
+    proxy_pub_ok)     echo "Public access:" ;;
+    svc_ask)          echo "Configure as autostart service? [Y/n] " ;;
+    svc_skip)         echo "Skipped. Start manually:" ;;
+    svc_done)         echo "Service configured and started" ;;
+    svc_nosudo)       echo "No sudo access, service not auto-configured" ;;
+    install_done)     echo "Installation complete!" ;;
+    upgrade_done)     echo "Upgrade complete" ;;
+    uninstall_confirm)echo "Confirm uninstall Server Manager? This cannot be undone" ;;
+    uninstall_cancel) echo "Cancelled" ;;
+    uninstall_done)   echo "Uninstall complete" ;;
+    internal_url)     echo "Internal URL:" ;;
+    config_hint)      echo "Setup: top-right Settings → enter BMC IP range and credentials" ;;
+  esac ;;
+  # ──────────────────────── 日本語 ───────────────────────────────
+  ja) case "$key" in
+    banner_install)   echo "インストール" ;;
+    banner_upgrade)   echo "アップグレード" ;;
+    banner_uninstall) echo "アンインストール" ;;
+    banner_proxy)     echo "Webプロキシ設定" ;;
+    lang_saved)       echo "デフォルトUI言語を設定しました：日本語" ;;
+    deps_missing)     echo "不足パッケージを自動インストールします：" ;;
+    deps_ready)       echo "全依存コンポーネント準備完了" ;;
+    clone_repo)       echo "リポジトリをクローン中" ;;
+    venv_ready)       echo "Python環境の準備完了" ;;
+    proxy_section)    echo "Webリバースプロキシ設定（ドメイン/ポートをアプリへマッピング）" ;;
+    proxy_skip_nodom) echo "ドメイン未入力のため、プロキシ設定をスキップします。" ;;
+    proxy_skip_noenv) echo "DOMAINが未設定のため、プロキシ設定をスキップします" ;;
+    proxy_direct)     echo "直接アクセス：" ;;
+    proxy_existing)   echo "既存のWebサーバーを検出しました（再利用します）：" ;;
+    proxy_none)       echo "nginxもapache2も検出されませんでした。" ;;
+    proxy_choice1)    echo "  1) apache2をインストール（デフォルト）" ;;
+    proxy_choice2)    echo "  2) nginxをインストール" ;;
+    proxy_choice3)    echo "  3) プロキシ設定をスキップ" ;;
+    proxy_choose)     echo "選択してください [1]: " ;;
+    proxy_skip)       echo "プロキシ設定をスキップしました" ;;
+    proxy_port_ask)   echo "外部アクセスポート [80]: " ;;
+    proxy_domain_ask) echo "ドメイン（空欄でプロキシをスキップ）: " ;;
+    proxy_ip_ask)     echo "パブリックIP（空欄で自動検出）: " ;;
+    proxy_ip_detect)  echo "パブリックIPを検出中..." ;;
+    proxy_ip_fail)    echo "パブリックIPの検出に失敗しました" ;;
+    proxy_danger_box) echo "⚠  リバースプロキシ — 危険操作の警告" ;;
+    proxy_danger1)    echo "  以下の操作でWebサーバーの設定が変更されます：" ;;
+    proxy_danger2)    echo "  このサーバー上の他のWebサイトに影響する可能性があります：" ;;
+    proxy_danger3)    echo "    · 対象ポートが他のサイトで使用中（上記で確認済みなら安全）" ;;
+    proxy_danger4)    echo "    · Webサーバーのグローバル設定に競合するディレクティブがある" ;;
+    proxy_danger5)    echo "    · 事前テストなしに本番サーバーで操作している" ;;
+    proxy_backup_note)echo "  変更前に全設定ファイルを自動バックアップします。" ;;
+    proxy_confirm)    echo "上記リスクを理解した上で、リバースプロキシ設定を続行しますか？" ;;
+    proxy_cancel)     echo "プロキシ設定をキャンセルしました。アプリには以下からアクセスできます：" ;;
+    proxy_writing)    echo "プロキシ設定を書き込み中..." ;;
+    proxy_ok)         echo "アクセスURL：" ;;
+    proxy_pub_ok)     echo "パブリックアクセス：" ;;
+    svc_ask)          echo "自動起動サービスとして設定しますか？[Y/n] " ;;
+    svc_skip)         echo "スキップ。手動起動：" ;;
+    svc_done)         echo "サービスを設定・起動しました" ;;
+    svc_nosudo)       echo "sudo権限なし、サービスを自動設定できません" ;;
+    install_done)     echo "インストール完了！" ;;
+    upgrade_done)     echo "アップグレード完了" ;;
+    uninstall_confirm)echo "Server Managerをアンインストールしますか？この操作は元に戻せません" ;;
+    uninstall_cancel) echo "キャンセルしました" ;;
+    uninstall_done)   echo "アンインストール完了" ;;
+    internal_url)     echo "内部URL：" ;;
+    config_hint)      echo "設定：右上の「設定」→ BMC IPレンジと認証情報を入力" ;;
+  esac ;;
+  esac
+}
+
+# ── 语言检测与选择 ───────────────────────────────────────────────
+detect_and_set_lang(){
+  # 从环境变量读取（非交互优先）
+  if [ -n "${SM_LANG:-}" ]; then
+    INSTALLER_LANG="${SM_LANG}"
+  else
+    local detected="en"
+    local locale="${LANG:-${LC_ALL:-${LC_MESSAGES:-}}}"
+    case "${locale,,}" in
+      zh*) detected="zh" ;;
+      ja*) detected="ja" ;;
+      *)   detected="en" ;;
+    esac
+
+    if ! is_interactive || $AUTO_YES; then
+      INSTALLER_LANG="$detected"
+    else
+      # 三语并列提示（此时尚不知用户语言，全部显示）
+      echo
+      echo "  Language / 语言 / 言語"
+      sep
+      case "$detected" in
+        zh)
+          echo -e "  ${G}检测到中文语言环境。${N} / Chinese locale detected. / 中国語環境を検出しました。"
+          echo "  是否使用中文？Use Chinese? 中国語を使いますか？"
+          echo "    1) 中文  2) English  3) 日本語"
+          read -rp "  [1/2/3] (默认/default/デフォルト: 1): " _lc
+          case "${_lc:-1}" in 2) INSTALLER_LANG="en" ;; 3) INSTALLER_LANG="ja" ;; *) INSTALLER_LANG="zh" ;; esac ;;
+        ja)
+          echo -e "  ${G}日本語の環境が検出されました。${N} / Japanese locale detected. / 检测到日文语言环境。"
+          echo "  日本語を使いますか？Use Japanese? 使用日语？"
+          echo "    1) 日本語  2) English  3) 中文"
+          read -rp "  [1/2/3] (デフォルト/default/默认: 1): " _lc
+          case "${_lc:-1}" in 2) INSTALLER_LANG="en" ;; 3) INSTALLER_LANG="zh" ;; *) INSTALLER_LANG="ja" ;; esac ;;
+        *)
+          echo -e "  ${G}No CJK locale detected. Default: English.${N} / 未检测到中日文环境，默认英文。"
+          echo "    1) English (default)  2) 中文  3) 日本語"
+          read -rp "  [1/2/3]: " _lc
+          case "${_lc:-1}" in 2) INSTALLER_LANG="zh" ;; 3) INSTALLER_LANG="ja" ;; *) INSTALLER_LANG="en" ;; esac ;;
+      esac
+    fi
+  fi
+
+  # 规范化
+  case "${INSTALLER_LANG,,}" in zh*) INSTALLER_LANG="zh" ;; ja*) INSTALLER_LANG="ja" ;; *) INSTALLER_LANG="en" ;; esac
+
+  ok "$(t lang_saved)"
+}
+
+# ── 将语言偏好写入 settings.json ──────────────────────────────────
+save_lang_to_settings(){
+  local lang="$1"
+  local settings_file="$INSTALL_DIR/data/settings.json"
+  mkdir -p "$INSTALL_DIR/data"
+  python3 - "$settings_file" "$lang" << 'PYEOF'
+import json, sys, os
+f, lang = sys.argv[1], sys.argv[2]
+try:   d = json.loads(open(f).read()) if os.path.exists(f) else {}
+except: d = {}
+d['ui_lang'] = lang
+open(f, 'w').write(json.dumps(d, ensure_ascii=False, indent=2))
+PYEOF
+}
+
 # ── 交互检测 ──────────────────────────────────────────────────────
 is_interactive(){ [ -t 0 ]; }
 
@@ -84,6 +315,8 @@ banner(){
   echo "  └──────────────────────────────────────────┘"
   echo
 }
+
+banner_t(){ banner "$(t "$1")"; }
 
 local_ip(){ hostname -I 2>/dev/null | awk '{print $1}' || echo "localhost"; }
 
@@ -172,10 +405,10 @@ setup_service(){
   local do_setup=false
   if is_interactive && ! $AUTO_YES; then
     echo
-    if read -rp "  是否配置为开机自启服务？[Y/n] " _sv && [[ "${_sv:-Y}" =~ ^[Yy]$ ]]; then
+    if read -rp "  $(t svc_ask)" _sv && [[ "${_sv:-Y}" =~ ^[Yy]$ ]]; then
       do_setup=true
     else
-      info "已跳过，手动启动：cd $INSTALL_DIR && ./start.sh"
+      info "$(t svc_skip)cd $INSTALL_DIR && ./start.sh"
     fi
   else
     info "自动配置开机自启服务..."
@@ -184,9 +417,9 @@ setup_service(){
   if $do_setup; then
     if can_sudo; then
       write_service
-      ok "服务已配置并启动（${SERVICE_NAME}）"
+      ok "$(t svc_done)（${SERVICE_NAME}）"
     else
-      warn "当前用户无法执行 sudo，服务未自动配置。请用 sudo 权限用户运行：sudo bash $INSTALL_DIR/get.sh install --yes"
+      warn "$(t svc_nosudo) — sudo bash $INSTALL_DIR/get.sh install --yes"
     fi
   fi
 }
@@ -468,44 +701,42 @@ install_apache2(){
 setup_web_proxy(){
   echo
   sep
-  info "Web 反向代理配置"
+  info "$(t proxy_section)"
   sep
 
   local domain="" proxy_port="80" public_ip=""
 
   if is_interactive && ! $AUTO_YES; then
-    # 交互式收集参数
-    read -rp "  域名（留空则跳过代理配置）: " domain
+    read -rp "  $(t proxy_domain_ask)" domain
     domain="${domain// /}"
     if [ -z "$domain" ]; then
-      info "已跳过代理配置。直接访问：http://$(local_ip):${PORT}"
+      info "$(t proxy_skip_nodom) $(t proxy_direct)http://$(local_ip):${PORT}"
       return
     fi
-    read -rp "  外部访问端口 [80]: " proxy_port
+    read -rp "  $(t proxy_port_ask)" proxy_port
     proxy_port="${proxy_port:-80}"
-    read -rp "  本机公网 IP（留空则自动检测）: " public_ip
+    read -rp "  $(t proxy_ip_ask)" public_ip
     if [ -z "$public_ip" ]; then
-      info "正在检测公网 IP..."
+      info "$(t proxy_ip_detect)"
       public_ip=$(curl -s --connect-timeout 5 https://api.ipify.org 2>/dev/null || \
                   curl -s --connect-timeout 5 https://ifconfig.me  2>/dev/null || echo "")
-      [ -n "$public_ip" ] && info "检测到公网 IP：$public_ip" || warn "公网 IP 检测失败，跳过"
+      [ -n "$public_ip" ] && info "$(t proxy_ip_detect) $public_ip" || warn "$(t proxy_ip_fail)"
     fi
   else
-    # 非交互：从环境变量读取
     domain="$DOMAIN"
     proxy_port="${PROXY_PORT:-80}"
     public_ip="$PUBLIC_IP"
     if [ -z "$domain" ]; then
-      info "未设置 DOMAIN 环境变量，跳过代理配置"
+      info "$(t proxy_skip_noenv)"
       return
     fi
     if [ -z "$public_ip" ]; then
       public_ip=$(curl -s --connect-timeout 5 https://api.ipify.org 2>/dev/null || echo "")
     fi
-    info "使用环境变量代理配置：domain=$domain port=$proxy_port ip=${public_ip:-未指定}"
+    info "Proxy: domain=$domain port=$proxy_port ip=${public_ip:-unset}"
   fi
 
-  [ -z "$domain" ] && { info "未输入域名，跳过代理配置"; return; }
+  [ -z "$domain" ] && { info "$(t proxy_skip_nodom)"; return; }
 
   # 端口合法性检查
   if ! [[ "$proxy_port" =~ ^[0-9]+$ ]] || (( proxy_port < 1 || proxy_port > 65535 )); then
@@ -545,7 +776,7 @@ setup_web_proxy(){
       esac
     fi
   else
-    ok "检测到已安装的 Web 服务器：$webserver（将使用现有组件）"
+    ok "$(t proxy_existing)$webserver"
   fi
 
   # 端口冲突检测
@@ -608,10 +839,10 @@ setup_web_proxy(){
 
   echo
   echo -e "  ${R}╔══════════════════════════════════════════════════════════╗${N}"
-  echo -e "  ${R}║              ⚠  反向代理 — 危险操作警告                  ║${N}"
+  printf "  ${R}║  %-54s║${N}\n" "$(t proxy_danger_box)"
   echo -e "  ${R}╚══════════════════════════════════════════════════════════╝${N}"
   echo
-  echo "  以下操作将修改系统的 Web 服务器配置："
+  echo "$(t proxy_danger1)"
   echo
   echo -e "  Web 服务器  : ${Y}${webserver}${N}"
   echo -e "  写入配置文件: ${Y}${conf_file}${N}"
@@ -625,26 +856,25 @@ setup_web_proxy(){
   fi
   echo -e "  重载服务    : ${Y}sudo systemctl reload ${webserver}${N}"
   echo
-  echo "  这可能影响该服务器上其他已有的 Web 站点，尤其当："
-  echo "    · 目标端口已被其他站点使用（脚本已检测，如通过则安全）"
-  echo "    · Web 服务器的全局配置（如 nginx.conf）存在冲突指令"
-  echo "    · 在生产服务器上操作且未提前测试"
+  echo "$(t proxy_danger2)"
+  echo "$(t proxy_danger3)"
+  echo "$(t proxy_danger4)"
+  echo "$(t proxy_danger5)"
   echo
-  echo -e "  ${G}所有被修改的配置文件均会在操作前自动备份。${N}"
+  echo -e "  ${G}$(t proxy_backup_note)${N}"
   echo
 
-  if ! confirm "我已知晓上述风险，确认继续配置反向代理？"; then
-    info "已取消代理配置。应用仍可通过 http://$(local_ip):${PORT} 直接访问"
+  if ! confirm "$(t proxy_confirm)"; then
+    info "$(t proxy_cancel)http://$(local_ip):${PORT}"
     return
   fi
 
-  # 写入配置
   echo
-  info "写入 ${webserver} 代理配置..."
-  info "  域名:   $domain"
-  info "  端口:   $proxy_port"
-  info "  公网IP: ${public_ip:-（未设置）}"
-  info "  转发至: 127.0.0.1:${PORT}"
+  info "$(t proxy_writing)"
+  info "  domain:  $domain"
+  info "  port:    $proxy_port"
+  info "  pub-ip:  ${public_ip:-（unset）}"
+  info "  forward: 127.0.0.1:${PORT}"
   echo
 
   local success=false
@@ -668,8 +898,8 @@ EOF
     esac
     echo "SM_CONF_FILE=${SM_CONF_FILE}" >> "$PROXY_CONFIG_FILE"
     echo
-    ok "访问地址：http://${domain}:${proxy_port}"
-    [ -n "$public_ip" ] && ok "公网访问：http://${public_ip}:${proxy_port}"
+    ok "$(t proxy_ok)http://${domain}:${proxy_port}"
+    [ -n "$public_ip" ] && ok "$(t proxy_pub_ok)http://${public_ip}:${proxy_port}"
   else
     warn "代理配置写入失败，请检查以上错误信息"
   fi
@@ -727,27 +957,31 @@ cleanup_web_proxy(){
 # 安装
 # ════════════════════════════════════════════════════════════════════
 do_install(){
-  banner "安装"
+  detect_and_set_lang
+  banner_t banner_install
 
   if [ -d "$INSTALL_DIR/.git" ]; then
-    warn "已检测到安装目录，切换为升级模式"
+    warn "已检测到安装目录，切换为升级模式 / Existing install found, switching to upgrade"
     do_upgrade; return
   fi
 
   install_missing_pkgs "pre"
 
-  info "克隆仓库 → $INSTALL_DIR"
+  info "$(t clone_repo) → $INSTALL_DIR"
   git clone --depth 1 "$REPO_URL" "$INSTALL_DIR"
   flush_pkg_log
 
   cd "$INSTALL_DIR"
 
-  info "创建 Python 虚拟环境..."
+  info "Creating Python virtual environment..."
   python3 -m venv venv
   source venv/bin/activate
   pip install --upgrade pip -q
   pip install -r requirements.txt -q
-  ok "Python 环境就绪"
+  ok "$(t venv_ready)"
+
+  # 保存语言偏好到 settings.json（Web UI 读取）
+  save_lang_to_settings "$INSTALLER_LANG"
 
   # Web 代理配置（用户可选）
   setup_web_proxy
@@ -755,17 +989,16 @@ do_install(){
   # systemd 服务
   setup_service
 
-
   echo
-  ok "安装完成！"
+  ok "$(t install_done)"
   echo
-  echo "  内部地址：http://$(local_ip):${PORT}"
+  echo "  $(t internal_url)http://$(local_ip):${PORT}"
   if [ -f "$PROXY_CONFIG_FILE" ]; then
     # shellcheck disable=SC1090
     source "$PROXY_CONFIG_FILE"
-    echo "  代理地址：http://${SM_DOMAIN}:${SM_PROXY_PORT}"
+    echo "  $(t proxy_ok)http://${SM_DOMAIN}:${SM_PROXY_PORT}"
   fi
-  echo "  配置入口：右上角「设置」→ 填写 BMC IP 范围和凭据"
+  echo "  $(t config_hint)"
   echo
 }
 
@@ -773,7 +1006,8 @@ do_install(){
 # 升级
 # ════════════════════════════════════════════════════════════════════
 do_upgrade(){
-  banner "升级"
+  detect_and_set_lang
+  banner_t banner_upgrade
 
   [ -d "$INSTALL_DIR/.git" ] || die "未找到安装目录：$INSTALL_DIR，请先运行安装命令"
   cd "$INSTALL_DIR"
@@ -803,16 +1037,17 @@ do_upgrade(){
     warn "服务未运行，手动启动：cd $INSTALL_DIR && ./start.sh"
   fi
 
-  ok "升级完成  $(git log -1 --format='%h %s')"
+  ok "$(t upgrade_done)  $(git log -1 --format='%h %s')"
 }
 
 # ════════════════════════════════════════════════════════════════════
 # 卸载
 # ════════════════════════════════════════════════════════════════════
 do_uninstall(){
-  banner "卸载"
+  detect_and_set_lang
+  banner_t banner_uninstall
 
-  confirm "确认卸载 Server Manager？此操作不可恢复" || { info "已取消"; exit 0; }
+  confirm "$(t uninstall_confirm)" || { info "$(t uninstall_cancel)"; exit 0; }
 
   # 停止 systemd 服务
   if has_systemd && systemctl list-unit-files 2>/dev/null | grep -q "^${SERVICE_NAME}.service"; then
@@ -862,14 +1097,15 @@ do_uninstall(){
     warn "安装目录不存在：$INSTALL_DIR"
   fi
 
-  ok "卸载完成"
+  ok "$(t uninstall_done)"
 }
 
 # ════════════════════════════════════════════════════════════════════
 # 仅配置 Web 代理（已安装后补充配置）
 # ════════════════════════════════════════════════════════════════════
 do_proxy(){
-  banner "Web 代理配置"
+  detect_and_set_lang
+  banner_t banner_proxy
   [ -d "$INSTALL_DIR" ] || die "未找到安装目录：$INSTALL_DIR，请先运行安装命令"
   cd "$INSTALL_DIR"
   setup_web_proxy

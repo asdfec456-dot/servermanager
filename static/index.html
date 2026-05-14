@@ -1582,7 +1582,8 @@ ja:{
   'tbl.no_data':'—',
 }
 };
-let currentLang=localStorage.getItem('sm_lang')||'zh';
+// 优先级：用户手动切换(localStorage) > 安装器设置(服务端注入) > 英文兜底
+let currentLang=localStorage.getItem('sm_lang')||(typeof window._SM_LANG!=='undefined'?window._SM_LANG:'en');
 const t=k=>(LANG[currentLang]||LANG.zh)[k]||k;
 
 /* ── i18n ──────────────────────────────────────────────────── */

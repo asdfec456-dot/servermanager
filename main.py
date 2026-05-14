@@ -1442,7 +1442,12 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    return HTMLResponse((STATIC_DIR / "index.html").read_text(encoding="utf-8"))
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    # 注入服务端语言偏好，供前端初始化时使用（localStorage 优先，其次服务端设置，最后 en）
+    ui_lang = load_settings().get("ui_lang", "en")
+    inject = f'<script>window._SM_LANG="{ui_lang}";</script>'
+    html = html.replace("</head>", inject + "\n</head>", 1)
+    return HTMLResponse(html)
 
 # ═══════════════════════════════════════════════════════════════════
 # 认证 API
