@@ -3859,34 +3859,34 @@ async def _serve_aten_kvm(ip: str, sid: str) -> HTMLResponse:
     html = re.sub(r'src=["\']([^/\'"http][^\'"]*)["\']',
                   lambda m: f'src="/api/bmc-static/{ip}/novnc/include/{m.group(1)}"', html)
 
-    # 注入：用 defineProperty 拦截 onscriptsload 赋值，确保我们的补丁始终运行
+    # 注入：拦截 window.WebSocket，把到根路径的连接重定向到代理
+    # 这是最可靠的方法——不依赖 nav_ui.js 的具体实现或时序
+    proxy_ws = f"api/kvm-aten/{ip}/ws"
     inject = f"""<script>
 (function() {{
-  var _SM_SID = '{sid}';
-  var _SM_PATH = 'api/kvm-aten/{ip}/ws';
-  // 拦截 window.onscriptsload 赋值，让我们的代码在原函数之前执行
-  var _orig = null;
-  Object.defineProperty(window, 'onscriptsload', {{
-    get: function() {{ return _orig; }},
-    set: function(fn) {{
-      _orig = function() {{
-        // 注入：覆盖 UI.connect 使用代理路径
-        if(typeof UI !== 'undefined') {{
-          UI.connect = function() {{
-            var h = window.location.hostname;
-            var p = window.location.port || 443;
-            var enc = window.location.protocol === 'https:';
-            if(typeof UI.rfb !== 'undefined' && UI.rfb.connect)
-              UI.rfb.connect(h, p, _SM_SID, _SM_SID, _SM_PATH);
-          }};
-          var ev = document.getElementById('entry_value');
-          if(ev) ev.value = _SM_SID;
-        }}
-        fn();
-      }};
-    }},
-    configurable: true
+  var _SID = '{sid}';
+  var _PROXY = 'api/kvm-aten/{ip}/ws';
+  // 预填 SID
+  document.addEventListener('DOMContentLoaded', function() {{
+    var ev = document.getElementById('entry_value');
+    if(ev) ev.value = _SID;
   }});
+  // 拦截 WebSocket：把 wss://host/ 重定向到代理路径
+  var _WS = window.WebSocket;
+  window.WebSocket = function(url, protocols) {{
+    var u = String(url || '');
+    // ATEN noVNC 连 wss://hostname:port/（空路径）—— 重定向到我们的代理
+    if(/^wss?:\/\/[^\/]+\/?$/.test(u)) {{
+      var base = u.replace(/\/?$/, '/');
+      url = base + _PROXY;
+    }}
+    return protocols ? new _WS(url, protocols) : new _WS(url);
+  }};
+  window.WebSocket.prototype = _WS.prototype;
+  window.WebSocket.CONNECTING = _WS.CONNECTING;
+  window.WebSocket.OPEN = _WS.OPEN;
+  window.WebSocket.CLOSING = _WS.CLOSING;
+  window.WebSocket.CLOSED = _WS.CLOSED;
 }})();
 </script>"""
 
