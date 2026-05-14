@@ -3864,8 +3864,13 @@ window.onscriptsload = function() {{
 }};
 </script>"""
 
-    # 在 <head> 后立即注入
-    html = html.replace("<head>", "<head>" + inject, 1)
+    # 在 <head> 后注入：
+    # 1. INCLUDE_URI 让 Util.load_scripts() 从我们的代理加载（不走 ../novnc/include/ 默认路径）
+    # 2. 连接覆盖脚本（设置 SID 和 WebSocket 代理路径）
+    include_uri_script = (
+        f'<script>var INCLUDE_URI = "/api/bmc-static/{ip}/novnc/include/";</script>'
+    )
+    html = html.replace("<head>", "<head>" + include_uri_script + inject, 1)
     return HTMLResponse(html)
 
 
