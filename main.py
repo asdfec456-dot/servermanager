@@ -3866,11 +3866,7 @@ async def _serve_aten_kvm(ip: str, sid: str) -> HTMLResponse:
 (function() {{
   var _SID = '{sid}';
   var _PROXY = 'api/kvm-aten/{ip}/ws';
-  // 预填 SID
-  document.addEventListener('DOMContentLoaded', function() {{
-    var ev = document.getElementById('entry_value');
-    if(ev) ev.value = _SID;
-  }});
+  // entry_value 已由 BMC 服务端预填 VNC 令牌，不覆盖
   // 拦截 WebSocket：把 wss://host/ 重定向到代理路径
   var _WS = window.WebSocket;
   window.WebSocket = function(url, protocols) {{
