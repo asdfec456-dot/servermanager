@@ -3808,7 +3808,10 @@ async def bmc_static_proxy(ip: str, path: str):
                     headers={"Cache-Control": "no-store"},
                 )
 
-            return Response(content=content, media_type=ct)
+            return Response(
+                content=content, media_type=ct,
+                headers={"Cache-Control": "no-store"},
+            )
     except Exception as e:
         from fastapi.responses import Response
         return Response(status_code=502, content=str(e))
@@ -3856,30 +3859,35 @@ async def _serve_aten_kvm(ip: str, sid: str) -> HTMLResponse:
     html = re.sub(r'src=["\']([^/\'"http][^\'"]*)["\']',
                   lambda m: f'src="/api/bmc-static/{ip}/novnc/include/{m.group(1)}"', html)
 
-    # 注入覆盖脚本：设置 SID 和 WebSocket 路径
+    # 注入：用 defineProperty 拦截 onscriptsload 赋值，确保我们的补丁始终运行
     inject = f"""<script>
-// Server Manager 注入：覆盖 WebSocket 路径使其通过代理
-window._SM_IP  = '{ip}';
-window._SM_SID = '{sid}';
-window.onscriptsload_orig = window.onscriptsload;
-window.onscriptsload = function() {{
-  // 等待 UI 对象准备好后注入
-  setTimeout(function patchUI() {{
-    if(typeof UI === 'undefined') {{ setTimeout(patchUI, 50); return; }}
-    var _origConn = UI.connect.bind(UI);
-    UI.connect = function() {{
-      var host = window.location.hostname;
-      var port = window.location.port || 443;
-      UI.rfb.connect(host, port, window._SM_SID, window._SM_SID,
-                     'api/kvm-aten/{ip}/ws');
-    }};
-    // 设置 entry_value（SID 作为密码）
-    var ev = document.getElementById('entry_value');
-    if(ev) ev.value = window._SM_SID;
-    if(window.onscriptsload_orig) window.onscriptsload_orig();
-    else if(typeof UI !== 'undefined') UI.load();
-  }}, 0);
-}};
+(function() {{
+  var _SM_SID = '{sid}';
+  var _SM_PATH = 'api/kvm-aten/{ip}/ws';
+  // 拦截 window.onscriptsload 赋值，让我们的代码在原函数之前执行
+  var _orig = null;
+  Object.defineProperty(window, 'onscriptsload', {{
+    get: function() {{ return _orig; }},
+    set: function(fn) {{
+      _orig = function() {{
+        // 注入：覆盖 UI.connect 使用代理路径
+        if(typeof UI !== 'undefined') {{
+          UI.connect = function() {{
+            var h = window.location.hostname;
+            var p = window.location.port || 443;
+            var enc = window.location.protocol === 'https:';
+            if(typeof UI.rfb !== 'undefined' && UI.rfb.connect)
+              UI.rfb.connect(h, p, _SM_SID, _SM_SID, _SM_PATH);
+          }};
+          var ev = document.getElementById('entry_value');
+          if(ev) ev.value = _SM_SID;
+        }}
+        fn();
+      }};
+    }},
+    configurable: true
+  }});
+}})();
 </script>"""
 
     # 在 <head> 后注入：
