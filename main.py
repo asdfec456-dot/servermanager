@@ -3638,13 +3638,217 @@ connect();
 """
 
 
+async def _aten_login(ip: str, username: str = "ADMIN", password: str = "ADMIN") -> str | None:
+    """登录 ATEN IPMI BMC，返回 SID 或 None。"""
+    import base64 as _b64
+    import aiohttp as _aio
+    u_b64 = _b64.b64encode(username.encode()).decode()
+    p_b64 = _b64.b64encode(password.encode()).decode()
+    connector = _aio.TCPConnector(ssl=False)
+    try:
+        async with _aio.ClientSession(connector=connector) as session:
+            resp = await session.post(
+                f"https://{ip}/cgi/login.cgi",
+                data=f"name={u_b64}&pwd={p_b64}&check=00",
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                timeout=_aio.ClientTimeout(total=8),
+                allow_redirects=False,
+            )
+            for cookie in resp.cookies.values():
+                if cookie.key == "SID" and cookie.value and len(cookie.value) > 4:
+                    return cookie.value
+    except Exception:
+        pass
+    return None
+
+
+async def _probe_aten(ip: str) -> bool:
+    """快速探测：连 port 5900 并等待 RFB 数据，超时说明是 ATEN（需 WS）。"""
+    try:
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(ip, 5900), timeout=3
+        )
+        try:
+            data = await asyncio.wait_for(reader.read(12), timeout=2)
+            writer.close()
+            return not data.startswith(b"RFB")  # ATEN 不主动发 RFB
+        except asyncio.TimeoutError:
+            writer.close()
+            return True  # 超时 → ATEN
+    except Exception:
+        return False  # 连不上也当非 ATEN（保守策略）
+
+
+_KVM_ATEN_HTML = """\
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>KVM — {ip}</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  *{{box-sizing:border-box;margin:0;padding:0;}}
+  html,body{{height:100%;overflow:hidden;background:#000;}}
+  #toolbar{{position:fixed;top:0;left:0;right:0;height:36px;display:flex;align-items:center;
+            gap:6px;padding:0 10px;background:#0f172a;border-bottom:1px solid #1e293b;z-index:10;}}
+  #tb-ip{{color:#475569;font:12px/1 sans-serif;margin-right:auto;}}
+  #status{{color:#94a3b8;font:12px/1 sans-serif;}}
+  #screen{{position:fixed;top:36px;left:0;right:0;bottom:0;background:#000;overflow:hidden;}}
+  #toolbar button{{background:#1e293b;color:#94a3b8;border:1px solid #334155;
+                   border-radius:4px;padding:3px 9px;font:12px sans-serif;cursor:pointer;}}
+  #toolbar button:hover{{background:#0ea5e9;border-color:#0ea5e9;color:#fff;}}
+</style>
+</head>
+<body>
+<div id="toolbar">
+  <span id="tb-ip">KVM — {ip}</span>
+  <span id="status">正在登录 BMC…</span>
+  <button onclick="document.documentElement.requestFullscreen()">⛶ 全屏</button>
+</div>
+<div id="screen"></div>
+<!-- 加载 ATEN BMC 自带的 noVNC (RFB 055.008 协议) -->
+<script src="/api/bmc-static/{ip}/novnc/include/util.js"></script>
+<script src="/api/bmc-static/{ip}/novnc/include/websock.js"></script>
+<script>
+Util.load_scripts_paths = ["/api/bmc-static/{ip}/novnc/include/"];
+</script>
+<script>
+(function() {{
+  var sid = "{sid}";
+  var status = document.getElementById('status');
+
+  function loadScript(src, cb) {{
+    var s = document.createElement('script');
+    s.src = src; s.onload = cb;
+    document.head.appendChild(s);
+  }}
+
+  var scripts = ["webutil.js","base64.js","des.js","keysymdef.js",
+                 "keyboard.js","input.js","display.js","jsunzip.js",
+                 "ast2100.js","rfb.js"];
+  var base = "/api/bmc-static/{ip}/novnc/include/";
+  var idx = 0;
+  function nextScript() {{
+    if(idx >= scripts.length) {{ init(); return; }}
+    loadScript(base + scripts[idx++], nextScript);
+  }}
+  nextScript();
+
+  function init() {{
+    status.textContent = '正在连接…';
+    var proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    var wsUrl = proto + '://' + location.host + '/api/kvm-aten/{ip}/ws';
+    try {{
+      var rfb = new RFB({{
+        target: document.getElementById('screen'),
+        onUpdateState: function(rfb, state, oldstate, msg) {{
+          if(state === 'normal') {{
+            status.textContent = '已连接';
+            status.style.color = '#4ade80';
+          }} else if(state === 'disconnected') {{
+            status.textContent = '已断开';
+            status.style.color = '#f87171';
+          }} else if(msg) {{
+            status.textContent = msg;
+          }}
+        }},
+        onPasswordRequired: function(rfb) {{
+          rfb.sendPassword(sid);
+        }}
+      }});
+      rfb.connect(location.hostname, location.port || 443, sid, sid,
+                  'api/kvm-aten/{ip}/ws');
+    }} catch(e) {{ status.textContent = '错误：' + e; }}
+  }}
+}})();
+</script>
+</body>
+</html>
+"""
+
+
+@app.get("/api/bmc-static/{ip}/{path:path}")
+async def bmc_static_proxy(ip: str, path: str):
+    """代理 ATEN BMC 的静态文件（noVNC JS/CSS）。"""
+    import aiohttp as _aio
+    url = f"https://{ip}/{path}"
+    connector = _aio.TCPConnector(ssl=False)
+    try:
+        async with _aio.ClientSession(connector=connector) as session:
+            resp = await session.get(url, timeout=_aio.ClientTimeout(total=10))
+            content = await resp.read()
+            ct = resp.headers.get("Content-Type", "application/octet-stream")
+            from fastapi.responses import Response
+            return Response(content=content, media_type=ct)
+    except Exception as e:
+        from fastapi.responses import Response
+        return Response(status_code=502, content=str(e))
+
+
 @app.get("/kvm/{ip}", response_class=HTMLResponse)
 async def kvm_novnc_page(ip: str, request: Request):
-    """返回 noVNC 查看器页面（需要登录 cookie）。"""
+    """返回 noVNC 查看器页面（自动检测 ATEN vs 标准 VNC）。"""
     token = request.cookies.get("sm_token") or request.query_params.get("token", "")
     if not token or not get_session(token):
         return RedirectResponse(url="/?kvm=" + ip)
+
+    # 检测是否为 ATEN IPMI（port 5900 不主动发 RFB 握手）
+    is_aten = await _probe_aten(ip)
+    if is_aten:
+        # 获取 BMC 凭据
+        creds = load_machine_creds()
+        mc = creds.get(ip, {})
+        user = mc.get("username") or load_settings().get("username", "ADMIN")
+        pwd  = mc.get("password") or load_settings().get("password", "ADMIN")
+        sid = await _aten_login(ip, user, pwd) or ""
+        return HTMLResponse(_KVM_ATEN_HTML.format(ip=ip, sid=sid))
+
     return HTMLResponse(_KVM_NOVNC_HTML.format(ip=ip))
+
+
+@app.websocket("/api/kvm-aten/{ip}/ws")
+async def kvm_aten_ws_proxy(websocket: WebSocket, ip: str):
+    """ATEN IPMI KVM：浏览器 WebSocket ↔ BMC wss://{ip}/ 桥接。"""
+    import aiohttp as _aio
+    await websocket.accept()
+    connector = _aio.TCPConnector(ssl=False)
+    try:
+        session = _aio.ClientSession(connector=connector)
+        bmc_ws = await session.ws_connect(
+            f"https://{ip}/", timeout=_aio.ClientTimeout(total=10)
+        )
+    except Exception as exc:
+        await websocket.close(code=1011, reason=str(exc))
+        return
+
+    async def browser_to_bmc():
+        try:
+            async for msg in websocket.iter_bytes():
+                await bmc_ws.send_bytes(msg)
+        except (WebSocketDisconnect, Exception):
+            pass
+        finally:
+            await bmc_ws.close()
+
+    async def bmc_to_browser():
+        try:
+            async for msg in bmc_ws:
+                if msg.type == _aio.WSMsgType.BINARY:
+                    await websocket.send_bytes(msg.data)
+                elif msg.type == _aio.WSMsgType.TEXT:
+                    await websocket.send_text(msg.data)
+                elif msg.type in (_aio.WSMsgType.CLOSE, _aio.WSMsgType.ERROR):
+                    break
+        except (WebSocketDisconnect, Exception):
+            pass
+        finally:
+            try:
+                await websocket.close()
+            except Exception:
+                pass
+            await session.close()
+
+    await asyncio.gather(browser_to_bmc(), bmc_to_browser())
 
 
 @app.websocket("/api/kvm/{ip}/ws")
