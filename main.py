@@ -3791,19 +3791,22 @@ async def bmc_static_proxy(ip: str, path: str):
             ct = resp.headers.get("Content-Type", "application/octet-stream")
             from fastapi.responses import Response
 
-            # 对 nav_ui.js 注入正确的 WebSocket 代理路径
+            # 对 nav_ui.js 注入正确的 WebSocket 代理路径，并禁止缓存
             if path.endswith("nav_ui.js"):
                 text = content.decode("utf-8", errors="replace")
-                # 替换 path="" 为我们的代理路径
                 proxy_path = f"api/kvm-aten/{ip}/ws"
                 text = text.replace('var path="";', f'var path="{proxy_path}";', 1)
-                # 同时把 host 指向我们的服务器（不是 BMC IP）
                 text = text.replace(
                     'var host=WebUtil.getQueryVar("host",window.location.hostname);',
                     'var host=window.location.hostname;',
                     1
                 )
-                return Response(content=text.encode(), media_type="application/javascript")
+                from fastapi.responses import Response as _Resp
+                return _Resp(
+                    content=text.encode(),
+                    media_type="application/javascript",
+                    headers={"Cache-Control": "no-store"},
+                )
 
             return Response(content=content, media_type=ct)
     except Exception as e:
