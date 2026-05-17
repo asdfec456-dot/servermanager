@@ -1715,13 +1715,18 @@ function fanCls(s){const f=s.fans||[];if(f.some(x=>x.health==='Critical'))return
 function sdot(h){return{OK:'s-ok',Warning:'s-warn',Critical:'s-crit'}[h]||'s-unk';}
 function kvmUrl(bmc_ip, manufacturer, customUrl){
   if(customUrl) return customUrl;
-  return `/kvm/${bmc_ip}`;  // noVNC 代理页面
+  return `/kvm/${bmc_ip}`;
 }
 function openKvm(e,bmc_ip,manufacturer,customUrl){
   e.stopPropagation();
   e.preventDefault();
   const url = customUrl || `/kvm/${bmc_ip}?token=${encodeURIComponent(token)}`;
   window.open(url,'_blank','noopener,width=1280,height=800');
+}
+// 只有拥有 KVM 权限的用户才渲染按钮
+function kvmBtn(ip,mfr,url){
+  if(!currentUser?.kvm_enabled) return '';
+  return `<button class="kvm-btn" data-ip="${ip}" data-mfr="${esc(mfr||'')}" data-url="${esc(url||'')}" onclick="openKvm(event,this.dataset.ip,this.dataset.mfr,this.dataset.url)" title="${esc(kvmUrl(ip,mfr||'',url||''))}">▶ KVM</button>`;
 }
 function hbadge(s){
   if(s.status==='offline')     return['hb-unk',  t('h.offline')];
@@ -2021,9 +2026,9 @@ ${note}
     cf.gpu&&gpus.length?`<div><div class="ml">GPU</div><div class="mv ${gpuCls}">${gpus.length}个 · ${gpuOk===gpus.length?t('c.normal'):gpuOk+'正常'}</div></div>`:'',
     wide&&procs.length&&!cf.gpu?`<div><div class="ml">CPU</div><div class="mv" style="font-size:.73rem;font-weight:400">${esc((procs[0].model||'').substring(0,30))}</div></div>`:'',
   ].filter(Boolean).join('');
-  const kvmBtn=`<button class="kvm-btn" data-ip="${s.bmc_ip}" data-mfr="${esc(s.manufacturer||'')}" data-url="${esc(s.kvm_url||'')}" onclick="openKvm(event,this.dataset.ip,this.dataset.mfr,this.dataset.url)" title="${esc(kvmUrl(s.bmc_ip,s.manufacturer||'',s.kvm_url||''))}">▶ KVM</button>`;
+  const _kvmBtn=kvmBtn(s.bmc_ip,s.manufacturer||'',s.kvm_url||'');
   return`<div class="card${newCls}" onclick="openDetail('${key}')" style="padding-right:${thermoHtml?'5px':'0'}">
-<div class="card-head"><div class="card-title"><div class="card-name">${esc(displayName)}${newBadge}${flapBadge}${proto}</div><div class="card-sub">${s.bmc_ip} · ${s.model||t('c.unknown_model')}</div></div><div style="display:flex;align-items:center;gap:6px;flex-shrink:0">${kvmBtn}<span class="hbadge ${hcls}">${hlbl}</span></div></div>
+<div class="card-head"><div class="card-title"><div class="card-name">${esc(displayName)}${newBadge}${flapBadge}${proto}</div><div class="card-sub">${s.bmc_ip} · ${s.model||t('c.unknown_model')}</div></div><div style="display:flex;align-items:center;gap:6px;flex-shrink:0">${_kvmBtn}<span class="hbadge ${hcls}">${hlbl}</span></div></div>
 <div class="card-div"></div>
 <div class="card-metrics">${metricCells}</div>
 ${topT.length?`<div class="card-temps">${chips}</div>`:''}${scTags}${pbar}${err}
@@ -2376,7 +2381,7 @@ function openDetail(key){
   $('det-sub').textContent=`BMC: ${s.bmc_ip}  ·  ${t('d.serial')}: ${s.serial||'—'}  ·  ${t('t.proto')}: ${s.protocol_used||'—'}`;
   $('det-badge').innerHTML=`<span class="hbadge ${hcls}">${hlbl}</span>`;
   const kvmEl=$('det-kvm');
-  if(kvmEl) kvmEl.innerHTML=`<button class="kvm-btn" data-ip="${s.bmc_ip}" data-mfr="${esc(s.manufacturer||'')}" data-url="${esc(s.kvm_url||'')}" onclick="openKvm(event,this.dataset.ip,this.dataset.mfr,this.dataset.url)" title="${esc(kvmUrl(s.bmc_ip,s.manufacturer||'',s.kvm_url||''))}">▶ KVM</button>`;
+  if(kvmEl) kvmEl.innerHTML=kvmBtn(s.bmc_ip,s.manufacturer||'',s.kvm_url||'');
   $('det-body').innerHTML=buildDetail(s);
   $('ov-detail').classList.add('open');document.body.style.overflow='hidden';
 }
@@ -2735,7 +2740,7 @@ async function saveKvmUrl(key){
   const sv=servers.find(x=>x.bmc_ip===key.replace(/-/g,'.'));
   if(sv){sv.kvm_url=url;}
   const kvmEl=$('det-kvm');
-  if(kvmEl&&sv) kvmEl.innerHTML=`<button class="kvm-btn" data-ip="${sv.bmc_ip}" data-mfr="${esc(sv.manufacturer||'')}" data-url="${esc(url)}" onclick="openKvm(event,this.dataset.ip,this.dataset.mfr,this.dataset.url)" title="${esc(kvmUrl(sv.bmc_ip,sv.manufacturer||'',url))}">▶ KVM</button>`;
+  if(kvmEl&&sv) kvmEl.innerHTML=kvmBtn(sv.bmc_ip,sv.manufacturer||'',url);
 }
 
 async function saveAlias(key){
