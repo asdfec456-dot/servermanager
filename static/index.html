@@ -569,10 +569,6 @@ tr:hover td{background:var(--sf2)}
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
           <span id="dd-lbl-osp">安装配置</span>
         </button>
-        <button class="dd-item" onclick="ddOpen('ov-nginx')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-          <span id="dd-lbl-nginx">Nginx 反代</span>
-        </button>
         <button class="dd-item" onclick="ddOpen('ov-ssl')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           <span id="dd-lbl-ssl">HTTPS 配置</span>
@@ -898,43 +894,6 @@ tr:hover td{background:var(--sf2)}
 </div>
 </div>
 
-<!-- NGINX REVERSE PROXY MODAL -->
-<div class="overlay" id="ov-nginx" onclick="closeOvBg(event,'ov-nginx')">
-<div class="modal modal-wide">
-  <div class="modal-hdr">
-    <div><div class="modal-title">Nginx KVM 反向代理配置</div>
-         <div class="modal-sub">将 BMC 内网 IP 通过 nginx 映射到公网，解决外网无法访问 KVM 的问题</div></div>
-    <button class="mclose" onclick="closeOverlay('ov-nginx')">✕</button>
-  </div>
-  <div class="modal-body" style="padding:18px">
-    <!-- 说明 -->
-    <div style="background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.2);border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:.8rem;line-height:1.8">
-      <b>原理：</b>Nginx 运行在 Server Manager 所在的服务器上，该服务器能访问所有内网 BMC。<br>
-      配置后，外网浏览器访问 <code>https://sm.catnetwork.co.jp/bmc/192.168.101.41/</code> 时，
-      nginx 自动代理到 <code>https://192.168.101.41/</code>，完整支持 HTTPS 和 WebSocket（KVM 画面流）。
-    </div>
-    <!-- 操作按钮 -->
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
-      <button class="btn btn-acc" onclick="loadNginxConfig()" style="border:none">① 生成配置</button>
-      <button class="btn" onclick="applyNginxConfig()" id="btn-nginx-apply">② 获取安装命令</button>
-      <span id="nginx-status" style="font-size:.75rem;min-height:16px"></span>
-    </div>
-    <!-- 配置文本 -->
-    <div style="font-size:.72rem;color:var(--tx2);margin-bottom:6px">nginx 配置内容（粘贴到 server { } 块中，或使用「写入」按钮自动应用）</div>
-    <textarea id="nginx-config-text" class="inp" readonly
-      style="width:100%;min-height:260px;font-family:monospace;font-size:.74rem;resize:vertical;background:var(--sf2)"
-      placeholder="点击「生成配置」按钮..."></textarea>
-    <div style="font-size:.7rem;color:var(--tx3);margin-top:8px;line-height:1.8">
-      <b>使用步骤：</b><br>
-      1. 点「生成配置」查看 nginx location 配置块<br>
-      2. 点「获取安装命令」— 配置保存到 Server Manager 数据目录，并显示 shell 命令<br>
-      3. 用 SSH 连接服务器，复制并执行显示的命令（安装 nginx + 应用配置）<br>
-      4. 命令执行成功后，勾选「KVM 按钮使用 nginx 代理路径」
-    </div>
-  </div>
-</div>
-</div>
-
 <!-- CARD DISPLAY SETTINGS MODAL -->
 <div class="overlay" id="ov-card-cfg" onclick="closeOvBg(event,'ov-card-cfg')">
 <div class="modal" style="max-width:400px">
@@ -1223,7 +1182,7 @@ zh:{
   'confirm.cancel_member':'确认取消会员？取消后立即失效，剩余时间不退款。',
   'confirm.delete_bmc_pass':'确认将 BMC 密码修改为新密码？此操作直接写入硬件。',
   // OS Profiles
-  'nginx.title':'Nginx 反代','ssl.title':'HTTPS 配置',
+  'ssl.title':'HTTPS 配置',
   'card.settings':'卡片显示',
   'card.field_power':'电源状态',  'card.field_memory':'内存大小',
   'card.field_fans':'风扇状态',   'card.field_psu':'电源模块',
@@ -1605,7 +1564,7 @@ function applyI18n(){
     'lbl-servers':'servers','lbl-online':'online','lbl-offline':'offline','lbl-collecting':'collecting',
     'fl-all':'all','fl-s-online':'online','fl-s-auth':'h.auth_failed','fl-s-reach':'h.reachable','fl-s-pend':'collecting','fl-s-off':'offline',
     'lbl-refresh':'btn.refresh','lbl-settings':'btn.settings','lbl-logout':'btn.logout',
-    'dd-lbl-cfg':'cfg.title','dd-lbl-sc':'sc.title','dd-lbl-users':'u.title','dd-lbl-alerts':'al.title','dd-lbl-osp':'osp.title','dd-lbl-ssl':'ssl.title','dd-lbl-card':'card.settings','dd-lbl-nginx':'nginx.title',
+    'dd-lbl-cfg':'cfg.title','dd-lbl-sc':'sc.title','dd-lbl-users':'u.title','dd-lbl-alerts':'al.title','dd-lbl-osp':'osp.title','dd-lbl-ssl':'ssl.title','dd-lbl-card':'card.settings',
     'lbl-setup-title':'setup.title','lbl-setup-sub':'setup.sub','lbl-cluster':'setup.cluster',
     'lbl-admin-user':'setup.admin','lbl-admin-pass':'setup.pass','lbl-confirm':'setup.confirm',
     'btn-setup-submit':'setup.submit','lbl-login-title':'login.title',
@@ -2760,36 +2719,6 @@ async function saveAlias(key){
   }
 }
 
-/* ── Nginx 反代配置 ─────────────────────────────────────────── */
-async function loadNginxConfig(){
-  const btn=document.querySelector('#ov-nginx .btn-acc');
-  const st=$('nginx-status'); const ta=$('nginx-config-text');
-  if(btn)btn.disabled=true; if(st){st.style.color='var(--tx2)';st.textContent='生成中...';}
-  const r=await api('GET','/api/nginx/bmc-proxy-config'); if(btn)btn.disabled=false;
-  if(!r){if(st){st.style.color='var(--crit)';st.textContent='请求失败';}return;}
-  const d=await r.json();
-  if(r.ok){ta.value=d.config; if(st){st.style.color='var(--ok)';st.textContent=`✓ 已生成 ${d.ip_count} 个 IP 的配置`;}}
-  else{if(st){st.style.color='var(--crit)';st.textContent=d.detail||'生成失败';}}
-}
-async function applyNginxConfig(){
-  const st=$('nginx-status'), btn=$('btn-nginx-apply');
-  btn.disabled=true; st.style.color='var(--tx2)'; st.textContent='处理中...';
-  const r=await api('POST','/api/nginx/apply-bmc-proxy',{});
-  btn.disabled=false;
-  if(!r){st.style.color='var(--crit)';st.textContent='请求失败';return;}
-  const d=await r.json();
-  if(d.ok){
-    st.style.color='var(--ok)';
-    st.textContent=`✓ 配置已保存至 ${d.saved_path}`;
-    // Show commands in textarea
-    const ta=$('nginx-config-text');
-    const notice=d.nginx_installed?'# nginx 已安装，执行以下命令应用配置：\n':'# nginx 未安装，请先安装再应用配置：\n';
-    if(ta) ta.value=notice+d.steps.join('\n')+'\n\n'+ta.value;
-  } else {
-    st.style.color='var(--crit)';st.textContent=d.detail||'操作失败';
-  }
-}
-
 /* ── 卡片显示设置 ───────────────────────────────────────────── */
 const CARD_FIELD_DEFS=[
   {key:'power',   label:'card.field_power',    default:true},
@@ -3292,7 +3221,6 @@ function openOverlay(id){
   else if(id==='ov-alerts')openAlertsModal();
   else if(id==='ov-sub')openSubModal();
   else if(id==='ov-osprofiles')openOspModal();
-  else if(id==='ov-nginx'){$('ov-nginx').classList.add('open');document.body.style.overflow='hidden';}
   else if(id==='ov-ssl')openSslModal();
   else if(id==='ov-card-cfg')openCardCfgModal();
   else{$(id).classList.add('open');document.body.style.overflow='hidden';}
