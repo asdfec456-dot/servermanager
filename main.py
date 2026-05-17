@@ -2935,20 +2935,30 @@ async def mount_virtual_media(bmc_ip: str, username: str, password: str,
                     return {"ok": False, "error": "VirtualMedia 不支持或不可访问"}
                 d = await r.json(content_type=None)
                 members = d.get("Members", [])
-            # 找 CD/DVD 槽
-            slot_path = None
+            # 找 CD/DVD 槽：先精确匹配，再宽松匹配，最后取首个非 Floppy 槽
+            _OPTICAL_TYPES = {"cd", "dvd", "cd-dvd", "optical", "cdrom", "cd-rom"}
+            _DISK_ONLY_TYPES = {"usbdisk", "floppy", "usb", "removabledisk"}
+            slot_path      = None
+            fallback_path  = None   # 无 MediaTypes 的兜底槽位
             for m in members:
                 p = m.get("@odata.id", "")
                 async with sess.get(f"https://{bmc_ip}{p}", ssl=ctx,
                                     timeout=aiohttp.ClientTimeout(total=10)) as r:
-                    if r.status == 200:
-                        slot = await r.json(content_type=None)
-                        mt = slot.get("MediaTypes", [])
-                        if any(t in ("CD", "DVD", "CD-DVD") for t in mt):
-                            slot_path = p
-                            break
+                    if r.status != 200:
+                        continue
+                    slot = await r.json(content_type=None)
+                    mt = [t.lower() for t in slot.get("MediaTypes", [])]
+                    if any(t in _OPTICAL_TYPES for t in mt):
+                        slot_path = p
+                        break
+                    # 如果 MediaTypes 为空或不含纯磁盘类型，记为兜底
+                    if not mt or not any(t in _DISK_ONLY_TYPES for t in mt):
+                        fallback_path = fallback_path or p
+            # 精确匹配失败时使用兜底（例如固件未设置 MediaTypes）
             if not slot_path:
-                return {"ok": False, "error": "未找到 CD/DVD VirtualMedia 槽"}
+                slot_path = fallback_path
+            if not slot_path:
+                return {"ok": False, "error": "未找到 CD/DVD VirtualMedia 槽（已尝试精确及兜底匹配）"}
             # 挂载
             async with sess.patch(
                 f"https://{bmc_ip}{slot_path}", ssl=ctx,
@@ -3219,7 +3229,11 @@ async def api_install_start(bmc_ip_enc: str, req: Request,
     iso_url     = body.get("iso_url", "")
     boot_method = body.get("boot_method", "manual")
     if boot_method == "virtual-media" and iso_url:
-        results["mount"] = await mount_virtual_media(bmc_ip, username, password, iso_url)
+        mount_result = await mount_virtual_media(bmc_ip, username, password, iso_url)
+        results["mount"] = mount_result
+        # 挂载失败 → 中止后续引导/电源操作，避免意外重启
+        if not mount_result.get("ok"):
+            return {"ok": False, "results": results}
 
     # 2. 设置引导设备
     if boot_method in ("virtual-media", "cdrom"):
@@ -3227,8 +3241,9 @@ async def api_install_start(bmc_ip_enc: str, req: Request,
     elif boot_method == "pxe":
         results["boot"] = await set_boot_device(bmc_ip, username, password, "pxe")
 
-    # 3. 重启
-    if body.get("do_reboot", True) and boot_method != "manual":
+    # 3. 重启（仅在引导项设置成功后执行）
+    boot_ok = results.get("boot", {}).get("ok", True)
+    if body.get("do_reboot", True) and boot_method != "manual" and boot_ok:
         results["power"] = await power_action(bmc_ip, username, password, "reset")
 
     ok = all(v.get("ok", True) for v in results.values())
