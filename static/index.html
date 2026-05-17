@@ -69,8 +69,11 @@ header{background:var(--sf);border-bottom:1px solid var(--bd);height:56px;paddin
 .btn-danger:hover{background:rgba(239,68,68,.1);border-color:var(--crit)}
 .user-badge{display:flex;align-items:center;gap:5px;padding:3px 8px;background:var(--sf2);border:1px solid var(--bd);border-radius:20px;font-size:.7rem;color:var(--tx2)}
 .role-tag{font-size:.6rem;padding:1px 5px;border-radius:3px;font-weight:600}
+.role-sysadmin{background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.35)}
 .role-admin{background:rgba(56,189,248,.15);color:var(--acc);border:1px solid rgba(56,189,248,.3)}
 .role-viewer{background:rgba(34,197,94,.12);color:var(--ok);border:1px solid rgba(34,197,94,.3)}
+.kvm-toggle{display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--tx2);margin-top:6px;padding:5px 8px;border-radius:5px;background:rgba(255,255,255,.04);border:1px solid var(--bd)}
+.kvm-toggle input{width:13px;height:13px;accent-color:var(--acc);cursor:pointer}
 /* Lang switcher */
 .lang-sw{display:flex;gap:1px;background:var(--sf2);border:1px solid var(--bd);border-radius:6px;padding:2px}
 .lang-btn{background:none;border:none;color:var(--tx2);cursor:pointer;padding:3px 6px;border-radius:4px;font-size:.7rem;font-weight:600;transition:all .15s}
@@ -705,9 +708,14 @@ tr:hover td{background:var(--sf2)}
       </div>
       <div class="form-g2" style="margin-bottom:8px"><label id="lbl-u-role">角色</label>
         <select class="inp" id="nu-role" onchange="onRoleChange()">
-          <option value="viewer" id="lbl-role-viewer">查看者</option>
+          <option value="viewer" id="lbl-role-viewer">游客</option>
           <option value="admin" id="lbl-role-admin">管理员</option>
         </select>
+      </div>
+      <!-- KVM 开关：仅系统管理员可见，且不能设置系统管理员自身 -->
+      <div id="nu-kvm-wrap" class="kvm-toggle" style="display:none">
+        <input type="checkbox" id="nu-kvm" checked>
+        <label for="nu-kvm" id="lbl-u-kvm" style="cursor:pointer">允许使用 KVM</label>
       </div>
       <div id="nu-access-wrap">
         <div class="sec-title" id="lbl-access">访问权限</div>
@@ -1086,7 +1094,7 @@ const LANG={
 zh:{
   'servers':'台','online':'在线','offline':'离线','collecting':'采集中','refreshed':'上次采集:',
   'filter':'筛选：','all':'全部','ok':'正常','warning':'警告','critical':'严重',
-  'role.admin':'管理员','role.viewer':'查看者',
+  'role.sysadmin':'系统管理员','role.admin':'管理员','role.viewer':'游客',
   'btn.refresh':'采集','btn.settings':'设置','btn.subclusters':'子集群','btn.users':'用户','btn.logout':'登出',
   'h.ok':'正常','h.warning':'警告','h.critical':'严重','h.unknown':'未知','h.offline':'离线','h.collecting':'采集中',
   'h.auth_failed':'认证失败','h.reachable':'BMC不可达',
@@ -1107,7 +1115,8 @@ zh:{
   'cfg.try_found':'✓ 找到可用凭据（已填入）：用户 {u}','cfg.try_none':'未找到可用的默认凭据',
   'u.title':'用户管理','u.list':'用户列表','u.form_add':'添加用户','u.form_edit':'编辑用户',
   'u.name':'用户名','u.pass':'密码','u.pass_hint':'至少 6 位','u.pass_hint_edit':'留空则不修改',
-  'u.role':'角色','u.role_viewer':'查看者','u.role_admin':'管理员',
+  'u.role':'角色','u.role_viewer':'游客','u.role_admin':'管理员','u.role_sysadmin':'系统管理员',
+  'u.kvm':'允许 KVM',
   'u.access':'访问权限','u.access_sc':'子集群','u.access_mach':'单台机器',
   'u.no_sc':'暂无子集群','u.no_mach':'暂无机器数据','u.all_access':'所有权限','u.accessible':'可访问：',
   'u.edit':'编辑','u.delete':'删除','u.cancel':'取消','u.add':'添加','u.save':'保存修改',
@@ -1265,7 +1274,7 @@ zh:{
 en:{
   'servers':'servers','online':'online','offline':'offline','collecting':'Collecting','refreshed':'Updated:',
   'filter':'Filter:','all':'All','ok':'OK','warning':'Warning','critical':'Critical',
-  'role.admin':'Admin','role.viewer':'Viewer',
+  'role.sysadmin':'Sys Admin','role.admin':'Admin','role.viewer':'Guest',
   'btn.refresh':'Refresh','btn.settings':'Settings','btn.subclusters':'Subclusters','btn.users':'Users','btn.logout':'Logout',
   'h.ok':'OK','h.warning':'Warning','h.critical':'Critical','h.unknown':'Unknown','h.offline':'Offline','h.collecting':'Collecting',
   'h.auth_failed':'Auth Failed','h.reachable':'BMC Offline',
@@ -1286,7 +1295,8 @@ en:{
   'cfg.try_found':'✓ Credentials found (filled in): user {u}','cfg.try_none':'No common credentials worked',
   'u.title':'User Management','u.list':'User List','u.form_add':'Add User','u.form_edit':'Edit User',
   'u.name':'Username','u.pass':'Password','u.pass_hint':'Min 6 characters','u.pass_hint_edit':'Leave blank to keep current',
-  'u.role':'Role','u.role_viewer':'Viewer','u.role_admin':'Administrator',
+  'u.role':'Role','u.role_viewer':'Guest','u.role_admin':'Administrator','u.role_sysadmin':'System Admin',
+  'u.kvm':'Allow KVM',
   'u.access':'Access Control','u.access_sc':'Subclusters','u.access_mach':'Individual Machines',
   'u.no_sc':'No subclusters yet','u.no_mach':'No machine data yet','u.all_access':'Full access','u.accessible':'Access: ',
   'u.edit':'Edit','u.delete':'Delete','u.cancel':'Cancel','u.add':'Add','u.save':'Save Changes',
@@ -1425,7 +1435,7 @@ en:{
 ja:{
   'servers':'台','online':'オンライン','offline':'オフライン','collecting':'収集中','refreshed':'更新:',
   'filter':'フィルター：','all':'すべて','ok':'正常','warning':'警告','critical':'重大',
-  'role.admin':'管理者','role.viewer':'閲覧者',
+  'role.sysadmin':'システム管理者','role.admin':'管理者','role.viewer':'ゲスト',
   'btn.refresh':'更新','btn.settings':'設定','btn.subclusters':'サブクラスター','btn.users':'ユーザー','btn.logout':'ログアウト',
   'h.ok':'正常','h.warning':'警告','h.critical':'重大','h.unknown':'不明','h.offline':'オフライン','h.collecting':'収集中',
   'h.auth_failed':'認証失敗','h.reachable':'BMC到達不可',
@@ -1446,7 +1456,8 @@ ja:{
   'cfg.try_found':'✓ 認証情報が見つかりました（入力済み）：ユーザー {u}','cfg.try_none':'デフォルト認証情報が見つかりませんでした',
   'u.title':'ユーザー管理','u.list':'ユーザー一覧','u.form_add':'ユーザー追加','u.form_edit':'ユーザー編集',
   'u.name':'ユーザー名','u.pass':'パスワード','u.pass_hint':'6文字以上','u.pass_hint_edit':'空白のままで変更しない',
-  'u.role':'ロール','u.role_viewer':'閲覧者','u.role_admin':'管理者',
+  'u.role':'ロール','u.role_viewer':'ゲスト','u.role_admin':'管理者','u.role_sysadmin':'システム管理者',
+  'u.kvm':'KVMを許可',
   'u.access':'アクセス権限','u.access_sc':'サブクラスター','u.access_mach':'個別サーバー',
   'u.no_sc':'サブクラスターなし','u.no_mach':'サーバーデータなし','u.all_access':'すべてのアクセス権','u.accessible':'アクセス可能：',
   'u.edit':'編集','u.delete':'削除','u.cancel':'キャンセル','u.add':'追加','u.save':'変更を保存',
@@ -1608,7 +1619,7 @@ function applyI18n(){
     'lbl-u-name':'u.name','lbl-u-pass':'u.pass','lbl-u-role':'u.role',
     'lbl-access':'u.access','lbl-access-sc':'u.access_sc','lbl-access-mach':'u.access_mach',
     'lbl-u-cancel':'u.cancel','lbl-u-submit':'u.add',
-    'lbl-role-viewer':'u.role_viewer','lbl-role-admin':'u.role_admin',
+    'lbl-role-viewer':'u.role_viewer','lbl-role-admin':'u.role_admin','lbl-u-kvm':'u.kvm',
     'lbl-sc-title':'sc.title','lbl-sc-sub':'sc.sub','lbl-sc-list':'sc.list',
     'lbl-sc-name':'sc.name','lbl-sc-desc':'sc.desc','lbl-sc-machines':'sc.machines',
     'lbl-sc-cancel':'sc.cancel','lbl-sc-save':'sc.create',
@@ -1672,6 +1683,8 @@ function setLang(l){
 /* ── State ─────────────────────────────────────────────────── */
 let token=localStorage.getItem('sm_token')||'';
 let currentUser=null;
+const _isAdmin=()=>currentUser&&['sysadmin','admin'].includes(currentUser.role);
+const _isSysAdmin=()=>currentUser&&currentUser.role==='sysadmin';
 let servers=[],subclusters=[];
 let statusFilter=new Set();   // 选中的状态类型，空=全部
 let scFilters   =new Set();   // 选中的子集群 ID，空=全部
@@ -1752,11 +1765,13 @@ function showApp(){
   $('auth-screen').style.display='none';$('app').style.display='block';
   $('hdr-uname').textContent=currentUser.username;
   $('hdr-cluster').textContent=currentUser.cluster_name;
-  $('hdr-role-tag').textContent=t(currentUser.role==='admin'?'role.admin':'role.viewer');
-  $('hdr-role-tag').className='role-tag '+(currentUser.role==='admin'?'role-admin':'role-viewer');
-  document.querySelectorAll('.admin-only').forEach(el=>el.style.display=currentUser.role==='admin'?'':'none');
+  const _roleKey={'sysadmin':'role.sysadmin','admin':'role.admin','viewer':'role.viewer'}[currentUser.role]||'role.viewer';
+  const _roleCls={'sysadmin':'role-sysadmin','admin':'role-admin','viewer':'role-viewer'}[currentUser.role]||'role-viewer';
+  $('hdr-role-tag').textContent=t(_roleKey);
+  $('hdr-role-tag').className='role-tag '+_roleCls;
+  document.querySelectorAll('.admin-only').forEach(el=>el.style.display=(_isAdmin()?'':'none'));
   initViewBtn();applyI18n();startPolling();
-  if(currentUser.role==='admin') loadOsProfiles();
+  if((_isAdmin())) loadOsProfiles();
   // 移动菜单：同步会员按钮
   const mobSub=$('mob-sub-item');
   if(mobSub) mobSub.style.display='flex';
@@ -1774,7 +1789,7 @@ async function doSetup(){
   const d=await r.json();
   if(!r.ok){err.textContent=d.detail||'失败';return;}
   token=d.token;localStorage.setItem('sm_token',token);
-  currentUser={username:d.username,role:d.role,cluster_access:null,machine_access:null,cluster_name:d.cluster_name};
+  currentUser={username:d.username,role:d.role,kvm_enabled:d.kvm_enabled!==false,cluster_access:null,machine_access:null,cluster_name:d.cluster_name};
   showApp();
 }
 let _lockoutTimer=null;
@@ -1822,7 +1837,7 @@ async function doLogin(){
   if(_lockoutTimer){clearInterval(_lockoutTimer);_lockoutTimer=null;}
   btn.disabled=false;btn.textContent=t('login.submit');
   token=d.token;localStorage.setItem('sm_token',token);
-  currentUser={username:d.username,role:d.role,cluster_access:d.cluster_access,machine_access:d.machine_access,cluster_name:d.cluster_name};
+  currentUser={username:d.username,role:d.role,kvm_enabled:d.kvm_enabled!==false,cluster_access:d.cluster_access,machine_access:d.machine_access,cluster_name:d.cluster_name};
   showApp();
 }
 async function doLogout(){
@@ -1991,7 +2006,7 @@ ${note}
     const sc=subclusters.find(x=>x.id===id);
     return sc&&sc.show_in_cards!==false;
   });
-  const scTags=currentUser?.role==='admin'&&visibleScIds.length?`<div class="sc-tags">${visibleScIds.map(id=>{const sc=subclusters.find(x=>x.id===id);return sc?`<span class="sc-tag">${esc(sc.name)}</span>`:''}).join('')}</div>`:'';
+  const scTags=(_isAdmin())&&visibleScIds.length?`<div class="sc-tags">${visibleScIds.map(id=>{const sc=subclusters.find(x=>x.id===id);return sc?`<span class="sc-tag">${esc(sc.name)}</span>`:''}).join('')}</div>`:'';
   const pwr=s.power_state==='On'?t('c.on'):s.power_state==='Off'?t('c.off'):s.power_state||'—';
   // GPU
   const gpus=s.gpus||[];
@@ -2131,7 +2146,7 @@ function updateUI(data){
   $('s-coll').style.display=data.collecting?'flex':'none';
   if(data.last_refresh)$('s-time').textContent=t('refreshed')+fmtT(data.last_refresh);
   renderScFilterBtns();
-  if(!data.configured&&!data.collecting&&currentUser?.role==='admin'){
+  if(!data.configured&&!data.collecting&&(_isAdmin())){
     $('main').innerHTML=`<div class="empty"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--bd2)" stroke-width="1.2"><rect x="2" y="3" width="20" height="4" rx="1"/><rect x="2" y="10" width="20" height="4" rx="1"/><rect x="2" y="17" width="20" height="4" rx="1"/></svg><h2>${t('e.not_configured')}</h2><p>${t('e.hint')}</p><button class="btn btn-acc" style="border:none;padding:7px 16px" onclick="openOverlay('ov-cfg')">${t('e.configure')}</button></div>`;
     return;
   }
@@ -2192,19 +2207,36 @@ function resetUserForm(){
   onRoleChange();
 }
 function cancelUserEdit(){resetUserForm();refreshAccessLists([],[]);}
-function onRoleChange(){$('nu-access-wrap').style.display=$('nu-role').value==='viewer'?'':'none';}
+function _roleTag(role){
+  const cls={'sysadmin':'role-sysadmin','admin':'role-admin','viewer':'role-viewer'}[role]||'role-viewer';
+  const key={'sysadmin':'role.sysadmin','admin':'role.admin','viewer':'role.viewer'}[role]||'role.viewer';
+  return`<span class="role-tag ${cls}">${t(key)}</span>`;
+}
+function onRoleChange(){
+  const role=$('nu-role').value;
+  $('nu-access-wrap').style.display=role==='viewer'?'':'none';
+  // KVM 开关：仅系统管理员可见，且编辑的不是自己（sysadmin 不能给自己关）
+  const showKvm=_isSysAdmin()&&_editUserId&&_editUserId!==currentUser?.id;
+  $('nu-kvm-wrap').style.display=showKvm?'flex':'none';
+}
 async function refreshUserList(){
   const r=await api('GET','/api/users');if(!r)return;
   const users=await r.json();
   $('user-list').innerHTML=users.map(u=>{
     const scNames=(u.cluster_access||[]).map(id=>{const sc=subclusters.find(x=>x.id===id);return sc?sc.name:id;});
     const machCount=(u.machine_access||[]).length;
-    let meta=u.role==='admin'?t('u.all_access'):t('u.accessible')+(scNames.join('、')||(machCount?machCount+'台':'—'));
+    const isAbove=['sysadmin','admin'].includes(u.role);
+    let meta=isAbove?t('u.all_access'):t('u.accessible')+(scNames.join('、')||(machCount?machCount+'台':'—'));
+    // KVM 状态标记（系统管理员视图下显示）
+    const kvmBadge=_isSysAdmin()&&u.role!=='sysadmin'
+      ?`<span style="font-size:.6rem;padding:1px 5px;border-radius:3px;margin-left:4px;${u.kvm_enabled?'background:rgba(56,189,248,.12);color:var(--acc);border:1px solid rgba(56,189,248,.25)':'background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.25)'}">KVM ${u.kvm_enabled?'✓':'✗'}</span>`
+      :'';
+    const canDel=u.username!==currentUser?.username&&u.role!=='sysadmin';
     return`<div class="user-item">
-<div class="user-info"><div class="user-name">${esc(u.username)} <span class="role-tag ${u.role==='admin'?'role-admin':'role-viewer'}">${t(u.role==='admin'?'role.admin':'role.viewer')}</span></div><div class="user-meta">${esc(meta)}</div></div>
+<div class="user-info"><div class="user-name">${esc(u.username)} ${_roleTag(u.role)}${kvmBadge}</div><div class="user-meta">${esc(meta)}</div></div>
 <div style="display:flex;gap:5px">
-<button class="btn-sm" onclick="editUser('${u.id}')">${t('u.edit')}</button>
-${u.username!==currentUser.username?`<button class="btn-sm btn-sm-del" onclick="deleteUser('${u.id}','${esc(u.username)}')">${t('u.delete')}</button>`:''}
+${u.role!=='sysadmin'||u.username===currentUser?.username?`<button class="btn-sm" onclick="editUser('${u.id}')">${t('u.edit')}</button>`:''}
+${canDel?`<button class="btn-sm btn-sm-del" onclick="deleteUser('${u.id}','${esc(u.username)}')">${t('u.delete')}</button>`:''}
 </div></div>`;
   }).join('')||`<div style="color:var(--tx3);font-size:.73rem">${t('sc.no_list')}</div>`;
 }
@@ -2225,7 +2257,15 @@ async function editUser(id){
   $('user-form-title').textContent=t('u.form_edit');
   $('nu-name').value=u.username;$('nu-pass').value='';
   $('nu-pass-hint').textContent=t('u.pass_hint_edit');
-  $('nu-role').value=u.role;
+  // sysadmin 角色在 select 里不存在，用 readonly 展示
+  if(u.role==='sysadmin'){
+    $('nu-role').value='admin'; // 占位，显示为管理员但 select 禁用
+    $('nu-role').disabled=true;
+  } else {
+    $('nu-role').value=u.role;
+    $('nu-role').disabled=false;
+  }
+  if($('nu-kvm')) $('nu-kvm').checked=!!u.kvm_enabled;
   $('btn-user-cancel').style.display='';
   $('lbl-u-submit').textContent=t('u.save');
   $('user-err').textContent='';
@@ -2233,19 +2273,27 @@ async function editUser(id){
   await refreshAccessLists(u.cluster_access||[],u.machine_access||[]);
 }
 async function submitUser(){
-  const name=$('nu-name').value.trim(),pw=$('nu-pass').value,role=$('nu-role').value,err=$('user-err');
+  const name=$('nu-name').value.trim(),pw=$('nu-pass').value,
+        role=$('nu-role').disabled?'sysadmin':$('nu-role').value,
+        err=$('user-err');
   err.textContent='';
   if(!name){err.textContent=t('u.err_name');return;}
   if(!_editUserId&&!pw){err.textContent=t('u.err_pass');return;}
   if(pw&&pw.length<6){err.textContent=t('u.err_short');return;}
   const cluster_access=role==='viewer'?[...document.querySelectorAll('.nu-sc-cb:checked')].map(cb=>cb.value):null;
   const machine_access=role==='viewer'?[...document.querySelectorAll('.nu-mac-cb:checked')].map(cb=>cb.value):null;
-  const body={username:name,role,cluster_access,machine_access};
+  const body={username:name,cluster_access,machine_access};
+  if(role!=='sysadmin')body.role=role;
   if(pw)body.password=pw;
   const r=_editUserId?await api('PUT',`/api/users/${_editUserId}`,body):await api('POST','/api/users',body);
   if(!r)return;
   const d=await r.json();
   if(!r.ok){err.textContent=d.detail||'失败';return;}
+  // 单独提交 KVM 开关（仅系统管理员，且不是 sysadmin 用户）
+  if(_isSysAdmin()&&_editUserId&&role!=='sysadmin'){
+    const kvmEnabled=$('nu-kvm')?.checked??true;
+    await api('PUT',`/api/users/${_editUserId}/kvm`,{kvm_enabled:kvmEnabled});
+  }
   resetUserForm();await refreshUserList();await refreshAccessLists([],[]);
 }
 async function deleteUser(id,uname){
@@ -2337,7 +2385,7 @@ function buildDetail(s){
   const ms=s.memory_summary||{};const parts=[];
   const key=s.bmc_ip.replace(/\./g,'-');
   // 别名 + 独立凭据（仅管理员）
-  if(currentUser?.role==='admin'){
+  if((_isAdmin())){
     const cs = s.cred_source||'global';
     const srcLabel = cs==='auto'
       ? `<span style="color:var(--ok);font-size:.7rem">🔍 ${t('d.creds_auto')} · ${s.cred_username||''}</span>`
@@ -2477,7 +2525,7 @@ ${ms.total_gib?`<div><div class="ik">${t('d.mem')}</div><div class="iv">${ms.tot
   }
 
   // 电源控制（管理员）
-  if(currentUser?.role==='admin'){
+  if((_isAdmin())){
     parts.push(`<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--bd);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
 <span style="font-size:.72rem;color:var(--tx2);margin-right:4px">${t('inst.power_reset')}：</span>
 <button class="btn" onclick="doPower('${key}','reset')" style="font-size:.74rem">${t('inst.power_reset')}</button>
@@ -2489,7 +2537,7 @@ ${ms.total_gib?`<div><div class="ik">${t('d.mem')}</div><div class="iv">${ms.tot
   }
 
   // 系统安装（管理员）
-  if(currentUser?.role==='admin'){
+  if((_isAdmin())){
     const profOpts=osProfiles.length
       ?osProfiles.map(p=>`<option value="${p.id}">${esc(p.name)} · ${p.os_type}</option>`).join('')
       :`<option value="" disabled>${t('inst.no_profile')}</option>`;
@@ -2571,7 +2619,7 @@ ${ms.total_gib?`<div><div class="ik">${t('d.mem')}</div><div class="iv">${ms.tot
   }
 
   // BMC 密码修改区块（仅管理员 + 在线服务器）
-  if(currentUser?.role==='admin' && s.status==='online'){
+  if((_isAdmin()) && s.status==='online'){
     parts.push(`<div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--bd)">
 <div class="sec-title">${t('bmc.change_pw')}</div>
 <details style="background:rgba(56,189,248,.05);border:1px solid rgba(56,189,248,.15);border-radius:6px;padding:0;margin-bottom:10px">
@@ -3708,7 +3756,8 @@ checkAuth();
 function openMobMenu(){
   // 同步菜单内容
   $('mob-menu-user').textContent=(currentUser?.username||'')+'　';
-  const sr=$('mob-menu-role');if(sr)sr.textContent=currentUser?.role==='admin'?t('role.admin'):t('role.viewer');
+  const sr=$('mob-menu-role');
+  if(sr){const _rk={'sysadmin':'role.sysadmin','admin':'role.admin','viewer':'role.viewer'}[currentUser?.role||'viewer'];sr.textContent=t(_rk||'role.viewer');}
   $('mob-menu-overlay').classList.add('open');
   $('mob-menu-panel').classList.add('open');
   document.body.style.overflow='hidden';

@@ -99,7 +99,16 @@ def load_auth() -> dict:
     DATA_DIR.mkdir(exist_ok=True)
     if AUTH_FILE.exists():
         try:
-            return json.loads(AUTH_FILE.read_text())
+            data = json.loads(AUTH_FILE.read_text())
+            # 迁移：若无 sysadmin，将第一个 admin 升级为 sysadmin
+            users = data.get("users", [])
+            if users and not any(u.get("role") == "sysadmin" for u in users):
+                for u in users:
+                    if u.get("role") == "admin":
+                        u["role"] = "sysadmin"
+                        break
+                save_auth(data)
+            return data
         except Exception:
             pass
     return {"initialized": False, "cluster_name": "", "users": []}
@@ -809,13 +818,17 @@ def _clear_failures(ip: str, username: str) -> None:
 
 def create_session(user: dict) -> str:
     token = secrets.token_hex(32)
+    role = user.get("role", "viewer")
+    # kvm_enabled: sysadmin/admin 默认 true；viewer 由 sysadmin 控制，默认 false
+    kvm_enabled = user.get("kvm_enabled", role in ("sysadmin", "admin"))
     _sessions[token] = {
         "user_id":        user["id"],
         "username":       user["username"],
-        "role":           user["role"],
+        "role":           role,
+        "kvm_enabled":    kvm_enabled,
         "cluster_access": user.get("cluster_access"),
         "machine_access": user.get("machine_access"),
-        "last_logout":    user.get("last_logout", 0),   # 上次登出时间，用于判断"新机器"
+        "last_logout":    user.get("last_logout", 0),
         "expires":        time.time() + 86400,
     }
     return token
@@ -843,9 +856,18 @@ async def get_current_user(
         raise HTTPException(401, "会话已过期，请重新登录")
     return s
 
+def is_admin_or_above(role: str) -> bool:
+    return role in ("sysadmin", "admin")
+
 async def require_admin(user: dict = Depends(get_current_user)) -> dict:
-    if user["role"] != "admin":
+    if not is_admin_or_above(user["role"]):
         raise HTTPException(403, "需要管理员权限")
+    return user
+
+async def require_sysadmin(user: dict = Depends(get_current_user)) -> dict:
+    """仅系统管理员（初始创建账户）可调用。"""
+    if user["role"] != "sysadmin":
+        raise HTTPException(403, "需要系统管理员权限")
     return user
 
 # ─── IP 范围解析 ──────────────────────────────────────────────────
@@ -1474,7 +1496,8 @@ async def auth_setup(req: Request):
     user = {
         "id": str(uuid.uuid4()), "username": username,
         "password_hash": hash_password(password),
-        "role": "admin", "cluster_access": None,
+        "role": "sysadmin", "cluster_access": None,
+        "kvm_enabled": True,
         "created_at": int(time.time()),
     }
     auth["initialized"]  = True
@@ -1482,7 +1505,7 @@ async def auth_setup(req: Request):
     auth["users"]        = [user]
     save_auth(auth)
     token = create_session(user)
-    return {"token": token, "username": username, "role": "admin", "cluster_name": cluster_name}
+    return {"token": token, "username": username, "role": "sysadmin", "cluster_name": cluster_name}
 
 @app.post("/api/auth/login")
 async def auth_login(req: Request):
@@ -1512,9 +1535,12 @@ async def auth_login(req: Request):
 
     _clear_failures(ip, username)
     token = create_session(user)
+    role = user["role"]
+    kvm_enabled = user.get("kvm_enabled", role in ("sysadmin", "admin"))
     return {
         "token": token, "username": username,
-        "role": user["role"],
+        "role": role,
+        "kvm_enabled": kvm_enabled,
         "cluster_access": user.get("cluster_access"),
         "cluster_name": auth.get("cluster_name", ""),
     }
@@ -1553,6 +1579,7 @@ async def list_users(admin: dict = Depends(require_admin)):
     auth = load_auth()
     return [
         {"id": u["id"], "username": u["username"], "role": u["role"],
+         "kvm_enabled": u.get("kvm_enabled", is_admin_or_above(u.get("role", "viewer"))),
          "cluster_access": u.get("cluster_access"),
          "machine_access": u.get("machine_access", []),
          "created_at": u.get("created_at")}
@@ -1573,18 +1600,20 @@ async def add_user(req: Request, admin: dict = Depends(require_admin)):
     if len(password) < 6:
         raise HTTPException(400, "密码长度至少 6 位")
     if role not in ("admin", "viewer"):
-        raise HTTPException(400, "角色必须为 admin 或 viewer")
+        raise HTTPException(400, "角色必须为 admin 或 viewer（sysadmin 不可通过 API 创建）")
 
     auth = load_auth()
     if any(u["username"] == username for u in auth["users"]):
         raise HTTPException(409, f"用户名 '{username}' 已存在")
 
+    is_admin = is_admin_or_above(role)
     user = {
         "id": str(uuid.uuid4()), "username": username,
         "password_hash": hash_password(password),
         "role": role,
-        "cluster_access": None if role == "admin" else (cluster_access or []),
-        "machine_access": None if role == "admin" else (machine_access or []),
+        "kvm_enabled": is_admin,          # admin 默认有 KVM，viewer 默认无
+        "cluster_access": None if is_admin else (cluster_access or []),
+        "machine_access": None if is_admin else (machine_access or []),
         "created_at": int(time.time()),
     }
     auth["users"].append(user)
@@ -1601,9 +1630,14 @@ async def update_user(user_id: str, req: Request, admin: dict = Depends(require_
     if not user:
         raise HTTPException(404, "用户不存在")
 
-    # 防止删除最后一个管理员
-    if user["role"] == "admin" and body.get("role") == "viewer":
-        admin_count = sum(1 for u in auth["users"] if u["role"] == "admin")
+    # sysadmin 的角色不可被任何人修改
+    if user["role"] == "sysadmin" and "role" in body:
+        raise HTTPException(400, "系统管理员角色不可更改")
+
+    # 防止删除最后一个有管理权限的账户
+    new_role = body.get("role", user["role"])
+    if is_admin_or_above(user["role"]) and not is_admin_or_above(new_role):
+        admin_count = sum(1 for u in auth["users"] if is_admin_or_above(u.get("role", "")))
         if admin_count <= 1:
             raise HTTPException(400, "至少需要保留一个管理员账户")
 
@@ -1611,9 +1645,9 @@ async def update_user(user_id: str, req: Request, admin: dict = Depends(require_
         if len(body["password"]) < 6:
             raise HTTPException(400, "密码长度至少 6 位")
         user["password_hash"] = hash_password(body["password"])
-    if "role" in body:
+    if "role" in body and user["role"] != "sysadmin":
         user["role"] = body["role"]
-        if user["role"] == "admin":
+        if is_admin_or_above(user["role"]):
             user["cluster_access"] = None
     if "cluster_access" in body and user["role"] == "viewer":
         user["cluster_access"] = body["cluster_access"]
@@ -1630,6 +1664,7 @@ async def update_user(user_id: str, req: Request, admin: dict = Depends(require_
     for token, sess in list(_sessions.items()):
         if sess["user_id"] == user_id:
             sess["role"]           = user["role"]
+            sess["kvm_enabled"]    = user.get("kvm_enabled", is_admin_or_above(user["role"]))
             sess["cluster_access"] = user.get("cluster_access")
             sess["machine_access"] = user.get("machine_access")
             sess["username"]       = user["username"]
@@ -1642,8 +1677,10 @@ async def delete_user(user_id: str, admin: dict = Depends(require_admin)):
     user = next((u for u in auth["users"] if u["id"] == user_id), None)
     if not user:
         raise HTTPException(404, "用户不存在")
-    if user["role"] == "admin":
-        admin_count = sum(1 for u in auth["users"] if u["role"] == "admin")
+    if user["role"] == "sysadmin":
+        raise HTTPException(400, "系统管理员账户不可删除")
+    if is_admin_or_above(user["role"]):
+        admin_count = sum(1 for u in auth["users"] if is_admin_or_above(u.get("role", "")))
         if admin_count <= 1:
             raise HTTPException(400, "不能删除最后一个管理员账户")
     if user["username"] == admin["username"]:
@@ -1655,6 +1692,30 @@ async def delete_user(user_id: str, admin: dict = Depends(require_admin)):
     for token in [t for t, s in _sessions.items() if s["user_id"] == user_id]:
         _sessions.pop(token, None)
     return {"ok": True}
+
+@app.put("/api/users/{user_id}/kvm")
+async def set_user_kvm(user_id: str, req: Request,
+                       sysadmin: dict = Depends(require_sysadmin)):
+    """设置用户的 KVM 访问权限（仅系统管理员可调用）。"""
+    body = await req.json()
+    enabled = bool(body.get("kvm_enabled", True))
+
+    auth = load_auth()
+    user = next((u for u in auth["users"] if u["id"] == user_id), None)
+    if not user:
+        raise HTTPException(404, "用户不存在")
+    if user["role"] == "sysadmin":
+        raise HTTPException(400, "系统管理员的 KVM 权限不可修改")
+
+    user["kvm_enabled"] = enabled
+    save_auth(auth)
+
+    # 同步到在线 session
+    for sess in _sessions.values():
+        if sess["user_id"] == user_id:
+            sess["kvm_enabled"] = enabled
+
+    return {"ok": True, "kvm_enabled": enabled}
 
 # ═══════════════════════════════════════════════════════════════════
 # 子集群 API
@@ -3826,8 +3887,17 @@ async def bmc_static_proxy(ip: str, path: str):
 async def kvm_novnc_page(ip: str, request: Request):
     """返回 noVNC 查看器页面（自动检测 ATEN vs 标准 VNC）。"""
     token = request.cookies.get("sm_token") or request.query_params.get("token", "")
-    if not token or not get_session(token):
+    session = get_session(token) if token else None
+    if not session:
         return RedirectResponse(url="/?kvm=" + ip)
+    # 检查 KVM 访问权限
+    if not session.get("kvm_enabled", True):
+        lang = load_settings().get("ui_lang", "en")
+        msg = {"zh": "您没有 KVM 访问权限，请联系系统管理员",
+               "ja": "KVMアクセス権限がありません。システム管理者にお問い合わせください",
+               "en": "KVM access denied. Please contact your system administrator."}.get(lang, "KVM access denied.")
+        return HTMLResponse(f"<html><body style='font-family:sans-serif;padding:2rem;background:#0f172a;color:#f87171'>"
+                            f"<h3>🔒 {msg}</h3></body></html>", status_code=403)
 
     # 检测是否为 ATEN IPMI（port 5900 不主动发 RFB 握手）
     is_aten = await _probe_aten(ip)
