@@ -1562,9 +1562,11 @@ async def auth_logout(user: dict = Depends(get_current_user),
 @app.get("/api/auth/me")
 async def auth_me(user: dict = Depends(get_current_user)):
     auth = load_auth()
+    role = user["role"]
     return {
         "username":       user["username"],
-        "role":           user["role"],
+        "role":           role,
+        "kvm_enabled":    user.get("kvm_enabled", is_admin_or_above(role)),
         "cluster_access": user["cluster_access"],
         "machine_access": user.get("machine_access"),
         "cluster_name":   auth.get("cluster_name", ""),

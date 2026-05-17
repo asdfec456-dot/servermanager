@@ -1757,7 +1757,7 @@ async function checkAuth(){
   if(!st.initialized){showAuth('setup');return;}
   $('auth-cluster-sub').textContent=st.cluster_name;
   $('auth-cluster-sub').style.display='block';
-  if(token){const r=await api('GET','/api/auth/me');if(r&&r.ok){currentUser=await r.json();showApp();return;}}
+  if(token){const r=await api('GET','/api/auth/me');if(r&&r.ok){const d=await r.json();currentUser={...d,kvm_enabled:d.kvm_enabled!==false};showApp();return;}}
   showAuth('login');
 }
 function showAuth(step){
