@@ -565,10 +565,6 @@ tr:hover td{background:var(--sf2)}
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           <span id="dd-lbl-alerts">警报管理</span>
         </button>
-        <button class="dd-item" onclick="ddOpen('ov-osprofiles')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-          <span id="dd-lbl-osp">安装配置</span>
-        </button>
         <button class="dd-item" onclick="ddOpen('ov-ssl')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           <span id="dd-lbl-ssl">HTTPS 配置</span>
@@ -805,95 +801,6 @@ tr:hover td{background:var(--sf2)}
   </div>
 </div>
 </div>
-<!-- OS PROFILES MODAL -->
-<div class="overlay" id="ov-osprofiles" onclick="closeOvBg(event,'ov-osprofiles')">
-<div class="modal modal-wide">
-  <div class="modal-hdr">
-    <div><div class="modal-title" id="osp-modal-title">系统安装配置</div><div class="modal-sub" id="osp-modal-sub">预配置操作系统模板</div></div>
-    <button class="mclose" onclick="closeOverlay('ov-osprofiles')">✕</button>
-  </div>
-  <div style="display:flex;border-bottom:1px solid var(--bd);padding:0 18px">
-    <button class="alert-tab act" id="osp-tab-profiles" onclick="switchOspTab('profiles',this)">OS 配置</button>
-    <button class="alert-tab" id="osp-tab-isos" onclick="switchOspTab('isos',this)">ISO 库</button>
-  </div>
-  <!-- Tab: OS Profiles -->
-  <div id="osp-pane-profiles" class="modal-body" style="padding:0;display:grid;grid-template-columns:220px 1fr;min-height:320px">
-    <div style="border-right:1px solid var(--bd);padding:14px;display:flex;flex-direction:column;gap:8px">
-      <div class="sec-title" id="osp-list-hdr" style="margin-bottom:4px">已有配置</div>
-      <div id="osp-list" style="flex:1;overflow-y:auto"></div>
-      <button class="btn" id="btn-osp-add" onclick="newOspProfile()" style="font-size:.76rem;width:100%">+ 添加配置</button>
-    </div>
-    <div style="padding:16px" id="osp-form-wrap">
-      <div id="osp-form-empty" style="color:var(--tx3);font-size:.8rem;text-align:center;padding-top:60px">← 选择左侧配置或添加新配置</div>
-      <div id="osp-form" style="display:none">
-        <div class="sec-title" id="osp-form-title">添加配置</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
-          <div class="form-g2" style="grid-column:1/-1"><label id="lbl-osp-name">配置名称</label><input class="inp" id="osp-name" placeholder="Ubuntu 24.04 LTS 标准版"></div>
-          <div class="form-g2"><label id="lbl-osp-os_type">系统类型</label>
-            <select class="inp" id="osp-os-type">
-              <option value="ubuntu-24.04">Ubuntu 24.04 LTS</option>
-              <option value="ubuntu-22.04">Ubuntu 22.04 LTS</option>
-              <option value="rocky-9">Rocky Linux 9</option>
-              <option value="rocky-8">Rocky Linux 8</option>
-              <option value="debian-12">Debian 12</option>
-            </select>
-          </div>
-          <div class="form-g2"><label id="lbl-osp-disk">默认目标磁盘</label><input class="inp" id="osp-disk" value="/dev/sda"></div>
-          <div class="form-g2" style="grid-column:1/-1">
-            <label id="lbl-osp-iso">ISO 地址</label>
-            <div style="display:flex;gap:6px;margin-top:3px">
-              <input class="inp" id="osp-iso" placeholder="http://... 或从 ISO 库选择" style="flex:1;font-size:.8rem">
-              <button class="btn" onclick="switchOspTab('isos',$('osp-tab-isos'))" style="font-size:.74rem;white-space:nowrap">ISO 库 →</button>
-            </div>
-          </div>
-          <div class="form-g2"><label id="lbl-osp-tz">默认时区</label><input class="inp" id="osp-tz" value="Asia/Tokyo"></div>
-          <div class="form-g2"><label id="lbl-osp-notes">备注</label><input class="inp" id="osp-notes" placeholder="可选"></div>
-        </div>
-        <div class="err-msg" id="osp-err" style="margin-top:8px"></div>
-        <div style="display:flex;gap:8px;margin-top:12px">
-          <button class="btn btn-acc" id="btn-osp-save" onclick="saveOspProfile()" style="border:none">保存</button>
-          <button class="btn" id="btn-osp-cancel" onclick="cancelOspEdit()">取消</button>
-          <button class="btn btn-danger" id="btn-osp-del" onclick="deleteOspProfile()" style="display:none">删除</button>
-        </div>
-      </div>
-    </div>
-  </div>
-  <!-- Tab: ISO Library -->
-  <div id="osp-pane-isos" class="modal-body" style="display:none;padding:16px;overflow-y:auto">
-    <div style="margin-bottom:16px;padding:14px;background:var(--sf2);border-radius:8px;border:1px solid var(--bd)">
-      <div class="sec-title" style="margin-bottom:10px">从 URL 预下载</div>
-      <div style="display:flex;gap:7px;flex-wrap:wrap">
-        <input class="inp" id="iso-dl-url" style="flex:2;min-width:200px;font-size:.8rem"
-          placeholder="https://releases.ubuntu.com/24.04/ubuntu-24.04-live-server-amd64.iso">
-        <input class="inp" id="iso-dl-name" style="flex:1;min-width:130px;font-size:.8rem"
-          placeholder="自定义文件名（可选）">
-        <button class="btn btn-acc" onclick="startIsoDownload()" style="border:none;font-size:.78rem;white-space:nowrap">⬇ 开始下载</button>
-      </div>
-      <div id="iso-dl-result" style="margin-top:7px;font-size:.75rem;min-height:14px"></div>
-    </div>
-    <div style="margin-bottom:16px;padding:14px;background:var(--sf2);border-radius:8px;border:1px solid var(--bd)">
-      <div class="sec-title" style="margin-bottom:10px">本地上传</div>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <label class="btn" style="cursor:pointer;font-size:.78rem">
-          📁 选择 ISO 文件
-          <input type="file" accept=".iso" style="display:none" id="iso-ul-file" onchange="onIsoLibUpload(this)">
-        </label>
-        <button class="btn btn-acc" id="btn-iso-ul" onclick="uploadIsoLib()" style="border:none;font-size:.78rem;display:none">⬆ 上传</button>
-        <div id="iso-ul-info" style="font-size:.75rem;color:var(--tx3)"></div>
-      </div>
-      <div id="iso-ul-prog" style="margin-top:7px;font-size:.75rem;min-height:14px"></div>
-    </div>
-    <div>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <div class="sec-title" style="margin:0">ISO 库</div>
-        <button class="btn" onclick="loadIsoLibrary()" style="font-size:.72rem">↻ 刷新</button>
-      </div>
-      <div id="iso-library-list"></div>
-    </div>
-  </div>
-</div>
-</div>
-
 <!-- CARD DISPLAY SETTINGS MODAL -->
 <div class="overlay" id="ov-card-cfg" onclick="closeOvBg(event,'ov-card-cfg')">
 <div class="modal" style="max-width:400px">
@@ -1190,22 +1097,12 @@ zh:{
   'card.field_thermo':'右侧温度计（侧边温度条）',
   'card.field_powerbar':'功耗进度条',
   'card.field_gpu':'GPU 信息（自动识别，无 GPU 则不显示）',
-  'osp.tab_profiles':'OS 配置','osp.tab_isos':'ISO 库',
   'iso.dl_title':'从 URL 预下载','iso.dl_ph':'https://releases.ubuntu.com/.../xxx.iso',
   'iso.dl_name_ph':'自定义文件名（可选）','iso.dl_btn':'开始下载',
-  'iso.ul_title':'本地上传','iso.ul_btn':'选择 ISO 文件',
-  'iso.lib_title':'ISO 库','iso.refresh':'刷新',
   'iso.status_ready':'就绪','iso.status_queued':'队列中',
   'iso.status_downloading':'下载中','iso.status_error':'失败',
   'iso.del':'删除','iso.use':'选用',
-  'iso.empty':'ISO 库为空',
-  'osp.title':'系统安装配置','osp.sub':'预配置操作系统模板，安装时直接选用',
-  'osp.list':'已有配置','osp.add':'添加配置','osp.edit':'编辑配置',
-  'osp.name':'配置名称','osp.os_type':'系统类型','osp.iso_url':'ISO 地址（HTTP/HTTPS）',
-  'osp.disk':'默认目标磁盘','osp.tz':'默认时区','osp.notes':'备注（可选）',
   'osp.save':'保存','osp.del':'删除','osp.cancel':'取消',
-  'osp.empty':'尚未添加安装配置',
-  'dd-lbl-osp':'安装配置',
   // Install
   'inst.title':'系统安装','inst.os':'操作系统','inst.net':'网络配置',
   'inst.sys':'系统设置','inst.method':'安装方式',
@@ -1213,17 +1110,7 @@ zh:{
   'inst.ip':'IP 地址','inst.mask':'子网掩码','inst.gw':'网关','inst.dns':'DNS',
   'inst.hostname':'主机名','inst.user':'用户名','inst.pass':'密码',
   'inst.disk':'目标磁盘','inst.tz':'时区',
-  'inst.method_vm':'虚拟光驱 (Redfish VirtualMedia)',
-  'inst.method_pxe':'PXE 网络启动',
-  'inst.method_manual':'手动（仅生成配置文件）',
   'inst.iso_url':'ISO 地址（HTTP/HTTPS）','inst.pxe_srv':'PXE 服务器 IP',
-  'inst.reboot':'安装后自动重启','inst.gen':'下载配置文件',
-  'inst.start':'一键安装','inst.starting':'执行中...',
-  'inst.ks_url':'配置文件 URL（供安装器拉取）',
-  'inst.ok':'安装指令已发送','inst.err':'执行失败',
-  'inst.select_profile':'选择安装配置','inst.no_profile':'请先在「安装配置」中添加配置',
-  'inst.power_reset':'重启','inst.power_on':'开机',
-  'inst.power_off':'强制关机','inst.power_soft':'正常关机',
   // Portal error
   'portal.error':'无法打开管理页面',
   // Table no data
@@ -1357,36 +1244,18 @@ en:{
   'confirm.clear_hist':'Clear all alert history?',
   'confirm.cancel_member':'Cancel membership? Access ends immediately with no refund.',
   'confirm.delete_bmc_pass':'Confirm BMC password change? This writes directly to hardware.',
-  'osp.tab_profiles':'Profiles','osp.tab_isos':'ISO Library',
   'iso.dl_title':'Download from URL','iso.dl_ph':'https://releases.ubuntu.com/.../xxx.iso',
   'iso.dl_name_ph':'Custom filename (optional)','iso.dl_btn':'Download',
-  'iso.ul_title':'Local Upload','iso.ul_btn':'Select ISO File',
-  'iso.lib_title':'ISO Library','iso.refresh':'Refresh',
   'iso.status_ready':'Ready','iso.status_queued':'Queued',
   'iso.status_downloading':'Downloading','iso.status_error':'Error',
-  'iso.del':'Delete','iso.use':'Use','iso.empty':'ISO library is empty',
-  'osp.title':'OS Install Profiles','osp.sub':'Pre-configure OS templates for installation',
-  'osp.list':'Profiles','osp.add':'Add Profile','osp.edit':'Edit Profile',
-  'osp.name':'Profile Name','osp.os_type':'OS Type','osp.iso_url':'ISO URL (HTTP/HTTPS)',
-  'osp.disk':'Default Disk','osp.tz':'Default Timezone','osp.notes':'Notes (optional)',
   'osp.save':'Save','osp.del':'Delete','osp.cancel':'Cancel',
-  'osp.empty':'No profiles yet','dd-lbl-osp':'Install Profiles',
-  'inst.select_profile':'Select Profile','inst.no_profile':'Add profiles in Install Profiles settings first',
   'inst.title':'Install OS','inst.os':'OS','inst.net':'Network',
   'inst.sys':'System','inst.method':'Install Method',
   'inst.dhcp':'DHCP','inst.static':'Static IP',
   'inst.ip':'IP Address','inst.mask':'Netmask','inst.gw':'Gateway','inst.dns':'DNS',
   'inst.hostname':'Hostname','inst.user':'Username','inst.pass':'Password',
   'inst.disk':'Target Disk','inst.tz':'Timezone',
-  'inst.method_vm':'Virtual Media (Redfish)',
-  'inst.method_pxe':'PXE Network Boot',
-  'inst.method_manual':'Manual (config file only)',
   'inst.iso_url':'ISO URL (HTTP/HTTPS)','inst.pxe_srv':'PXE Server IP',
-  'inst.reboot':'Reboot after setup','inst.gen':'Download Config',
-  'inst.start':'Start Install','inst.starting':'Running...',
-  'inst.ks_url':'Config URL (for installer)','inst.ok':'Commands sent','inst.err':'Failed',
-  'inst.power_reset':'Reboot','inst.power_on':'Power On',
-  'inst.power_off':'Force Off','inst.power_soft':'Soft Shutdown',
   'portal.error':'Cannot open management page',
   'tbl.no_data':'—',
 },
@@ -1518,36 +1387,18 @@ ja:{
   'confirm.clear_hist':'すべてのアラート履歴をクリアしますか？',
   'confirm.cancel_member':'メンバーシップをキャンセルしますか？即時失効、返金不可。',
   'confirm.delete_bmc_pass':'BMC パスワードを変更しますか？ハードウェアに直接書き込まれます。',
-  'osp.tab_profiles':'プロファイル','osp.tab_isos':'ISOライブラリ',
   'iso.dl_title':'URLからダウンロード','iso.dl_ph':'https://...iso',
   'iso.dl_name_ph':'カスタムファイル名（省略可）','iso.dl_btn':'ダウンロード',
-  'iso.ul_title':'ローカルアップロード','iso.ul_btn':'ISOファイルを選択',
-  'iso.lib_title':'ISOライブラリ','iso.refresh':'更新',
   'iso.status_ready':'準備完了','iso.status_queued':'キュー中',
   'iso.status_downloading':'ダウンロード中','iso.status_error':'エラー',
-  'iso.del':'削除','iso.use':'選択','iso.empty':'ISOライブラリは空です',
-  'osp.title':'OSインストールプロファイル','osp.sub':'インストール用OSテンプレートを事前設定',
-  'osp.list':'プロファイル一覧','osp.add':'追加','osp.edit':'編集',
-  'osp.name':'プロファイル名','osp.os_type':'OSタイプ','osp.iso_url':'ISO URL (HTTP/HTTPS)',
-  'osp.disk':'デフォルトディスク','osp.tz':'デフォルトタイムゾーン','osp.notes':'メモ（省略可）',
   'osp.save':'保存','osp.del':'削除','osp.cancel':'キャンセル',
-  'osp.empty':'プロファイルがありません','dd-lbl-osp':'インストール設定',
-  'inst.select_profile':'プロファイルを選択','inst.no_profile':'まず「インストール設定」でプロファイルを追加してください',
   'inst.title':'OS インストール','inst.os':'OS','inst.net':'ネットワーク',
   'inst.sys':'システム設定','inst.method':'インストール方法',
   'inst.dhcp':'DHCP 自動','inst.static':'静的 IP',
   'inst.ip':'IP アドレス','inst.mask':'サブネットマスク','inst.gw':'ゲートウェイ','inst.dns':'DNS',
   'inst.hostname':'ホスト名','inst.user':'ユーザー名','inst.pass':'パスワード',
   'inst.disk':'対象ディスク','inst.tz':'タイムゾーン',
-  'inst.method_vm':'仮想メディア (Redfish)',
-  'inst.method_pxe':'PXE ネットブート',
-  'inst.method_manual':'手動（設定ファイルのみ）',
   'inst.iso_url':'ISO URL (HTTP/HTTPS)','inst.pxe_srv':'PXE サーバー IP',
-  'inst.reboot':'インストール後に再起動','inst.gen':'設定ファイルをダウンロード',
-  'inst.start':'インストール開始','inst.starting':'実行中...',
-  'inst.ks_url':'設定ファイル URL','inst.ok':'コマンド送信完了','inst.err':'失敗',
-  'inst.power_reset':'再起動','inst.power_on':'電源オン',
-  'inst.power_off':'強制シャットダウン','inst.power_soft':'正常シャットダウン',
   'portal.error':'管理ページを開けません',
   'tbl.no_data':'—',
 }
@@ -1564,7 +1415,7 @@ function applyI18n(){
     'lbl-servers':'servers','lbl-online':'online','lbl-offline':'offline','lbl-collecting':'collecting',
     'fl-all':'all','fl-s-online':'online','fl-s-auth':'h.auth_failed','fl-s-reach':'h.reachable','fl-s-pend':'collecting','fl-s-off':'offline',
     'lbl-refresh':'btn.refresh','lbl-settings':'btn.settings','lbl-logout':'btn.logout',
-    'dd-lbl-cfg':'cfg.title','dd-lbl-sc':'sc.title','dd-lbl-users':'u.title','dd-lbl-alerts':'al.title','dd-lbl-osp':'osp.title','dd-lbl-ssl':'ssl.title','dd-lbl-card':'card.settings',
+    'dd-lbl-cfg':'cfg.title','dd-lbl-sc':'sc.title','dd-lbl-users':'u.title','dd-lbl-alerts':'al.title','dd-lbl-ssl':'ssl.title','dd-lbl-card':'card.settings',
     'lbl-setup-title':'setup.title','lbl-setup-sub':'setup.sub','lbl-cluster':'setup.cluster',
     'lbl-admin-user':'setup.admin','lbl-admin-pass':'setup.pass','lbl-confirm':'setup.confirm',
     'btn-setup-submit':'setup.submit','lbl-login-title':'login.title',
@@ -1735,7 +1586,6 @@ function showApp(){
   $('hdr-role-tag').className='role-tag '+_roleCls;
   document.querySelectorAll('.admin-only').forEach(el=>el.style.display=(_isAdmin()?'':'none'));
   initViewBtn();applyI18n();startPolling();
-  if((_isAdmin())) loadOsProfiles();
   // 移动菜单：同步会员按钮
   const mobSub=$('mob-sub-item');
   if(mobSub) mobSub.style.display='flex';
@@ -2491,20 +2341,12 @@ ${ms.total_gib?`<div><div class="ik">${t('d.mem')}</div><div class="iv">${ms.tot
   // 电源控制（管理员）
   if((_isAdmin())){
     parts.push(`<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--bd);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-<span style="font-size:.72rem;color:var(--tx2);margin-right:4px">${t('inst.power_reset')}：</span>
-<button class="btn" onclick="doPower('${key}','reset')" style="font-size:.74rem">${t('inst.power_reset')}</button>
-<button class="btn" onclick="doPower('${key}','on')" style="font-size:.74rem">${t('inst.power_on')}</button>
-<button class="btn" onclick="doPower('${key}','soft')" style="font-size:.74rem">${t('inst.power_soft')}</button>
-<button class="btn btn-danger" onclick="doPower('${key}','off')" style="font-size:.74rem">${t('inst.power_off')}</button>
 <span id="pwr-result-${key}" style="font-size:.72rem;color:var(--ok)"></span>
 </div>`);
   }
 
   // 系统安装（管理员）
   if((_isAdmin())){
-    const profOpts=osProfiles.length
-      ?osProfiles.map(p=>`<option value="${p.id}">${esc(p.name)} · ${p.os_type}</option>`).join('')
-      :`<option value="" disabled>${t('inst.no_profile')}</option>`;
     parts.push(`<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--bd)">
 <details id="inst-details-${key}">
 <summary style="font-size:.88rem;font-weight:700;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;padding:4px 0">
@@ -2517,7 +2359,6 @@ ${ms.total_gib?`<div><div class="ik">${t('d.mem')}</div><div class="iv">${ms.tot
 <div style="margin-bottom:12px">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
     <span style="font-size:.72rem;color:var(--tx2)">${t('inst.select_profile')}</span>
-    <button class="btn" onclick="ddOpen('ov-osprofiles')" style="font-size:.68rem;padding:2px 8px">⚙ ${t('osp.title')}</button>
   </div>
   <select class="inp" id="inst-profile-${key}" onchange="onInstProfileChange('${key}')">
     <option value="">-- ${t('inst.select_profile')} --</option>
@@ -2572,8 +2413,6 @@ ${ms.total_gib?`<div><div class="ik">${t('d.mem')}</div><div class="iv">${ms.tot
 
 <!-- 操作按钮 -->
 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-  <button class="btn" onclick="downloadInstCfg('${key}')" style="font-size:.78rem">⬇ ${t('inst.gen')}</button>
-  <button class="btn btn-acc" id="inst-btn-${key}" onclick="startInstall('${key}')" style="border:none;font-size:.78rem">▶ ${t('inst.start')}</button>
 </div>
 <div id="inst-ks-url-${key}" style="margin-top:8px;font-size:.7rem;color:var(--tx3)"></div>
 <div id="inst-result-${key}" style="margin-top:6px;font-size:.78rem;min-height:16px"></div>
@@ -2911,297 +2750,6 @@ async function doSslRestart(){
 }
 
 /* ── OS 安装配置（全局） ────────────────────────────────────── */
-let osProfiles=[];
-let _editOspId=null;
-
-async function loadOsProfiles(){
-  const r=await api('GET','/api/os-profiles');
-  if(!r) return;
-  const d=await r.json();
-  osProfiles=d.profiles||[];
-}
-async function openOspModal(){
-  await loadOsProfiles();
-  renderOspList();
-  cancelOspEdit();
-  switchOspTab('profiles',$('osp-tab-profiles'));
-  $('osp-modal-title').textContent=t('osp.title');
-  $('osp-modal-sub').textContent=t('osp.sub');
-  $('osp-list-hdr').textContent=t('osp.list');
-  $('btn-osp-add').textContent='+ '+t('osp.add');
-  $('ov-osprofiles').classList.add('open');
-  document.body.style.overflow='hidden';
-}
-function renderOspList(){
-  const el=$('osp-list');
-  if(!el) return;
-  if(!osProfiles.length){
-    el.innerHTML=`<div style="font-size:.78rem;color:var(--tx3);padding:8px 0">${t('osp.empty')}</div>`;
-    return;
-  }
-  el.innerHTML=osProfiles.map(p=>`
-    <div onclick="editOspProfile('${p.id}')" style="padding:8px 10px;border-radius:7px;cursor:pointer;border:1px solid var(--bd);margin-bottom:6px;background:var(--sf)">
-      <div style="font-size:.82rem;font-weight:600">${esc(p.name)}</div>
-      <div style="font-size:.68rem;color:var(--tx3);margin-top:2px">${p.os_type} · ${p.iso_url?'ISO ✓':'手动'}</div>
-    </div>`).join('');
-}
-function newOspProfile(){
-  _editOspId=null;
-  $('osp-form-title').textContent=t('osp.add');
-  $('osp-name').value='';
-  $('osp-os-type').value='ubuntu-24.04';
-  $('osp-iso').value='';
-  $('osp-disk').value='/dev/sda';
-  $('osp-tz').value='Asia/Tokyo';
-  $('osp-notes').value='';
-  $('osp-err').textContent='';
-  $('btn-osp-del').style.display='none';
-  $('osp-form').style.display='';
-  $('osp-form-empty').style.display='none';
-}
-function editOspProfile(id){
-  const p=osProfiles.find(x=>x.id===id); if(!p) return;
-  _editOspId=id;
-  $('osp-form-title').textContent=t('osp.edit');
-  $('osp-name').value=p.name;
-  $('osp-os-type').value=p.os_type;
-  $('osp-iso').value=p.iso_url||'';
-  $('osp-disk').value=p.disk||'/dev/sda';
-  $('osp-tz').value=p.timezone||'Asia/Tokyo';
-  $('osp-notes').value=p.notes||'';
-  $('osp-err').textContent='';
-  $('btn-osp-del').style.display='';
-  $('osp-form').style.display='';
-  $('osp-form-empty').style.display='none';
-}
-function cancelOspEdit(){
-  _editOspId=null;
-  $('osp-form').style.display='none';
-  $('osp-form-empty').style.display='';
-}
-async function saveOspProfile(){
-  const name=$('osp-name').value.trim();
-  if(!name){$('osp-err').textContent=t('osp.name')+' ?';return;}
-  const body={name,os_type:$('osp-os-type').value,iso_url:$('osp-iso').value.trim(),
-    disk:$('osp-disk').value.trim(),timezone:$('osp-tz').value.trim(),notes:$('osp-notes').value.trim()};
-  const r=_editOspId
-    ?await api('PUT',`/api/os-profiles/${_editOspId}`,body)
-    :await api('POST','/api/os-profiles',body);
-  if(!r) return;
-  if(!r.ok){const d=await r.json();$('osp-err').textContent=d.detail||'失败';return;}
-  await loadOsProfiles();
-  renderOspList();
-  cancelOspEdit();
-}
-async function deleteOspProfile(){
-  if(!_editOspId||!confirm(t('osp.del')+'?')) return;
-  const r=await api('DELETE',`/api/os-profiles/${_editOspId}`);
-  if(!r) return;
-  await loadOsProfiles();
-  renderOspList();
-  cancelOspEdit();
-}
-
-/* ── 系统安装 ──────────────────────────────────────────────── */
-function onInstProfileChange(key){
-  const id=$(`inst-profile-${key}`)?.value;
-  const p=osProfiles.find(x=>x.id===id);
-  const info=$(`inst-profile-info-${key}`);
-  const vmHint=$(`inst-vm-row-${key}`);
-  if(p){
-    if(info) info.textContent=`${p.os_type} · 磁盘: ${p.disk||'/dev/sda'} · 时区: ${p.timezone||'Asia/Tokyo'}${p.iso_url?' · ISO: '+p.iso_url:''}`;
-    if(vmHint) vmHint.textContent=p.iso_url?`ISO: ${p.iso_url}`:t('inst.no_profile');
-  } else {
-    if(info) info.textContent='';
-    if(vmHint) vmHint.textContent='';
-  }
-}
-/* ── ISO 库 ─────────────────────────────────────────────────── */
-let _isoList=[], _isoPollTimer=null;
-
-function detectOsFromFilename(fn){
-  fn=fn.toLowerCase();
-  if(fn.includes('ubuntu')){return fn.includes('24')?'ubuntu-24.04':fn.includes('22')?'ubuntu-22.04':'ubuntu-24.04';}
-  if(fn.includes('rocky')||fn.includes('alma')||fn.includes('rhel')||fn.includes('centos')){return fn.includes('8')?'rocky-8':'rocky-9';}
-  if(fn.includes('debian')){return fn.includes('11')?'debian-11':'debian-12';}
-  return '';
-}
-/* OS配置 / ISO库 标签切换 */
-function switchOspTab(tab, el){
-  $('osp-pane-profiles').style.display=tab==='profiles'?'':'none';
-  $('osp-pane-isos').style.display=tab==='isos'?'':'none';
-  document.querySelectorAll('#osp-tab-profiles,#osp-tab-isos').forEach(b=>b.classList.remove('act'));
-  if(el) el.classList.add('act');
-  else $('osp-tab-'+tab).classList.add('act');
-  if(tab==='isos') loadIsoLibrary();
-}
-
-/* ─ ISO 库下载 ─ */
-async function startIsoDownload(){
-  const url=($('iso-dl-url')?.value||'').trim();
-  const name=($('iso-dl-name')?.value||'').trim();
-  const res=$('iso-dl-result');
-  if(!url){res.style.color='var(--warn)';res.textContent='请填写 URL';return;}
-  res.style.color='var(--tx2)';res.textContent='提交中...';
-  const r=await api('POST','/api/isos/download',{url,filename:name||''});
-  if(!r){res.textContent='网络错误';return;}
-  const d=await r.json();
-  if(d.status==='already_downloading'){res.textContent='已在下载中：'+d.filename;return;}
-  res.style.color='var(--ok)';res.textContent='✓ 已加入下载队列：'+d.filename;
-  $('iso-dl-url').value=''; $('iso-dl-name').value='';
-  loadIsoLibrary(); startIsoPoll();
-}
-
-/* ─ ISO 库上传 ─ */
-function onIsoLibUpload(input){
-  const file=input.files[0]; if(!file) return;
-  const detected=detectOsFromFilename(file.name);
-  $('iso-ul-info').textContent=file.name+' · '+(file.size/1024/1024).toFixed(0)+'MB'+(detected?' → '+detected:'');
-  $('btn-iso-ul').style.display='';
-}
-function uploadIsoLib(){
-  const file=$('iso-ul-file').files[0]; if(!file) return;
-  const prog=$('iso-ul-prog'), btn=$('btn-iso-ul');
-  btn.disabled=true;
-  const fd=new FormData(); fd.append('file',file);
-  const xhr=new XMLHttpRequest();
-  xhr.open('POST','/api/os-profiles/upload-iso');
-  xhr.setRequestHeader('Authorization','Bearer '+token);
-  xhr.upload.onprogress=e=>{if(e.lengthComputable)prog.style.color='var(--acc)';prog.textContent='上传中 '+(e.loaded/e.total*100|0)+'%';};
-  xhr.onload=()=>{
-    btn.disabled=false;
-    if(xhr.status===200){
-      const d=JSON.parse(xhr.responseText);
-      prog.style.color='var(--ok)'; prog.textContent='✓ 上传完成 · '+d.size_mb+'MB · '+d.os_type;
-      loadIsoLibrary();
-    } else { prog.style.color='var(--crit)'; prog.textContent='✗ 上传失败'; }
-  };
-  xhr.onerror=()=>{btn.disabled=false;prog.style.color='var(--crit)';prog.textContent='✗ 网络错误';};
-  xhr.send(fd); prog.textContent='上传中...';
-}
-
-/* ─ ISO 库列表 ─ */
-async function loadIsoLibrary(){
-  _isoList=[];
-  const el=$('iso-library-list'); if(!el) return;
-  const r=await api('GET','/api/isos'); if(!r) return;
-  const d=await r.json();
-  _isoList=d.isos||[];
-  renderIsoLibrary();
-}
-function renderIsoLibrary(){
-  const el=$('iso-library-list'); if(!el) return;
-  if(!_isoList.length){
-    el.innerHTML=`<div style="color:var(--tx3);font-size:.8rem;padding:20px 0;text-align:center">ISO 库为空</div>`;
-    return;
-  }
-  const statusColor={ready:'var(--ok)',queued:'var(--tx3)',downloading:'var(--acc)',error:'var(--crit)'};
-  const statusLabel={ready:'就绪',queued:'队列中',downloading:'下载中',error:'失败'};
-  el.innerHTML=_isoList.map(iso=>{
-    const sc=statusColor[iso.status]||'var(--tx3)';
-    const sl=statusLabel[iso.status]||iso.status;
-    const pct=Math.round(iso.progress||0);
-    const progBar=iso.status==='downloading'?
-      `<div style="height:3px;background:var(--sf2);border-radius:2px;margin-top:4px">
-         <div style="width:${pct}%;height:100%;background:var(--acc);border-radius:2px;transition:width .5s"></div>
-       </div>`:'';
-    return`<div style="padding:10px 12px;border:1px solid var(--bd);border-radius:8px;margin-bottom:7px;background:var(--sf)">
-  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-    <span style="font-size:.82rem;font-weight:600;flex:1">${esc(iso.filename)}</span>
-    <span style="font-size:.7rem;color:${sc};font-weight:600">${sl}${iso.status==='downloading'?' '+pct+'%':''}</span>
-    ${iso.status==='ready'?`<button class="btn" onclick="selectIsoForProfile('${iso.iso_url}','${iso.os_type||''}')" style="font-size:.72rem;padding:3px 8px">选用</button>`:''}
-    ${iso.status!=='downloading'&&iso.status!=='queued'?`<button onclick="deleteIsoFromLib('${esc(iso.filename)}')" style="background:none;border:none;color:var(--crit);cursor:pointer;font-size:.8rem;padding:2px">✕</button>`:''}
-  </div>
-  <div style="font-size:.7rem;color:var(--tx3);margin-top:3px">${iso.os_type||'未知系统'} · ${iso.size_mb}MB${iso.url?' · '+iso.url.substring(0,60):''}${iso.error?' · ⚠ '+iso.error:''}</div>
-  ${progBar}
-</div>`;
-  }).join('');
-}
-function selectIsoForProfile(url, osType){
-  // 切到 OS配置 标签，填入 ISO 地址
-  switchOspTab('profiles',$('osp-tab-profiles'));
-  if($('osp-iso')) $('osp-iso').value=url;
-  if(osType&&$('osp-os-type')) $('osp-os-type').value=osType;
-}
-async function deleteIsoFromLib(filename){
-  if(!confirm('删除 ISO 文件：'+filename+'？')) return;
-  await api('DELETE',`/api/isos/${encodeURIComponent(filename)}`);
-  loadIsoLibrary();
-}
-function startIsoPoll(){
-  if(_isoPollTimer) return;
-  _isoPollTimer=setInterval(async()=>{
-    await loadIsoLibrary();
-    const active=_isoList.some(x=>x.status==='downloading'||x.status==='queued');
-    if(!active){clearInterval(_isoPollTimer);_isoPollTimer=null;}
-  },2000);
-}
-
-function toggleInstIp(key, show){
-  const el=$(`inst-static-${key}`);
-  if(el) el.style.display=show?'grid':'none';
-}
-function toggleInstMethod(key, method){
-  if($(`inst-vm-row-${key}`)) $(`inst-vm-row-${key}`).style.display=method==='virtual-media'?'block':'none';
-}
-function getInstConfig(key){
-  const ipmode=document.querySelector(`input[name="inst-ipmode-${key}"]:checked`)?.value||'dhcp';
-  const method=document.querySelector(`input[name="inst-method-${key}"]:checked`)?.value||'manual';
-  const profile_id=$(`inst-profile-${key}`)?.value||'';
-  const profile=osProfiles.find(x=>x.id===profile_id)||{};
-  return{
-    profile_id,
-    hostname:    $(`inst-hostname-${key}`)?.value.trim()||'server',
-    username:    $(`inst-user-${key}`)?.value.trim()||'admin',
-    password:    $(`inst-pass-${key}`)?.value||'',
-    ip_mode:     ipmode,
-    ip_address:  $(`inst-ip-${key}`)?.value.trim()||'',
-    netmask:     $(`inst-mask-${key}`)?.value.trim()||'255.255.255.0',
-    gateway:     $(`inst-gw-${key}`)?.value.trim()||'',
-    dns:         $(`inst-dns-${key}`)?.value.trim()||'8.8.8.8',
-    boot_method: method,
-    // fallback values (overridden by profile server-side)
-    os_type:     profile.os_type||'ubuntu-24.04',
-    iso_url:     profile.iso_url||'',
-    disk:        profile.disk||'/dev/sda',
-    timezone:    profile.timezone||'Asia/Tokyo',
-    do_reboot:   true,
-  };
-}
-async function downloadInstCfg(key){
-  const cfg=getInstConfig(key);
-  const r=await api('POST',`/api/servers/${key}/install/generate`,cfg);
-  if(!r) return;
-  const blob=await r.blob();
-  const fname=r.headers.get('content-disposition')?.match(/filename="(.+?)"/)?.[1]||'config.txt';
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);a.download=fname;a.click();
-  // 显示供安装器拉取的 URL
-  const ksUrl=`${location.origin}/api/install/kickstart/${key}`;
-  const div=$(`inst-ks-url-${key}`);
-  if(div) div.innerHTML=`${t('inst.ks_url')}: <code style="font-size:.68rem;word-break:break-all">${ksUrl}</code>`;
-}
-async function startInstall(key){
-  const cfg=getInstConfig(key);
-  // 先生成配置文件
-  await api('POST',`/api/servers/${key}/install/generate`,cfg);
-  const btn=$(`inst-btn-${key}`), res=$(`inst-result-${key}`);
-  btn.disabled=true; res.textContent=t('inst.starting'); res.style.color='var(--tx2)';
-  const r=await api('POST',`/api/servers/${key}/install/start`,cfg);
-  btn.disabled=false;
-  if(!r){res.style.color='var(--crit)';res.textContent=t('inst.err');return;}
-  const d=await r.json();
-  if(d.ok){
-    res.style.color='var(--ok)'; res.textContent=t('inst.ok');
-    // 显示详细结果
-    const detail=Object.entries(d.results||{}).map(([k,v])=>`${k}: ${v.ok?'✓':('✗ '+v.error)}`).join(' · ');
-    if(detail) res.textContent+=' — '+detail;
-  } else {
-    res.style.color='var(--warn)';
-    const detail=Object.entries(d.results||{}).map(([k,v])=>`${k}: ${v.ok?'✓':('✗ '+(v.error||''))}`).join(' · ');
-    res.textContent=t('inst.err')+(detail?' — '+detail:'');
-  }
-}
 async function doPower(key, action){
   const res=$(`pwr-result-${key}`);
   res.style.color='var(--tx2)'; res.textContent='...';
@@ -3220,7 +2768,6 @@ function openOverlay(id){
   else if(id==='ov-sc')openScModal();
   else if(id==='ov-alerts')openAlertsModal();
   else if(id==='ov-sub')openSubModal();
-  else if(id==='ov-osprofiles')openOspModal();
   else if(id==='ov-ssl')openSslModal();
   else if(id==='ov-card-cfg')openCardCfgModal();
   else{$(id).classList.add('open');document.body.style.overflow='hidden';}
@@ -3755,7 +3302,6 @@ function closeMobMenu(){
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
     <span>警报管理</span>
   </div>
-  <div class="mob-menu-item admin-only" onclick="ddOpen('ov-osprofiles');closeMobMenu()">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
     <span>安装配置</span>
   </div>
