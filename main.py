@@ -398,6 +398,11 @@ DEFAULT_ALERT_RULES = [
 ]
 
 DEFAULT_ALERT_CHANNELS = {
+    "managed_email": {
+        "enabled": False,
+        "to_addrs": [],            # 收件人列表，用户只需填写收件地址
+        # 发件方固定为 alerts@info.catnetwork.co.jp（由服务端 RESEND_API_KEY 控制）
+    },
     "email": {
         "enabled": False,
         "smtp_host": "",          # 留空，用户自行填写
@@ -528,6 +533,74 @@ def format_alert_message(trigger: str, server: dict, detail: str, rule_name: str
 
 # ─── 报警发送 ─────────────────────────────────────────────────────
 
+_RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+_MANAGED_FROM   = "alerts@info.catnetwork.co.jp"
+
+def _build_alert_html(rule_name: str, plain_msg: str, cluster_name: str) -> str:
+    """生成告警 HTML 邮件正文。"""
+    lines = plain_msg.replace("*", "").replace("_", "").strip().split("\n")
+    rows  = "".join(
+        f'<tr><td style="padding:6px 0;border-bottom:1px solid #1e293b;'
+        f'color:#94a3b8;font-size:13px">{l}</td></tr>'
+        for l in lines if l.strip()
+    )
+    return f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#0f172a;font-family:system-ui,sans-serif">
+<div style="max-width:560px;margin:32px auto;background:#1e2530;border-radius:10px;
+            border:1px solid #334155;overflow:hidden">
+  <div style="background:#0ea5e9;padding:16px 24px">
+    <span style="color:#fff;font-size:15px;font-weight:700">⚠ Server Manager 告警</span>
+    <span style="float:right;color:rgba(255,255,255,.7);font-size:12px">{cluster_name}</span>
+  </div>
+  <div style="padding:20px 24px">
+    <div style="color:#f8fafc;font-size:16px;font-weight:600;margin-bottom:16px">{rule_name}</div>
+    <table style="width:100%;border-collapse:collapse">{rows}</table>
+  </div>
+  <div style="padding:12px 24px;border-top:1px solid #1e293b;
+              color:#475569;font-size:11px;text-align:center">
+    CATNETWORK Server Manager · alerts@info.catnetwork.co.jp
+  </div>
+</div>
+</body></html>"""
+
+async def dispatch_managed_email(msg: str, rule_name: str, chan: dict,
+                                  cluster_name: str = "") -> None:
+    """通过 Resend 从 alerts@info.catnetwork.co.jp 发送告警邮件（无需用户配置 SMTP）。"""
+    if not _RESEND_API_KEY:
+        logger.warning("managed_email: RESEND_API_KEY 未配置")
+        return
+    to_list = [a.strip() for a in (chan.get("to_addrs") or []) if a.strip()]
+    if not to_list:
+        logger.warning("managed_email: 未设置收件人")
+        return
+    html_body  = _build_alert_html(rule_name, msg, cluster_name)
+    plain_body = msg.replace("*", "").replace("_", "")
+    payload = {
+        "from":    _MANAGED_FROM,
+        "to":      to_list,
+        "subject": f"[Server Manager] {rule_name}",
+        "html":    html_body,
+        "text":    plain_body,
+    }
+    try:
+        async with aiohttp.ClientSession() as sess:
+            resp = await sess.post(
+                "https://api.resend.com/emails",
+                json=payload,
+                headers={"Authorization": f"Bearer {_RESEND_API_KEY}",
+                         "Content-Type": "application/json"},
+                timeout=aiohttp.ClientTimeout(total=15),
+            )
+            if resp.status in (200, 201):
+                logger.info("managed_email sent to %s", to_list)
+            else:
+                body = await resp.text()
+                logger.error("managed_email Resend error %s: %s", resp.status, body[:200])
+    except Exception as e:
+        logger.error("managed_email send error: %s", e)
+
+
 async def dispatch_email(msg: str, rule_name: str, chan: dict) -> None:
     if not chan.get("smtp_host") or not chan.get("smtp_user"):
         logger.warning("Email: incomplete SMTP config")
@@ -600,7 +673,9 @@ async def send_alert(trigger: str, server: dict, detail: str, rule: dict,
         chan = channels.get(ch_name, {})
         if not chan.get("enabled"):
             continue
-        if ch_name == "email":
+        if ch_name == "managed_email":
+            await dispatch_managed_email(msg, rule["name"], chan, cluster_name)
+        elif ch_name == "email":
             await dispatch_email(msg, rule["name"], chan)
         elif ch_name == "sms":
             await dispatch_sms(msg, chan)

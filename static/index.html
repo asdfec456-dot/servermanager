@@ -918,6 +918,7 @@ tr:hover td{background:var(--sf2)}
           </div>
           <div class="form-g2"><label id="lbl-ar-channels">通知渠道</label>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:3px" id="ar-channels">
+              <label style="display:flex;align-items:center;gap:5px;font-size:.75rem"><input type="checkbox" value="managed_email" id="ar-ch-managed-email-lbl"> <span id="ar-ch-managed-email">托管邮件</span></label>
               <label style="display:flex;align-items:center;gap:5px;font-size:.75rem"><input type="checkbox" value="email" id="ar-ch-email-lbl"> <span id="ar-ch-email">邮件</span></label>
               <label style="display:flex;align-items:center;gap:5px;font-size:.75rem"><input type="checkbox" value="sms" id="ar-ch-sms-lbl"> <span id="ar-ch-sms">短信</span></label>
             </div>
@@ -1010,6 +1011,7 @@ zh:{
   'al.title':'警报管理','al.sub':'配置触发条件和通知渠道',
   'al.tab_ch':'通知渠道','al.tab_rules':'触发规则','al.tab_hist':'历史记录',
   'al.test':'测试','al.save_ch':'保存渠道',
+  'al.ch_managed_email':'托管邮件通知','al.managed_from':'由 alerts@info.catnetwork.co.jp 代发，无需自行配置邮件服务器',
   'al.email_host':'SMTP 服务器','al.email_port':'端口','al.email_user':'用户名 / 发件邮箱',
   'al.email_pass':'密码 / 应用专用密码','al.email_to':'收件人（逗号分隔）',
   'al.email_guide_title':'Gmail 应用专用密码获取方式',
@@ -1159,6 +1161,7 @@ en:{
   'setup.confirm':'Confirm Password','setup.submit':'Complete Setup',
   'login.title':'Login','login.username':'Username','login.password':'Password','login.submit':'Login','login.loading':'Logging in...',
   // Alerts
+  'al.ch_managed_email':'Managed Email','al.managed_from':'Sent from alerts@info.catnetwork.co.jp — no SMTP setup required',
   'al.title':'Alert Management','al.sub':'Configure triggers and notification channels',
   'al.tab_ch':'Channels','al.tab_rules':'Rules','al.tab_hist':'History',
   'al.test':'Test','al.save_ch':'Save',
@@ -1297,6 +1300,7 @@ ja:{
   'login.title':'ログイン','login.username':'ユーザー名','login.password':'パスワード','login.submit':'ログイン','login.loading':'ログイン中...',
   // Alerts
   'al.title':'アラート管理','al.sub':'トリガー条件と通知チャンネルの設定',
+  'al.ch_managed_email':'マネージドメール通知','al.managed_from':'alerts@info.catnetwork.co.jp から送信 — SMTPサーバー設定不要',
   'al.tab_ch':'通知チャンネル','al.tab_rules':'トリガールール','al.tab_hist':'履歴',
   'al.test':'テスト','al.save_ch':'保存',
   'al.email_host':'SMTP サーバー','al.email_port':'ポート','al.email_user':'ユーザー名 / 送信元メール',
@@ -2782,7 +2786,7 @@ function applyAlertI18n(){
     'lbl-ar-cooldown':'al.rule_cooldown','lbl-ar-channels':'al.rule_channels',
     'btn-ar-submit-lbl': _alertRuleEditId?'al.rule_btn_save':'al.rule_btn_add',
     'lbl-ar-cancel':'al.rule_btn_cancel',
-    'ar-ch-email':'al.ch_email','ar-ch-sms':'al.ch_sms',
+    'ar-ch-managed-email':'al.ch_managed_email','ar-ch-email':'al.ch_email','ar-ch-sms':'al.ch_sms',
     'tr-opt-offline':'tr.server_offline','tr-opt-online':'tr.server_online',
     'tr-opt-hcrit':'tr.health_critical','tr-opt-hwarn':'tr.health_warning',
     'tr-opt-temp':'tr.temp_critical','tr-opt-fan':'tr.fan_failed',
@@ -2823,6 +2827,29 @@ async function loadChannelsTab(){
   const r=await api('GET','/api/alerts/channels'); if(!r) return;
   const ch=await r.json();
 
+  // ── Managed Email card（无需 SMTP，由 CATNETWORK 代发）────────────
+  const meCfg=ch.managed_email||{};
+  const meEn=meCfg.enabled||false;
+  const meAddrs=Array.isArray(meCfg.to_addrs)?meCfg.to_addrs.join(', '):(meCfg.to_addrs||'');
+  const managedEmailCard=`<div class="ch-card" style="border-color:rgba(14,165,233,.3);background:rgba(14,165,233,.04)">
+<div class="ch-card-head">
+  <div>
+    <div class="ch-name">✉️ ${t('al.ch_managed_email')}
+      <span style="font-size:.6rem;background:rgba(14,165,233,.15);color:#0ea5e9;border:1px solid rgba(14,165,233,.3);border-radius:3px;padding:1px 6px;margin-left:6px;vertical-align:middle">CATNETWORK</span>
+    </div>
+    <div style="font-size:.68rem;color:var(--tx3);margin-top:2px">${t('al.managed_from')}</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <button class="ch-test-btn" onclick="testChannel('managed_email')">${t('al.test')}</button>
+    <label class="ch-toggle"><input type="checkbox" data-ch="managed_email" onchange="saveChannels()"${meEn?' checked':''}><span class="ch-slider"></span></label>
+  </div>
+</div>
+<div class="ch-fields one-col">
+  <div class="form-g2"><label>${t('al.email_to')}</label>
+    <input class="inp ch-field" data-ch="managed_email" data-field="to_addrs" type="text" value="${esc(meAddrs)}" placeholder="admin@company.com, ops@company.com">
+  </div>
+</div>
+</div>`;
 
   // Email card
   const emCfg=ch.email||{};
@@ -2875,7 +2902,7 @@ ${guideBox(t('al.email_guide_title'), t('al.email_guide'))}
 ${guideBox(t('al.sms_guide_title'), t('al.sms_guide'))}
 </div>`;
 
-  $('channels-content').innerHTML = tgCard + emCard + smsCard;
+  $('channels-content').innerHTML = managedEmailCard + emCard + smsCard;
 }
 
 async function saveChannels(){
