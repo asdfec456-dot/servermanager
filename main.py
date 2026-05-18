@@ -73,15 +73,6 @@ ALERT_CHANNELS_FILE= DATA_DIR / "alert_channels.json"
 ALERT_STATE_FILE   = DATA_DIR / "alert_state.json"
 ALERT_HISTORY_FILE = DATA_DIR / "alert_history.json"
 
-# Telegram bot token (from channel config or env file)
-_TG_ENV = Path.home() / ".claude" / "channels" / "telegram" / ".env"
-
-def _read_tg_token() -> str:
-    if _TG_ENV.exists():
-        for line in _TG_ENV.read_text().splitlines():
-            if line.startswith("TELEGRAM_BOT_TOKEN="):
-                return line.split("=", 1)[1].strip()
-    return ""
 
 DEFAULT_SETTINGS: dict = {
     "ip_ranges": "", "username": "admin", "password": "",
@@ -395,23 +386,18 @@ def _infer_base_url(req: Request) -> str:
 
 # 默认报警规则
 DEFAULT_ALERT_RULES = [
-    {"id": "rule-offline",   "name": "服务器下线",   "trigger": "server_offline",  "enabled": True,  "cooldown": 300,  "channels": ["telegram"]},
-    {"id": "rule-online",    "name": "服务器恢复",   "trigger": "server_online",   "enabled": True,  "cooldown": 60,   "channels": ["telegram"]},
-    {"id": "rule-crit",      "name": "严重健康故障", "trigger": "health_critical", "enabled": True,  "cooldown": 600,  "channels": ["telegram"]},
-    {"id": "rule-warn",      "name": "健康警告",     "trigger": "health_warning",  "enabled": False, "cooldown": 600,  "channels": ["telegram"]},
-    {"id": "rule-temp-crit", "name": "温度严重",     "trigger": "temp_critical",   "enabled": True,  "cooldown": 600,  "channels": ["telegram"]},
-    {"id": "rule-fan",       "name": "风扇故障",     "trigger": "fan_failed",      "enabled": True,  "cooldown": 600,  "channels": ["telegram"]},
-    {"id": "rule-psu",       "name": "电源模块故障", "trigger": "psu_failed",      "enabled": True,  "cooldown": 600,  "channels": ["telegram"]},
-    {"id": "rule-poweroff",  "name": "服务器关机",   "trigger": "power_off",       "enabled": True,  "cooldown": 300,  "channels": ["telegram"]},
-    {"id": "rule-hw-miss",   "name": "硬件丢失",     "trigger": "hardware_missing","enabled": True,  "cooldown": 300,  "channels": ["telegram"]},
+    {"id": "rule-offline",   "name": "服务器下线",   "trigger": "server_offline",  "enabled": True,  "cooldown": 300,  "channels": ["email"]},
+    {"id": "rule-online",    "name": "服务器恢复",   "trigger": "server_online",   "enabled": True,  "cooldown": 60,   "channels": ["email"]},
+    {"id": "rule-crit",      "name": "严重健康故障", "trigger": "health_critical", "enabled": True,  "cooldown": 600,  "channels": ["email"]},
+    {"id": "rule-warn",      "name": "健康警告",     "trigger": "health_warning",  "enabled": False, "cooldown": 600,  "channels": ["email"]},
+    {"id": "rule-temp-crit", "name": "温度严重",     "trigger": "temp_critical",   "enabled": True,  "cooldown": 600,  "channels": ["email"]},
+    {"id": "rule-fan",       "name": "风扇故障",     "trigger": "fan_failed",      "enabled": True,  "cooldown": 600,  "channels": ["email"]},
+    {"id": "rule-psu",       "name": "电源模块故障", "trigger": "psu_failed",      "enabled": True,  "cooldown": 600,  "channels": ["email"]},
+    {"id": "rule-poweroff",  "name": "服务器关机",   "trigger": "power_off",       "enabled": True,  "cooldown": 300,  "channels": ["email"]},
+    {"id": "rule-hw-miss",   "name": "硬件丢失",     "trigger": "hardware_missing","enabled": True,  "cooldown": 300,  "channels": ["email"]},
 ]
 
 DEFAULT_ALERT_CHANNELS = {
-    "telegram": {
-        "enabled": True,
-        "bot_token": "",   # 留空则使用系统内置 token
-        "chat_ids": [],    # 留空则使用系统默认 chat_id
-    },
     "email": {
         "enabled": False,
         "smtp_host": "",          # 留空，用户自行填写
@@ -542,37 +528,6 @@ def format_alert_message(trigger: str, server: dict, detail: str, rule_name: str
 
 # ─── 报警发送 ─────────────────────────────────────────────────────
 
-async def dispatch_telegram(msg: str, chan: dict) -> None:
-    token = chan.get("bot_token") or _read_tg_token()
-    if not token:
-        logger.warning("Telegram: no bot token")
-        return
-    chat_ids = chan.get("chat_ids") or []
-    # 默认从 access.json 读取允许的用户列表
-    if not chat_ids:
-        access_file = Path.home() / ".claude" / "channels" / "telegram" / "access.json"
-        if access_file.exists():
-            try:
-                ac = json.loads(access_file.read_text())
-                chat_ids = ac.get("allowFrom", [])
-            except Exception:
-                pass
-    if not chat_ids:
-        logger.warning("Telegram: no chat_ids configured")
-        return
-    ssl_ctx = ssl.create_default_context()
-    async with aiohttp.ClientSession() as sess:
-        for cid in chat_ids:
-            try:
-                await sess.post(
-                    f"https://api.telegram.org/bot{token}/sendMessage",
-                    data={"chat_id": str(cid), "text": msg, "parse_mode": "Markdown"},
-                    timeout=aiohttp.ClientTimeout(total=10),
-                    ssl=ssl_ctx,
-                )
-            except Exception as e:
-                logger.error("Telegram send error: %s", e)
-
 async def dispatch_email(msg: str, rule_name: str, chan: dict) -> None:
     if not chan.get("smtp_host") or not chan.get("smtp_user"):
         logger.warning("Email: incomplete SMTP config")
@@ -645,9 +600,7 @@ async def send_alert(trigger: str, server: dict, detail: str, rule: dict,
         chan = channels.get(ch_name, {})
         if not chan.get("enabled"):
             continue
-        if ch_name == "telegram":
-            await dispatch_telegram(msg, chan)
-        elif ch_name == "email":
+        if ch_name == "email":
             await dispatch_email(msg, rule["name"], chan)
         elif ch_name == "sms":
             await dispatch_sms(msg, chan)
@@ -2123,7 +2076,7 @@ async def create_alert_rule(req: Request, admin: dict = Depends(require_admin)):
         "trigger":  trigger,
         "enabled":  bool(body.get("enabled", True)),
         "cooldown": int(body.get("cooldown", 300)),
-        "channels": body.get("channels") or ["telegram"],
+        "channels": body.get("channels") or ["email"],
     }
     rules = load_alert_rules()
     rules.append(rule)

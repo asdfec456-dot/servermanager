@@ -918,7 +918,6 @@ tr:hover td{background:var(--sf2)}
           </div>
           <div class="form-g2"><label id="lbl-ar-channels">通知渠道</label>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:3px" id="ar-channels">
-              <label style="display:flex;align-items:center;gap:5px;font-size:.75rem"><input type="checkbox" value="telegram" checked> Telegram</label>
               <label style="display:flex;align-items:center;gap:5px;font-size:.75rem"><input type="checkbox" value="email" id="ar-ch-email-lbl"> <span id="ar-ch-email">邮件</span></label>
               <label style="display:flex;align-items:center;gap:5px;font-size:.75rem"><input type="checkbox" value="sms" id="ar-ch-sms-lbl"> <span id="ar-ch-sms">短信</span></label>
             </div>
@@ -1011,12 +1010,6 @@ zh:{
   'al.title':'警报管理','al.sub':'配置触发条件和通知渠道',
   'al.tab_ch':'通知渠道','al.tab_rules':'触发规则','al.tab_hist':'历史记录',
   'al.test':'测试','al.save_ch':'保存渠道',
-  'al.ch_telegram':'Telegram','al.ch_email':'邮件 Email','al.ch_sms':'短信 SMS (Twilio)',
-  'al.tg_token_lbl':'Bot Token（留空使用系统默认）','al.tg_token_ph':'留空则使用内置 token',
-  'al.tg_chat_lbl':'Chat ID（逗号分隔，留空使用默认）','al.tg_chat_ph':'例：1475673701',
-  'al.tg_guide_title':'如何获取 Bot Token 和 Chat ID',
-  'al.tg_token_guide':'① 在 Telegram 搜索 @BotFather → 发送 /newbot → 按提示完成后会收到 Token（格式：数字:字母数字）',
-  'al.tg_chat_guide':'② 向 bot 发送任意消息，然后访问 https://api.telegram.org/bot{TOKEN}/getUpdates，在返回 JSON 的 "chat"→"id" 字段中找到 Chat ID',
   'al.email_host':'SMTP 服务器','al.email_port':'端口','al.email_user':'用户名 / 发件邮箱',
   'al.email_pass':'密码 / 应用专用密码','al.email_to':'收件人（逗号分隔）',
   'al.email_guide_title':'Gmail 应用专用密码获取方式',
@@ -1049,7 +1042,7 @@ zh:{
   'sub.modal_title':'开通 Server Manager 会员',
   'sub.modal_sub':'会员专属：无限服务器监控与全功能访问',
   'sub.f1':'无限服务器监控','sub.f2':'Redfish / IPMI 双协议',
-  'sub.f3':'报警通知（Telegram / 邮件 / 短信）','sub.f4':'多用户与权限管理',
+  'sub.f3':'报警通知（邮件 / 短信）','sub.f4':'多用户与权限管理',
   'sub.f5':'子集群分组管理','sub.f6':'BMC 密码远程修改',
   'sub.plan_monthly':'月付会员','sub.plan_annual':'年付会员',
   'sub.save_pct':'年付节省 {pct}%',
@@ -1169,12 +1162,6 @@ en:{
   'al.title':'Alert Management','al.sub':'Configure triggers and notification channels',
   'al.tab_ch':'Channels','al.tab_rules':'Rules','al.tab_hist':'History',
   'al.test':'Test','al.save_ch':'Save',
-  'al.ch_telegram':'Telegram','al.ch_email':'Email','al.ch_sms':'SMS (Twilio)',
-  'al.tg_token_lbl':'Bot Token (leave blank to use system default)','al.tg_token_ph':'Leave blank to use built-in token',
-  'al.tg_chat_lbl':'Chat ID (comma-separated, leave blank for default)','al.tg_chat_ph':'e.g. 1475673701',
-  'al.tg_guide_title':'How to get Bot Token and Chat ID',
-  'al.tg_token_guide':'① Search @BotFather on Telegram → send /newbot → follow prompts → receive Token (format: digits:alphanumeric)',
-  'al.tg_chat_guide':'② Send any message to your bot, then open https://api.telegram.org/bot{TOKEN}/getUpdates and find "chat"→"id" in the JSON response',
   'al.email_host':'SMTP Host','al.email_port':'Port','al.email_user':'Username / Sender Email',
   'al.email_pass':'Password / App Password','al.email_to':'Recipients (comma-separated)',
   'al.email_guide_title':'Gmail App Password Setup',
@@ -1201,7 +1188,7 @@ en:{
   'sub.modal_title':'Join Server Manager',
   'sub.modal_sub':'Member exclusive: unlimited server monitoring & full access',
   'sub.f1':'Unlimited server monitoring','sub.f2':'Redfish & IPMI protocols',
-  'sub.f3':'Alert notifications (Telegram / Email / SMS)','sub.f4':'Multi-user access control',
+  'sub.f3':'Alert notifications (Email / SMS)','sub.f4':'Multi-user access control',
   'sub.f5':'Sub-cluster grouping','sub.f6':'Remote BMC password change',
   'sub.plan_monthly':'Monthly Member','sub.plan_annual':'Annual Member',
   'sub.save_pct':'Save {pct}% with annual',
@@ -1312,12 +1299,6 @@ ja:{
   'al.title':'アラート管理','al.sub':'トリガー条件と通知チャンネルの設定',
   'al.tab_ch':'通知チャンネル','al.tab_rules':'トリガールール','al.tab_hist':'履歴',
   'al.test':'テスト','al.save_ch':'保存',
-  'al.ch_telegram':'Telegram','al.ch_email':'メール Email','al.ch_sms':'SMS (Twilio)',
-  'al.tg_token_lbl':'Bot Token（空白でシステムデフォルトを使用）','al.tg_token_ph':'空白のままで内蔵トークンを使用',
-  'al.tg_chat_lbl':'Chat ID（カンマ区切り、空白でデフォルトを使用）','al.tg_chat_ph':'例：1475673701',
-  'al.tg_guide_title':'Bot Token と Chat ID の取得方法',
-  'al.tg_token_guide':'① Telegram で @BotFather を検索 → /newbot を送信 → 指示に従って設定 → Token が届く（形式：数字:英数字）',
-  'al.tg_chat_guide':'② Bot に任意のメッセージを送信後、https://api.telegram.org/bot{TOKEN}/getUpdates を開き、JSON の "chat"→"id" フィールドで Chat ID を確認',
   'al.email_host':'SMTP サーバー','al.email_port':'ポート','al.email_user':'ユーザー名 / 送信元メール',
   'al.email_pass':'パスワード / アプリ専用パスワード','al.email_to':'宛先（カンマ区切り）',
   'al.email_guide_title':'Gmail アプリ専用パスワードの取得',
@@ -1344,7 +1325,7 @@ ja:{
   'sub.modal_title':'Server Manager に参加する',
   'sub.modal_sub':'メンバー専用：無制限サーバー監視＆全機能アクセス',
   'sub.f1':'無制限サーバー監視','sub.f2':'Redfish / IPMI プロトコル',
-  'sub.f3':'アラート通知（Telegram / メール / SMS）','sub.f4':'マルチユーザー権限管理',
+  'sub.f3':'アラート通知（邮件 / 短信）','sub.f4':'マルチユーザー権限管理',
   'sub.f5':'サブクラスター分類','sub.f6':'BMC パスワードリモート変更',
   'sub.plan_monthly':'月払いプラン','sub.plan_annual':'年払いプラン',
   'sub.save_pct':'年払いで {pct}% 節約',
@@ -2842,29 +2823,6 @@ async function loadChannelsTab(){
   const r=await api('GET','/api/alerts/channels'); if(!r) return;
   const ch=await r.json();
 
-  // Telegram card
-  const tgCfg=ch.telegram||{};
-  const tgEn=tgCfg.enabled||false;
-  const tgToken=(tgCfg.bot_token||'');
-  const tgChats=Array.isArray(tgCfg.chat_ids)?tgCfg.chat_ids.join(', '):(tgCfg.chat_ids||'');
-  const tgCard=`<div class="ch-card">
-<div class="ch-card-head">
-  <div class="ch-name">✈️ ${t('al.ch_telegram')}</div>
-  <div style="display:flex;align-items:center;gap:10px">
-    <button class="ch-test-btn" onclick="testChannel('telegram')">${t('al.test')}</button>
-    <label class="ch-toggle"><input type="checkbox" data-ch="telegram" onchange="saveChannels()"${tgEn?' checked':''}><span class="ch-slider"></span></label>
-  </div>
-</div>
-<div class="ch-fields one-col">
-  <div class="form-g2"><label>${t('al.tg_token_lbl')}</label>
-    <input class="inp ch-field" data-ch="telegram" data-field="bot_token" type="password" value="${esc(tgToken)}" placeholder="${t('al.tg_token_ph')}">
-  </div>
-  <div class="form-g2"><label>${t('al.tg_chat_lbl')}</label>
-    <input class="inp ch-field" data-ch="telegram" data-field="chat_ids" type="text" value="${esc(tgChats)}" placeholder="${t('al.tg_chat_ph')}">
-  </div>
-</div>
-${guideBox(t('al.tg_guide_title'), t('al.tg_token_guide')+'\n\n'+t('al.tg_chat_guide'))}
-</div>`;
 
   // Email card
   const emCfg=ch.email||{};
