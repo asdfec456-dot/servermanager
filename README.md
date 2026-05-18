@@ -88,7 +88,7 @@ SM_LANG=en bash get.sh install --yes
 
 ### 告警管理
 
-自定义告警规则（温度阈值 / 电源故障 / 机器离线等），支持 Telegram / Email / Webhook 推送。
+自定义告警规则（温度阈值 / 电源故障 / 机器离线等），支持 Email / Webhook 推送。
 
 ---
 
