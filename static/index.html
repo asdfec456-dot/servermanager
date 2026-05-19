@@ -496,7 +496,7 @@ tr:hover td{background:var(--sf2)}
     <div class="auth-err" id="login-err"></div>
     <button class="btn-block btn-acc" id="login-btn" onclick="doLogin()">登录</button>
   </div>
-  <div class="auth-footer">© 2026 CATNETWORK · Server Manager v1.7.1</div>
+  <div class="auth-footer">© 2026 CATNETWORK · Server Manager <span id="sm-ver-login"></span></div>
 </div>
 </div>
 
@@ -611,7 +611,7 @@ tr:hover td{background:var(--sf2)}
 </div>
 
 <main id="main"></main>
-<div class="footer">© 2026 <a href="https://www.catnetwork.co.jp" target="_blank">CATNETWORK</a> · Server Manager v1.7.1</div>
+<div class="footer">© 2026 <a href="https://www.catnetwork.co.jp" target="_blank">CATNETWORK</a> · Server Manager <span id="sm-ver-main"></span></div>
 </div>
 
 <!-- SETTINGS MODAL -->
@@ -3326,5 +3326,8 @@ function closeMobMenu(){
   </div>
 </div>
 
+
+// 版本号由服务端注入，显示到 footer
+(function(){const v=window._SM_VERSION||'';document.querySelectorAll('#sm-ver-login,#sm-ver-main').forEach(el=>{if(el)el.textContent='v'+v;});})();
 </body>
 </html>
