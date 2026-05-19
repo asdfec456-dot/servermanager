@@ -1423,7 +1423,7 @@ function applyI18n(){
     'fl-all':'all','fl-s-online':'online','fl-s-auth':'h.auth_failed','fl-s-reach':'h.reachable','fl-s-pend':'collecting','fl-s-off':'offline',
     'lbl-refresh':'btn.refresh','lbl-settings':'btn.settings','lbl-logout':'btn.logout',
     'dd-lbl-cfg':'cfg.title','dd-lbl-sc':'sc.title','dd-lbl-users':'u.title','dd-lbl-alerts':'al.title','dd-lbl-ssl':'ssl.title','dd-lbl-card':'card.settings',
-    'mob-ssl-lbl':'ssl.title',
+    'mob-ssl-lbl':'ssl.title','mob-alerts-lbl':'al.title','mob-card-lbl':'card.settings',
     'ssl-modal-title':'ssl.title','ssl-modal-sub':'ssl.sub',
     'lbl-setup-title':'setup.title','lbl-setup-sub':'setup.sub','lbl-cluster':'setup.cluster',
     'lbl-admin-user':'setup.admin','lbl-admin-pass':'setup.pass','lbl-confirm':'setup.confirm',
@@ -3338,14 +3338,15 @@ function closeMobMenu(){
   </div>
   <div class="mob-menu-item admin-only" onclick="ddOpen('ov-alerts');closeMobMenu()">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-    <span>警报管理</span>
-  </div>
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-    <span>安装配置</span>
+    <span id="mob-alerts-lbl">警报管理</span>
   </div>
   <div class="mob-menu-item admin-only" onclick="ddOpen('ov-ssl');closeMobMenu()">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
     <span id="mob-ssl-lbl">HTTPS 配置</span>
+  </div>
+  <div class="mob-menu-item admin-only" onclick="ddOpen('ov-card-cfg');closeMobMenu()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+    <span id="mob-card-lbl">卡片显示</span>
   </div>
 </div>
 
