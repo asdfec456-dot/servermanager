@@ -400,26 +400,22 @@ DEFAULT_ALERT_RULES = [
 DEFAULT_ALERT_CHANNELS = {
     "managed_email": {
         "enabled": False,
-        "to_addrs": [],            # 收件人列表，用户只需填写收件地址
-        # 发件方固定为 alerts@info.catnetwork.co.jp（由服务端 RESEND_API_KEY 控制）
+        "to_addrs": [],
+        "lang": "auto",   # auto=跟随界面语言设定(zh), zh/en/ja=固定语言
     },
     "email": {
         "enabled": False,
-        "smtp_host": "",          # 留空，用户自行填写
-        "smtp_port": 587,
-        "smtp_user": "",
-        "smtp_pass": "",
-        "from_addr": "",
-        "to_addrs": [],
+        "smtp_host": "", "smtp_port": 587, "smtp_user": "",
+        "smtp_pass": "", "from_addr": "", "to_addrs": [],
         "use_tls": True,
+        "lang": "auto",
     },
     "sms": {
         "enabled": False,
-        "provider": "twilio",      # twilio | aws_sns
-        "account_sid": "",         # Twilio Account SID
-        "auth_token": "",          # Twilio Auth Token
-        "from_number": "",         # e.g. +15551234567
-        "to_numbers": [],          # e.g. ["+81901234567"]
+        "provider": "twilio",
+        "account_sid": "", "auth_token": "",
+        "from_number": "", "to_numbers": [],
+        "lang": "auto",
     },
 }
 
@@ -513,22 +509,66 @@ _TRIGGER_ICONS = {
     "hardware_missing":"🔧",
 }
 
-def format_alert_message(trigger: str, server: dict, detail: str, rule_name: str, cluster_name: str) -> str:
+_ALERT_I18N: dict = {
+    "zh": {
+        "title": "Server Manager 告警",
+        "server": "服务器", "event": "事件", "time": "时间",
+        "cluster": "集群", "detail": "详情",
+        "triggers": {
+            "server_offline": "服务器下线", "server_online": "服务器恢复",
+            "health_critical": "健康状态：严重", "health_warning": "健康状态：警告",
+            "temp_critical": "温度传感器：严重", "fan_failed": "风扇故障",
+            "psu_failed": "电源模块故障", "power_off": "服务器关机",
+            "hardware_missing": "硬件丢失",
+        },
+    },
+    "en": {
+        "title": "Server Manager Alert",
+        "server": "Server", "event": "Event", "time": "Time",
+        "cluster": "Cluster", "detail": "Detail",
+        "triggers": {
+            "server_offline": "Server Offline", "server_online": "Server Online",
+            "health_critical": "Health: Critical", "health_warning": "Health: Warning",
+            "temp_critical": "Temp Sensor: Critical", "fan_failed": "Fan Failed",
+            "psu_failed": "PSU Failed", "power_off": "Server Power Off",
+            "hardware_missing": "Hardware Missing",
+        },
+    },
+    "ja": {
+        "title": "Server Manager アラート",
+        "server": "サーバー", "event": "イベント", "time": "時刻",
+        "cluster": "クラスター", "detail": "詳細",
+        "triggers": {
+            "server_offline": "サーバーオフライン", "server_online": "サーバー復旧",
+            "health_critical": "健全性：重大", "health_warning": "健全性：警告",
+            "temp_critical": "温度センサー：重大", "fan_failed": "ファン障害",
+            "psu_failed": "電源ユニット障害", "power_off": "サーバー電源オフ",
+            "hardware_missing": "ハードウェア欠損",
+        },
+    },
+}
+
+def format_alert_message(trigger: str, server: dict, detail: str,
+                          rule_name: str, cluster_name: str, lang: str = "zh") -> str:
+    L    = _ALERT_I18N.get(lang) or _ALERT_I18N["zh"]
     icon = _TRIGGER_ICONS.get(trigger, "📢")
-    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    ts   = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     name = server.get("name") or server.get("bmc_ip", "")
-    ip = server.get("bmc_ip", "")
+    ip   = server.get("bmc_ip", "")
+    # 事件名优先用翻译后的 trigger 名，若规则名是用户自定义则附在后面
+    trig_name = L["triggers"].get(trigger, rule_name)
+    display_name = trig_name if trig_name == rule_name else f"{trig_name}（{rule_name}）"
     lines = [
-        f"{icon} *Server Manager Alert*",
-        f"",
-        f"*服务器*：{name} ({ip})",
-        f"*事件*：{rule_name}",
-        f"*时间*：{ts}",
+        f"{icon} *{L['title']}*",
+        "",
+        f"*{L['server']}*：{name} ({ip})",
+        f"*{L['event']}*：{display_name}",
+        f"*{L['time']}*：{ts}",
     ]
     if cluster_name:
-        lines.append(f"*集群*：{cluster_name}")
+        lines.append(f"*{L['cluster']}*：{cluster_name}")
     if detail:
-        lines.append(f"*详情*：{detail}")
+        lines.append(f"*{L['detail']}*：{detail}")
     return "\n".join(lines)
 
 # ─── 报警发送 ─────────────────────────────────────────────────────
@@ -550,7 +590,7 @@ def _build_alert_html(rule_name: str, plain_msg: str, cluster_name: str) -> str:
 <div style="max-width:560px;margin:32px auto;background:#1e2530;border-radius:10px;
             border:1px solid #334155;overflow:hidden">
   <div style="background:#0ea5e9;padding:16px 24px">
-    <span style="color:#fff;font-size:15px;font-weight:700">⚠ Server Manager 告警</span>
+    <span style="color:#fff;font-size:15px;font-weight:700">⚠ {(_ALERT_I18N.get(lang) or _ALERT_I18N["zh"])["title"]}</span>
     <span style="float:right;color:rgba(255,255,255,.7);font-size:12px">{cluster_name}</span>
   </div>
   <div style="padding:20px 24px">
@@ -565,7 +605,7 @@ def _build_alert_html(rule_name: str, plain_msg: str, cluster_name: str) -> str:
 </body></html>"""
 
 async def dispatch_managed_email(msg: str, rule_name: str, chan: dict,
-                                  cluster_name: str = "") -> None:
+                                  cluster_name: str = "", lang: str = "zh") -> None:
     """通过 Resend 从 alerts@info.catnetwork.co.jp 发送告警邮件（无需用户配置 SMTP）。"""
     if not _RESEND_API_KEY:
         logger.warning("managed_email: RESEND_API_KEY 未配置")
@@ -653,9 +693,17 @@ async def dispatch_sms(msg: str, chan: dict) -> None:
             except Exception as e:
                 logger.error("SMS send error: %s", e)
 
+def _resolve_lang(chan: dict) -> str:
+    """将渠道语言设定解析为 zh/en/ja，auto → 读系统默认（zh）。"""
+    lang = (chan.get("lang") or "auto").strip().lower()
+    if lang == "auto":
+        lang = load_settings().get("ui_lang", "zh")
+    return lang if lang in ("zh", "en", "ja") else "zh"
+
 async def send_alert(trigger: str, server: dict, detail: str, rule: dict,
                      channels: dict, cluster_name: str) -> None:
-    msg     = format_alert_message(trigger, server, detail, rule["name"], cluster_name)
+    # 默认消息使用中文（供历史记录）；各渠道会用自己的语言重新格式化
+    msg     = format_alert_message(trigger, server, detail, rule["name"], cluster_name, "zh")
     payload = {
         "trigger": trigger, "rule": rule["name"],
         "server": {"name": server.get("name"), "bmc_ip": server.get("bmc_ip"), "health": server.get("health")},
@@ -673,12 +721,14 @@ async def send_alert(trigger: str, server: dict, detail: str, rule: dict,
         chan = channels.get(ch_name, {})
         if not chan.get("enabled"):
             continue
+        lang    = _resolve_lang(chan)
+        ch_msg  = format_alert_message(trigger, server, detail, rule["name"], cluster_name, lang)
         if ch_name == "managed_email":
-            await dispatch_managed_email(msg, rule["name"], chan, cluster_name)
+            await dispatch_managed_email(ch_msg, rule["name"], chan, cluster_name, lang)
         elif ch_name == "email":
-            await dispatch_email(msg, rule["name"], chan)
+            await dispatch_email(ch_msg, rule["name"], chan)
         elif ch_name == "sms":
-            await dispatch_sms(msg, chan)
+            await dispatch_sms(ch_msg, chan)
 
 # ─── 状态变化检测 ─────────────────────────────────────────────────
 

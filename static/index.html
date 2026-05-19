@@ -1012,6 +1012,8 @@ zh:{
   'al.tab_ch':'通知渠道','al.tab_rules':'触发规则','al.tab_hist':'历史记录',
   'al.test':'测试','al.save_ch':'保存渠道',
   'al.ch_managed_email':'托管邮件通知','al.managed_from':'由 alerts@info.catnetwork.co.jp 代发，无需自行配置邮件服务器',
+  'al.ch_lang':'通知语言','al.lang_auto':'自动（跟随界面语言）','al.lang_zh':'中文','al.lang_en':'English','al.lang_ja':'日本語',
+  'al.test_btn':'发送测试通知',
   'al.email_host':'SMTP 服务器','al.email_port':'端口','al.email_user':'用户名 / 发件邮箱',
   'al.email_pass':'密码 / 应用专用密码','al.email_to':'收件人（逗号分隔）',
   'al.email_guide_title':'Gmail 应用专用密码获取方式',
@@ -1162,6 +1164,8 @@ en:{
   'login.title':'Login','login.username':'Username','login.password':'Password','login.submit':'Login','login.loading':'Logging in...',
   // Alerts
   'al.ch_managed_email':'Managed Email','al.managed_from':'Sent from alerts@info.catnetwork.co.jp — no SMTP setup required',
+  'al.ch_lang':'Notification Language','al.lang_auto':'Auto (follow UI language)','al.lang_zh':'Chinese','al.lang_en':'English','al.lang_ja':'Japanese',
+  'al.test_btn':'Send Test Notification',
   'al.title':'Alert Management','al.sub':'Configure triggers and notification channels',
   'al.tab_ch':'Channels','al.tab_rules':'Rules','al.tab_hist':'History',
   'al.test':'Test','al.save_ch':'Save',
@@ -1301,6 +1305,8 @@ ja:{
   // Alerts
   'al.title':'アラート管理','al.sub':'トリガー条件と通知チャンネルの設定',
   'al.ch_managed_email':'マネージドメール通知','al.managed_from':'alerts@info.catnetwork.co.jp から送信 — SMTPサーバー設定不要',
+  'al.ch_lang':'通知言語','al.lang_auto':'自動（UI言語に従う）','al.lang_zh':'中国語','al.lang_en':'英語','al.lang_ja':'日本語',
+  'al.test_btn':'テスト通知を送信',
   'al.tab_ch':'通知チャンネル','al.tab_rules':'トリガールール','al.tab_hist':'履歴',
   'al.test':'テスト','al.save_ch':'保存',
   'al.email_host':'SMTP サーバー','al.email_port':'ポート','al.email_user':'ユーザー名 / 送信元メール',
@@ -2823,6 +2829,26 @@ function guideBox(title, content){
 </details>`;
 }
 
+// 生成渠道卡片的语言选择器 + 测试按钮（统一样式，视觉上属于配置区下方）
+function chFooter(chName, currentLang){
+  const langVal=currentLang||'auto';
+  return `<div style="display:flex;align-items:center;justify-content:space-between;
+                      margin-top:12px;padding-top:10px;border-top:1px solid var(--bd)">
+  <div style="display:flex;align-items:center;gap:8px">
+    <label style="font-size:.71rem;color:var(--tx2)">${t('al.ch_lang')}</label>
+    <select class="inp ch-field" data-ch="${chName}" data-field="lang"
+            onchange="saveChannels()" style="font-size:.72rem;padding:3px 6px;width:auto">
+      <option value="auto"${langVal==='auto'?' selected':''}>${t('al.lang_auto')}</option>
+      <option value="zh"${langVal==='zh'?' selected':''}>🇨🇳 ${t('al.lang_zh')}</option>
+      <option value="en"${langVal==='en'?' selected':''}>🇺🇸 ${t('al.lang_en')}</option>
+      <option value="ja"${langVal==='ja'?' selected':''}>🇯🇵 ${t('al.lang_ja')}</option>
+    </select>
+  </div>
+  <button class="ch-test-btn" onclick="testChannel('${chName}')"
+          style="font-size:.72rem;padding:4px 14px">${t('al.test_btn')}</button>
+</div>`;
+}
+
 async function loadChannelsTab(){
   const r=await api('GET','/api/alerts/channels'); if(!r) return;
   const ch=await r.json();
@@ -2839,16 +2865,14 @@ async function loadChannelsTab(){
     </div>
     <div style="font-size:.68rem;color:var(--tx3);margin-top:2px">${t('al.managed_from')}</div>
   </div>
-  <div style="display:flex;align-items:center;gap:10px">
-    <button class="ch-test-btn" onclick="testChannel('managed_email')">${t('al.test')}</button>
-    <label class="ch-toggle"><input type="checkbox" data-ch="managed_email" onchange="saveChannels()"${meEn?' checked':''}><span class="ch-slider"></span></label>
-  </div>
+  <label class="ch-toggle"><input type="checkbox" data-ch="managed_email" onchange="saveChannels()"${meEn?' checked':''}><span class="ch-slider"></span></label>
 </div>
 <div class="ch-fields one-col">
   <div class="form-g2"><label>${t('al.email_to')}</label>
     <input class="inp ch-field" data-ch="managed_email" data-field="to_addrs" type="text" value="${esc(meAddrs)}" placeholder="admin@company.com, ops@company.com">
   </div>
 </div>
+${chFooter('managed_email', meCfg.lang)}
 </div>`;
 
   // Email card
@@ -2868,13 +2892,11 @@ async function loadChannelsTab(){
   const emCard=`<div class="ch-card">
 <div class="ch-card-head">
   <div class="ch-name">📧 ${t('al.ch_email')}</div>
-  <div style="display:flex;align-items:center;gap:10px">
-    <button class="ch-test-btn" onclick="testChannel('email')">${t('al.test')}</button>
-    <label class="ch-toggle"><input type="checkbox" data-ch="email" onchange="saveChannels()"${emEn?' checked':''}><span class="ch-slider"></span></label>
-  </div>
+  <label class="ch-toggle"><input type="checkbox" data-ch="email" onchange="saveChannels()"${emEn?' checked':''}><span class="ch-slider"></span></label>
 </div>
 <div class="ch-fields">${emFieldsHtml}</div>
 ${guideBox(t('al.email_guide_title'), t('al.email_guide'))}
+${chFooter('email', emCfg.lang)}
 </div>`;
 
   // SMS card
@@ -2893,13 +2915,11 @@ ${guideBox(t('al.email_guide_title'), t('al.email_guide'))}
   const smsCard=`<div class="ch-card">
 <div class="ch-card-head">
   <div class="ch-name">📱 ${t('al.ch_sms')}</div>
-  <div style="display:flex;align-items:center;gap:10px">
-    <button class="ch-test-btn" onclick="testChannel('sms')">${t('al.test')}</button>
-    <label class="ch-toggle"><input type="checkbox" data-ch="sms" onchange="saveChannels()"${smsEn?' checked':''}><span class="ch-slider"></span></label>
-  </div>
+  <label class="ch-toggle"><input type="checkbox" data-ch="sms" onchange="saveChannels()"${smsEn?' checked':''}><span class="ch-slider"></span></label>
 </div>
 <div class="ch-fields">${smsFieldsHtml}</div>
 ${guideBox(t('al.sms_guide_title'), t('al.sms_guide'))}
+${chFooter('sms', smsCfg.lang)}
 </div>`;
 
   $('channels-content').innerHTML = managedEmailCard + emCard + smsCard;
@@ -2930,12 +2950,16 @@ async function testChannel(ch){
 async function loadRulesTab(){
   const r=await api('GET','/api/alerts/rules'); if(!r) return;
   const rules=await r.json();
+  const _chLabel=c=>({'managed_email':t('al.ch_managed_email')||'托管邮件','email':t('al.ch_email')||'邮件','sms':t('al.ch_sms')||'短信'}[c]||c);
   $('alert-rules-list').innerHTML=rules.length===0
     ?`<div style="color:var(--tx3);font-size:.75rem">${t('al.rules_empty')}</div>`
-    :rules.map(rule=>`<div class="alert-rule-item">
+    :rules.map(rule=>{
+      const trigLabel=t(TRIGGER_KEYS[rule.trigger])||rule.name;
+      const chLabels=(rule.channels||[]).map(_chLabel).join(' / ');
+      return`<div class="alert-rule-item">
 <div style="flex:1;min-width:0">
   <div class="ar-name">${TRIGGER_ICONS[rule.trigger]||'📢'} ${esc(rule.name)}</div>
-  <div class="ar-trigger">${t(TRIGGER_KEYS[rule.trigger]||rule.trigger)} · ${rule.cooldown}s · ${(rule.channels||[]).join('/')}</div>
+  <div class="ar-trigger">${trigLabel} · ${rule.cooldown}s · ${chLabels}</div>
 </div>
 <button class="btn-sm" onclick="editAlertRule('${rule.id}')">${t('al.rule_btn_edit')}</button>
 <button class="btn-sm btn-sm-del" onclick="deleteAlertRule('${rule.id}')">${t('al.rule_btn_del')}</button>
@@ -3032,7 +3056,11 @@ async function loadHistoryTab(){
   const h=await r.json();
   $('alert-history-list').innerHTML=h.length===0
     ?`<div style="color:var(--tx3);font-size:.75rem;padding:8px 0">${t('al.hist_empty')}</div>`
-    :h.map(e=>`<div class="hist-item"><div class="hist-icon">${TRIGGER_ICONS[e.trigger]||'📢'}</div><div class="hist-body"><div class="hist-title">${esc(e.rule)} — ${esc(e.server)}</div><div class="hist-meta">${esc(e.time)}${e.detail?' · '+esc(e.detail):''} · ${(e.channels||[]).join('/')}</div></div></div>`).join('');
+    :h.map(e=>{
+      const trigLabel=t(TRIGGER_KEYS[e.trigger])||e.rule;
+      const chLabels=(e.channels||[]).map(c=>({'managed_email':t('al.ch_managed_email')||'托管邮件','email':t('al.ch_email')||'邮件','sms':t('al.ch_sms')||'短信'}[c]||c)).join('/');
+      return`<div class="hist-item"><div class="hist-icon">${TRIGGER_ICONS[e.trigger]||'📢'}</div><div class="hist-body"><div class="hist-title">${esc(trigLabel)} — ${esc(e.server)}</div><div class="hist-meta">${esc(e.time)}${e.detail?' · '+esc(e.detail):''} · ${chLabels}</div></div></div>`;
+    }).join('');
 }
 
 async function clearAlertHistory(){
