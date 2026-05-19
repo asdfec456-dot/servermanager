@@ -1452,6 +1452,9 @@ function applyI18n(){
     $('lbl-sc-save').textContent=t('sc.create');
   }
   updateProtoHint();
+  // 版本号（每次 applyI18n 都刷新，防止登录后被覆盖）
+  const _v=window._SM_VERSION||'';
+  document.querySelectorAll('#sm-ver-login,#sm-ver-main').forEach(el=>{if(el&&_v)el.textContent='v'+_v;});
 }
 
 /* ── Settings Dropdown ─────────────────────────────────────── */
