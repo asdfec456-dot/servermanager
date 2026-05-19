@@ -1467,6 +1467,15 @@ function applyI18n(){
     $('lbl-sc-save').textContent=t('sc.create');
   }
   updateProtoHint();
+  // 角色标签（语言切换时同步更新）
+  if(currentUser){
+    const _rk={'sysadmin':'role.sysadmin','admin':'role.admin','viewer':'role.viewer'}[currentUser.role]||'role.viewer';
+    const _rc={'sysadmin':'role-sysadmin','admin':'role-admin','viewer':'role-viewer'}[currentUser.role]||'role-viewer';
+    const el=$('hdr-role-tag');
+    if(el){el.textContent=t(_rk);el.className='role-tag '+_rc;}
+    // 移动端菜单角色
+    const sr=$('mob-menu-role');if(sr)sr.textContent=t(_rk);
+  }
   // 版本号（每次 applyI18n 都刷新，防止登录后被覆盖）
   const _v=window._SM_VERSION||'';
   document.querySelectorAll('#sm-ver-login,#sm-ver-main').forEach(el=>{if(el&&_v)el.textContent='v'+_v;});
