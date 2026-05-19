@@ -53,7 +53,7 @@ logger = logging.getLogger("servermanager")
 # CATNETWORK's public server URL — used as the Stripe callback host.
 CATNETWORK_BASE_URL = "https://sm.catnetwork.co.jp"
 
-APP_VERSION = "1.9.8"   # ← 每次发布前在此处更新
+APP_VERSION = "1.9.9"   # ← 每次发布前在此处更新
 
 BASE_DIR   = Path(__file__).parent
 STATIC_DIR = BASE_DIR / "static"

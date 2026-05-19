@@ -1015,7 +1015,7 @@ zh:{
   'al.test':'测试','al.save_ch':'保存渠道',
   'al.ch_managed_email':'托管邮件通知','al.ch_email':'邮件（自建 SMTP）','al.ch_sms':'短信（Twilio）','al.managed_from':'由 alerts@info.catnetwork.co.jp 代发，无需自行配置邮件服务器',
   'al.ch_lang':'通知语言','al.lang_auto':'自动（跟随界面语言）','al.lang_zh':'中文','al.lang_en':'English','al.lang_ja':'日本語',
-  'al.test_btn':'发送测试通知',
+  'al.test_btn':'发送测试通知','al.test_disabled':'请先开启此渠道',
   'al.email_host':'SMTP 服务器','al.email_port':'端口','al.email_user':'用户名 / 发件邮箱',
   'al.email_pass':'密码 / 应用专用密码','al.email_to':'收件人（逗号分隔）',
   'al.email_guide_title':'Gmail 应用专用密码获取方式',
@@ -1167,7 +1167,7 @@ en:{
   // Alerts
   'al.ch_managed_email':'Managed Email','al.ch_email':'Email (Custom SMTP)','al.ch_sms':'SMS (Twilio)','al.managed_from':'Sent from alerts@info.catnetwork.co.jp — no SMTP setup required',
   'al.ch_lang':'Notification Language','al.lang_auto':'Auto (follow UI language)','al.lang_zh':'Chinese','al.lang_en':'English','al.lang_ja':'Japanese',
-  'al.test_btn':'Send Test Notification',
+  'al.test_btn':'Send Test Notification','al.test_disabled':'Please enable this channel first',
   'al.title':'Alert Management','al.sub':'Configure triggers and notification channels',
   'al.tab_ch':'Channels','al.tab_rules':'Rules','al.tab_hist':'History',
   'al.rules_existing':'Existing Rules','al.hist_title':'Recent Alerts',
@@ -1315,7 +1315,7 @@ ja:{
   'al.title':'アラート管理','al.sub':'トリガー条件と通知チャンネルの設定',
   'al.ch_managed_email':'マネージドメール通知','al.ch_email':'メール（カスタムSMTP）','al.ch_sms':'SMS（Twilio）','al.managed_from':'alerts@info.catnetwork.co.jp から送信 — SMTPサーバー設定不要',
   'al.ch_lang':'通知言語','al.lang_auto':'自動（UI言語に従う）','al.lang_zh':'中国語','al.lang_en':'英語','al.lang_ja':'日本語',
-  'al.test_btn':'テスト通知を送信',
+  'al.test_btn':'テスト通知を送信','al.test_disabled':'先にこのチャンネルを有効にしてください',
   'al.tab_ch':'通知チャンネル','al.tab_rules':'トリガールール','al.tab_hist':'履歴',
   'al.rules_existing':'既存のルール','al.hist_title':'最近のアラート',
   'al.test':'テスト','al.save_ch':'保存',
@@ -2876,9 +2876,21 @@ function chFooter(chName, currentLang, isEnabled){
       <option value="ja"${langVal==='ja'?' selected':''}>🇯🇵 ${t('al.lang_ja')}</option>
     </select>
   </div>
-  <button class="ch-test-btn" onclick="${isEnabled?`testChannel('${chName}')`:''}"
-          ${isEnabled?'':'disabled '}style="font-size:.72rem;padding:4px 14px${isEnabled?'':';opacity:.4;cursor:not-allowed'}">${t('al.test_btn')}</button>
+  <button class="ch-test-btn"
+          onclick="const _cb=this.closest('.ch-card')?.querySelector('input[type=checkbox]');if(_cb?.checked)testChannel('${chName}');else{this.style.animation='shake .3s';setTimeout(()=>this.style.animation='',300);}"
+          data-ch-test="${chName}"
+          style="font-size:.72rem;padding:4px 14px">${t('al.test_btn')}</button>
 </div>`;
+}
+// 切換 toggle 後即時更新測試按鈕視覺狀態
+function updateTestBtnState(card){
+  const cb=card?.querySelector('input[type=checkbox]');
+  const btn=card?.querySelector('[data-ch-test]');
+  if(!cb||!btn) return;
+  const on=cb.checked;
+  btn.style.opacity=on?'':'0.4';
+  btn.style.cursor=on?'':'not-allowed';
+  btn.title=on?'':t('al.test_disabled')||'请先开启此渠道';
 }
 
 async function loadChannelsTab(){
@@ -2897,7 +2909,7 @@ async function loadChannelsTab(){
     </div>
     <div style="font-size:.68rem;color:var(--tx3);margin-top:2px">${t('al.managed_from')}</div>
   </div>
-  <label class="ch-toggle"><input type="checkbox" data-ch="managed_email" onchange="saveChannels()"${meEn?' checked':''}><span class="ch-slider"></span></label>
+  <label class="ch-toggle"><input type="checkbox" data-ch="managed_email" onchange="saveChannels();updateTestBtnState(this.closest('.ch-card'))"${meEn?' checked':''}><span class="ch-slider"></span></label>
 </div>
 <div class="ch-fields one-col">
   <div class="form-g2"><label>${t('al.email_to')}</label>
@@ -2924,7 +2936,7 @@ ${chFooter('managed_email', meCfg.lang, meEn)}
   const emCard=`<div class="ch-card">
 <div class="ch-card-head">
   <div class="ch-name">📧 ${t('al.ch_email')}</div>
-  <label class="ch-toggle"><input type="checkbox" data-ch="email" onchange="saveChannels()"${emEn?' checked':''}><span class="ch-slider"></span></label>
+  <label class="ch-toggle"><input type="checkbox" data-ch="email" onchange="saveChannels();updateTestBtnState(this.closest('.ch-card'))"${emEn?' checked':''}><span class="ch-slider"></span></label>
 </div>
 <div class="ch-fields">${emFieldsHtml}</div>
 ${guideBox(t('al.email_guide_title'), t('al.email_guide'))}
@@ -2947,7 +2959,7 @@ ${chFooter('email', emCfg.lang, emEn)}
   const smsCard=`<div class="ch-card">
 <div class="ch-card-head">
   <div class="ch-name">📱 ${t('al.ch_sms')}</div>
-  <label class="ch-toggle"><input type="checkbox" data-ch="sms" onchange="saveChannels()"${smsEn?' checked':''}><span class="ch-slider"></span></label>
+  <label class="ch-toggle"><input type="checkbox" data-ch="sms" onchange="saveChannels();updateTestBtnState(this.closest('.ch-card'))"${smsEn?' checked':''}><span class="ch-slider"></span></label>
 </div>
 <div class="ch-fields">${smsFieldsHtml}</div>
 ${guideBox(t('al.sms_guide_title'), t('al.sms_guide'))}
@@ -2955,6 +2967,8 @@ ${chFooter('sms', smsCfg.lang, smsEn)}
 </div>`;
 
   $('channels-content').innerHTML = managedEmailCard + emCard + smsCard;
+  // 初始化各卡片的測試按鈕狀態
+  document.querySelectorAll('.ch-card').forEach(updateTestBtnState);
 }
 
 async function saveChannels(){
