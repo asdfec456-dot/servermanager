@@ -386,16 +386,18 @@ def _infer_base_url(req: Request) -> str:
 
 # 默认报警规则
 DEFAULT_ALERT_RULES = [
-    {"id": "rule-offline",   "name": "服务器下线",   "trigger": "server_offline",  "enabled": True,  "cooldown": 300,  "channels": ["email"]},
-    {"id": "rule-online",    "name": "服务器恢复",   "trigger": "server_online",   "enabled": True,  "cooldown": 60,   "channels": ["email"]},
-    {"id": "rule-crit",      "name": "严重健康故障", "trigger": "health_critical", "enabled": True,  "cooldown": 600,  "channels": ["email"]},
-    {"id": "rule-warn",      "name": "健康警告",     "trigger": "health_warning",  "enabled": False, "cooldown": 600,  "channels": ["email"]},
-    {"id": "rule-temp-crit", "name": "温度严重",     "trigger": "temp_critical",   "enabled": True,  "cooldown": 600,  "channels": ["email"]},
-    {"id": "rule-fan",       "name": "风扇故障",     "trigger": "fan_failed",      "enabled": True,  "cooldown": 600,  "channels": ["email"]},
-    {"id": "rule-psu",       "name": "电源模块故障", "trigger": "psu_failed",      "enabled": True,  "cooldown": 600,  "channels": ["email"]},
-    {"id": "rule-poweroff",  "name": "服务器关机",   "trigger": "power_off",       "enabled": True,  "cooldown": 300,  "channels": ["email"]},
-    {"id": "rule-hw-miss",   "name": "硬件丢失",     "trigger": "hardware_missing","enabled": True,  "cooldown": 300,  "channels": ["email"]},
+    {"id": "rule-offline",   "name": "服务器下线",   "name_key": "tr.server_offline",  "trigger": "server_offline",  "enabled": True,  "cooldown": 300,  "channels": ["email"]},
+    {"id": "rule-online",    "name": "服务器恢复",   "name_key": "tr.server_online",   "trigger": "server_online",   "enabled": True,  "cooldown": 60,   "channels": ["email"]},
+    {"id": "rule-crit",      "name": "严重健康故障", "name_key": "tr.health_critical",  "trigger": "health_critical", "enabled": True,  "cooldown": 600,  "channels": ["email"]},
+    {"id": "rule-warn",      "name": "健康警告",     "name_key": "tr.health_warning",   "trigger": "health_warning",  "enabled": False, "cooldown": 600,  "channels": ["email"]},
+    {"id": "rule-temp-crit", "name": "温度严重",     "name_key": "tr.temp_critical",    "trigger": "temp_critical",   "enabled": True,  "cooldown": 600,  "channels": ["email"]},
+    {"id": "rule-fan",       "name": "风扇故障",     "name_key": "tr.fan_failed",       "trigger": "fan_failed",      "enabled": True,  "cooldown": 600,  "channels": ["email"]},
+    {"id": "rule-psu",       "name": "电源模块故障", "name_key": "tr.psu_failed",       "trigger": "psu_failed",      "enabled": True,  "cooldown": 600,  "channels": ["email"]},
+    {"id": "rule-poweroff",  "name": "服务器关机",   "name_key": "tr.power_off",        "trigger": "power_off",       "enabled": True,  "cooldown": 300,  "channels": ["email"]},
+    {"id": "rule-hw-miss",   "name": "硬件丢失",     "name_key": "tr.hardware_missing", "trigger": "hardware_missing","enabled": True,  "cooldown": 300,  "channels": ["email"]},
 ]
+# trigger → name_key 映射（供迁移存量数据用）
+_TRIGGER_NAME_KEYS = {r["trigger"]: r["name_key"] for r in DEFAULT_ALERT_RULES}
 
 DEFAULT_ALERT_CHANNELS = {
     "managed_email": {
@@ -425,7 +427,16 @@ def load_alert_rules() -> list:
     DATA_DIR.mkdir(exist_ok=True)
     if ALERT_RULES_FILE.exists():
         try:
-            return json.loads(ALERT_RULES_FILE.read_text())
+            rules = json.loads(ALERT_RULES_FILE.read_text())
+            # 迁移：为没有 name_key 的存量规则自动补全
+            changed = False
+            for rule in rules:
+                if not rule.get("name_key") and rule.get("trigger") in _TRIGGER_NAME_KEYS:
+                    rule["name_key"] = _TRIGGER_NAME_KEYS[rule["trigger"]]
+                    changed = True
+            if changed:
+                ALERT_RULES_FILE.write_text(json.dumps(rules, indent=2, ensure_ascii=False))
+            return rules
         except Exception:
             pass
     rules = [dict(r) for r in DEFAULT_ALERT_RULES]
@@ -508,6 +519,21 @@ _TRIGGER_ICONS = {
     "power_off":       "⏹️",
     "hardware_missing":"🔧",
 }
+
+def _detail_i18n(key: str, **kw) -> dict:
+    """生成告警 detail 的三语翻译字典。"""
+    templates: dict = {
+        "server_online":   {"zh": "服务器已恢复上线", "en": "Server is back online", "ja": "サーバーが復旧しました"},
+        "health_critical": {"zh": "健康状态变为 Critical", "en": "Health status changed to Critical", "ja": "健全性が Critical に変化"},
+        "health_warning":  {"zh": "健康状态变为 Warning",  "en": "Health status changed to Warning",  "ja": "健全性が Warning に変化"},
+        "fan_failed":      {"zh": "{name} 故障",           "en": "{name} failed",                   "ja": "{name} 障害"},
+        "psu_failed":      {"zh": "{name} 故障",           "en": "{name} failed",                   "ja": "{name} 障害"},
+        "temp_critical":   {"zh": "{name}: {temp}°C 超温", "en": "{name}: {temp}°C overheat",       "ja": "{name}: {temp}°C 過熱"},
+        "hw_fan_decrease": {"zh": "风扇数量从 {frm} 减少到 {to}", "en": "Fan count decreased from {frm} to {to}", "ja": "ファン数が {frm} から {to} に減少"},
+        "hw_psu_decrease": {"zh": "电源模块数量从 {frm} 减少到 {to}", "en": "PSU count decreased from {frm} to {to}", "ja": "電源数が {frm} から {to} に減少"},
+    }
+    tpl = templates.get(key, {})
+    return {lang: tpl.get(lang, "").format(**kw) for lang in ("zh", "en", "ja")} if tpl else {}
 
 _ALERT_I18N: dict = {
     "zh": {
@@ -701,7 +727,8 @@ def _resolve_lang(chan: dict) -> str:
     return lang if lang in ("zh", "en", "ja") else "zh"
 
 async def send_alert(trigger: str, server: dict, detail: str, rule: dict,
-                     channels: dict, cluster_name: str) -> None:
+                     channels: dict, cluster_name: str,
+                     detail_i18n: dict | None = None) -> None:
     # 默认消息使用中文（供历史记录）；各渠道会用自己的语言重新格式化
     msg     = format_alert_message(trigger, server, detail, rule["name"], cluster_name, "zh")
     payload = {
@@ -709,20 +736,26 @@ async def send_alert(trigger: str, server: dict, detail: str, rule: dict,
         "server": {"name": server.get("name"), "bmc_ip": server.get("bmc_ip"), "health": server.get("health")},
         "detail": detail, "timestamp": datetime.now().isoformat(),
     }
-    append_alert_history({
-        "trigger": trigger, "rule": rule["name"],
-        "server": server.get("name", server.get("bmc_ip")),
-        "bmc_ip": server.get("bmc_ip"),
-        "detail": detail,
-        "time":   datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "channels": rule.get("channels", []),
-    })
+    hist: dict = {
+        "trigger":     trigger,
+        "rule":        rule["name"],
+        "name_key":    rule.get("name_key", ""),
+        "server":      server.get("name", server.get("bmc_ip")),
+        "bmc_ip":      server.get("bmc_ip"),
+        "detail":      detail,
+        "time":        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "channels":    rule.get("channels", []),
+    }
+    if detail_i18n:
+        hist["detail_i18n"] = detail_i18n
+    append_alert_history(hist)
     for ch_name in (rule.get("channels") or []):
         chan = channels.get(ch_name, {})
         if not chan.get("enabled"):
             continue
-        lang    = _resolve_lang(chan)
-        ch_msg  = format_alert_message(trigger, server, detail, rule["name"], cluster_name, lang)
+        lang     = _resolve_lang(chan)
+        ch_detail = (detail_i18n or {}).get(lang) or detail
+        ch_msg   = format_alert_message(trigger, server, ch_detail, rule["name"], cluster_name, lang)
         if ch_name == "managed_email":
             await dispatch_managed_email(ch_msg, rule["name"], chan, cluster_name, lang)
         elif ch_name == "email":
@@ -751,10 +784,10 @@ async def check_alerts() -> None:
     for bmc_ip, srv in list(_cache.items()):
         prev = state.get("servers", {}).get(bmc_ip, {})
 
-        async def fire(trigger: str, detail: str = "") -> None:
+        async def fire(trigger: str, detail: str = "", detail_i18n: dict | None = None) -> None:
             for rule in rules_for(trigger):
                 if is_cooled_down(state, rule["id"], bmc_ip, rule.get("cooldown", 300)):
-                    await send_alert(trigger, srv, detail, rule, channels, cluster_name)
+                    await send_alert(trigger, srv, detail, rule, channels, cluster_name, detail_i18n)
                     set_cooldown(state, rule["id"], bmc_ip)
 
         new_status = srv.get("status")
@@ -764,7 +797,7 @@ async def check_alerts() -> None:
         if new_status == "offline" and old_status == "online":
             await fire("server_offline")
         if new_status == "online" and old_status == "offline":
-            await fire("server_online", "服务器已恢复上线")
+            await fire("server_online", "服务器已恢复上线", _detail_i18n("server_online"))
 
         if new_status != "online":
             # 离线时不重复检查其他指标
@@ -775,9 +808,9 @@ async def check_alerts() -> None:
         new_health = srv.get("health", "Unknown")
         old_health = prev.get("health", "Unknown")
         if new_health == "Critical" and old_health != "Critical":
-            await fire("health_critical", f"健康状态变为 Critical")
+            await fire("health_critical", "健康状态变为 Critical", _detail_i18n("health_critical"))
         elif new_health == "Warning" and old_health not in ("Warning", "Critical"):
-            await fire("health_warning", f"健康状态变为 Warning")
+            await fire("health_warning", "健康状态变为 Warning", _detail_i18n("health_warning"))
 
         # 电源关机
         if srv.get("power_state") == "Off" and prev.get("power_state") not in ("Off", None, ""):
@@ -788,21 +821,24 @@ async def check_alerts() -> None:
         for temp in srv.get("temperatures", []):
             ot = old_temps.get(temp["name"], {})
             if temp.get("health") == "Critical" and ot.get("health") != "Critical":
-                await fire("temp_critical", f"{temp['name']}: {temp['reading_celsius']}°C")
+                await fire("temp_critical", f"{temp['name']}: {temp['reading_celsius']}°C",
+                           _detail_i18n("temp_critical", name=temp["name"], temp=temp["reading_celsius"]))
 
         # 风扇故障
         old_fans = {f["name"]: f for f in prev.get("fans", [])}
         for fan in srv.get("fans", []):
             of = old_fans.get(fan["name"], {})
             if fan.get("health") == "Critical" and of.get("health") != "Critical":
-                await fire("fan_failed", f"{fan['name']} 故障")
+                await fire("fan_failed", f"{fan['name']} 故障",
+                           _detail_i18n("fan_failed", name=fan["name"]))
 
         # 电源模块故障
         old_psus = {p["name"]: p for p in prev.get("psus", [])}
         for psu in srv.get("power_supplies", []):
             op = old_psus.get(psu["name"], {})
             if psu.get("health") == "Critical" and op.get("health") != "Critical":
-                await fire("psu_failed", f"{psu['name']} 故障")
+                await fire("psu_failed", f"{psu['name']} 故障",
+                           _detail_i18n("psu_failed", name=psu["name"]))
 
         # 硬件丢失（风扇/电源数量减少）
         if prev:
@@ -811,9 +847,11 @@ async def check_alerts() -> None:
             old_psu_cnt = len(prev.get("psus", []))
             new_psu_cnt = len(srv.get("power_supplies", []))
             if old_fan_cnt > 0 and new_fan_cnt < old_fan_cnt:
-                await fire("hardware_missing", f"风扇数量从 {old_fan_cnt} 减少到 {new_fan_cnt}")
+                await fire("hardware_missing", f"风扇数量从 {old_fan_cnt} 减少到 {new_fan_cnt}",
+                           _detail_i18n("hw_fan_decrease", frm=old_fan_cnt, to=new_fan_cnt))
             if old_psu_cnt > 0 and new_psu_cnt < old_psu_cnt:
-                await fire("hardware_missing", f"电源模块数量从 {old_psu_cnt} 减少到 {new_psu_cnt}")
+                await fire("hardware_missing", f"电源模块数量从 {old_psu_cnt} 减少到 {new_psu_cnt}",
+                           _detail_i18n("hw_psu_decrease", frm=old_psu_cnt, to=new_psu_cnt))
 
         # 更新状态快照
         state.setdefault("servers", {})[bmc_ip] = {

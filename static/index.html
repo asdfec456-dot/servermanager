@@ -2830,7 +2830,7 @@ function guideBox(title, content){
 }
 
 // 生成渠道卡片的语言选择器 + 测试按钮（统一样式，视觉上属于配置区下方）
-function chFooter(chName, currentLang){
+function chFooter(chName, currentLang, isEnabled){
   const langVal=currentLang||'auto';
   return `<div style="display:flex;align-items:center;justify-content:space-between;
                       margin-top:12px;padding-top:10px;border-top:1px solid var(--bd)">
@@ -2844,8 +2844,8 @@ function chFooter(chName, currentLang){
       <option value="ja"${langVal==='ja'?' selected':''}>🇯🇵 ${t('al.lang_ja')}</option>
     </select>
   </div>
-  <button class="ch-test-btn" onclick="testChannel('${chName}')"
-          style="font-size:.72rem;padding:4px 14px">${t('al.test_btn')}</button>
+  <button class="ch-test-btn" onclick="${isEnabled?`testChannel('${chName}')`:''}"
+          ${isEnabled?'':'disabled '}style="font-size:.72rem;padding:4px 14px${isEnabled?'':';opacity:.4;cursor:not-allowed'}">${t('al.test_btn')}</button>
 </div>`;
 }
 
@@ -2872,7 +2872,7 @@ async function loadChannelsTab(){
     <input class="inp ch-field" data-ch="managed_email" data-field="to_addrs" type="text" value="${esc(meAddrs)}" placeholder="admin@company.com, ops@company.com">
   </div>
 </div>
-${chFooter('managed_email', meCfg.lang)}
+${chFooter('managed_email', meCfg.lang, meEn)}
 </div>`;
 
   // Email card
@@ -2896,7 +2896,7 @@ ${chFooter('managed_email', meCfg.lang)}
 </div>
 <div class="ch-fields">${emFieldsHtml}</div>
 ${guideBox(t('al.email_guide_title'), t('al.email_guide'))}
-${chFooter('email', emCfg.lang)}
+${chFooter('email', emCfg.lang, emEn)}
 </div>`;
 
   // SMS card
@@ -2919,7 +2919,7 @@ ${chFooter('email', emCfg.lang)}
 </div>
 <div class="ch-fields">${smsFieldsHtml}</div>
 ${guideBox(t('al.sms_guide_title'), t('al.sms_guide'))}
-${chFooter('sms', smsCfg.lang)}
+${chFooter('sms', smsCfg.lang, smsEn)}
 </div>`;
 
   $('channels-content').innerHTML = managedEmailCard + emCard + smsCard;
@@ -2958,7 +2958,7 @@ async function loadRulesTab(){
       const chLabels=(rule.channels||[]).map(_chLabel).join(' / ');
       return`<div class="alert-rule-item">
 <div style="flex:1;min-width:0">
-  <div class="ar-name">${TRIGGER_ICONS[rule.trigger]||'📢'} ${esc(rule.name)}</div>
+  <div class="ar-name">${TRIGGER_ICONS[rule.trigger]||'📢'} ${esc(rule.name_key?t(rule.name_key)||rule.name:rule.name)}</div>
   <div class="ar-trigger">${trigLabel} · ${rule.cooldown}s · ${chLabels}</div>
 </div>
 <button class="btn-sm" onclick="editAlertRule('${rule.id}')">${t('al.rule_btn_edit')}</button>
@@ -3058,9 +3058,10 @@ async function loadHistoryTab(){
   $('alert-history-list').innerHTML=h.length===0
     ?`<div style="color:var(--tx3);font-size:.75rem;padding:8px 0">${t('al.hist_empty')}</div>`
     :h.map(e=>{
-      const trigLabel=t(TRIGGER_KEYS[e.trigger])||e.rule;
+      const trigLabel=e.name_key?t(e.name_key)||e.rule:(t(TRIGGER_KEYS[e.trigger])||e.rule);
+      const detailTxt=e.detail_i18n?e.detail_i18n[currentLang]||e.detail:e.detail;
       const chLabels=(e.channels||[]).map(c=>({'managed_email':t('al.ch_managed_email')||'托管邮件','email':t('al.ch_email')||'邮件','sms':t('al.ch_sms')||'短信'}[c]||c)).join('/');
-      return`<div class="hist-item"><div class="hist-icon">${TRIGGER_ICONS[e.trigger]||'📢'}</div><div class="hist-body"><div class="hist-title">${esc(trigLabel)} — ${esc(e.server)}</div><div class="hist-meta">${esc(e.time)}${e.detail?' · '+esc(e.detail):''} · ${chLabels}</div></div></div>`;
+      return`<div class="hist-item"><div class="hist-icon">${TRIGGER_ICONS[e.trigger]||'📢'}</div><div class="hist-body"><div class="hist-title">${esc(trigLabel)} — ${esc(e.server)}</div><div class="hist-meta">${esc(e.time)}${detailTxt?' · '+esc(detailTxt):''} · ${chLabels}</div></div></div>`;
     }).join('');
 }
 
