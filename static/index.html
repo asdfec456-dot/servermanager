@@ -823,7 +823,7 @@ tr:hover td{background:var(--sf2)}
 <div class="overlay" id="ov-ssl" onclick="closeOvBg(event,'ov-ssl')">
 <div class="modal modal-wide">
   <div class="modal-hdr">
-    <div><div class="modal-title">HTTPS 配置</div><div class="modal-sub">为 Server Manager 启用 TLS 加密访问</div></div>
+    <div><div class="modal-title" id="ssl-modal-title">HTTPS 配置</div><div class="modal-sub" id="ssl-modal-sub">为 Server Manager 启用 TLS 加密访问</div></div>
     <button class="mclose" onclick="closeOverlay('ov-ssl')">✕</button>
   </div>
   <!-- 标签 -->
@@ -1088,7 +1088,7 @@ zh:{
   'confirm.cancel_member':'确认取消会员？取消后立即失效，剩余时间不退款。',
   'confirm.delete_bmc_pass':'确认将 BMC 密码修改为新密码？此操作直接写入硬件。',
   // OS Profiles
-  'ssl.title':'HTTPS 配置',
+  'ssl.title':'HTTPS 配置','ssl.sub':'为 Server Manager 启用 TLS 加密访问',
   'card.settings':'卡片显示',
   'card.field_power':'电源状态',  'card.field_memory':'内存大小',
   'card.field_fans':'风扇状态',   'card.field_psu':'电源模块',
@@ -1233,6 +1233,12 @@ en:{
   'lic.btn':'Activate','lic.activating':'Activating...',
   'lic.success':'Activated!','lic.err_empty':'Please enter a license key',
   'lic.err_invalid':'Invalid license key, please check and try again',
+  'ssl.title':'HTTPS Configuration','ssl.sub':'Enable TLS encrypted access for Server Manager',
+  'card.settings':'Card Display',
+  'card.field_power':'Power State','card.field_memory':'Memory',
+  'card.field_fans':'Fans','card.field_psu':'PSUs',
+  'card.field_temps':'Temperature Chips','card.field_thermo':'Side Thermometer',
+  'card.field_powerbar':'Power Bar','card.field_gpu':'GPU Info',
   'lic.contact':'Contact Support',
   'confirm.delete_user':'Confirm delete user',
   'confirm.delete_sc':'Confirm delete subcluster',
@@ -1374,6 +1380,12 @@ ja:{
   'lic.btn':'認証','lic.activating':'認証中...',
   'lic.success':'認証成功！','lic.err_empty':'ライセンスキーを入力してください',
   'lic.err_invalid':'ライセンスキーが無効です。確認して再度お試しください',
+  'ssl.title':'HTTPS 設定','ssl.sub':'Server Manager の TLS 暗号化アクセスを有効にする',
+  'card.settings':'カード表示',
+  'card.field_power':'電源状態','card.field_memory':'メモリ',
+  'card.field_fans':'ファン','card.field_psu':'電源モジュール',
+  'card.field_temps':'温度チップ','card.field_thermo':'サイド温度計',
+  'card.field_powerbar':'電力バー','card.field_gpu':'GPU情報',
   'lic.contact':'サポートに連絡',
   'confirm.delete_user':'ユーザーを削除しますか',
   'confirm.delete_sc':'サブクラスターを削除しますか',
@@ -1411,6 +1423,8 @@ function applyI18n(){
     'fl-all':'all','fl-s-online':'online','fl-s-auth':'h.auth_failed','fl-s-reach':'h.reachable','fl-s-pend':'collecting','fl-s-off':'offline',
     'lbl-refresh':'btn.refresh','lbl-settings':'btn.settings','lbl-logout':'btn.logout',
     'dd-lbl-cfg':'cfg.title','dd-lbl-sc':'sc.title','dd-lbl-users':'u.title','dd-lbl-alerts':'al.title','dd-lbl-ssl':'ssl.title','dd-lbl-card':'card.settings',
+    'mob-ssl-lbl':'ssl.title',
+    'ssl-modal-title':'ssl.title','ssl-modal-sub':'ssl.sub',
     'lbl-setup-title':'setup.title','lbl-setup-sub':'setup.sub','lbl-cluster':'setup.cluster',
     'lbl-admin-user':'setup.admin','lbl-admin-pass':'setup.pass','lbl-confirm':'setup.confirm',
     'btn-setup-submit':'setup.submit','lbl-login-title':'login.title',
@@ -3331,7 +3345,7 @@ function closeMobMenu(){
   </div>
   <div class="mob-menu-item admin-only" onclick="ddOpen('ov-ssl');closeMobMenu()">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-    <span>HTTPS 配置</span>
+    <span id="mob-ssl-lbl">HTTPS 配置</span>
   </div>
 </div>
 
