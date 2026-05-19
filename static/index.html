@@ -2964,7 +2964,8 @@ async function loadRulesTab(){
 <button class="btn-sm" onclick="editAlertRule('${rule.id}')">${t('al.rule_btn_edit')}</button>
 <button class="btn-sm btn-sm-del" onclick="deleteAlertRule('${rule.id}')">${t('al.rule_btn_del')}</button>
 <label class="ar-toggle"><input type="checkbox"${rule.enabled?' checked':''} onchange="toggleAlertRule('${rule.id}',this.checked)"><span class="ar-slider"></span></label>
-</div>`).join('');
+</div>`;
+    }).join('');
 }
 
 async function toggleAlertRule(id,en){ await api('PUT',`/api/alerts/rules/${id}`,{enabled:en}); }
