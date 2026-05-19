@@ -53,7 +53,7 @@ logger = logging.getLogger("servermanager")
 # CATNETWORK's public server URL — used as the Stripe callback host.
 CATNETWORK_BASE_URL = "https://sm.catnetwork.co.jp"
 
-APP_VERSION = "1.9.0"   # ← 每次发布前在此处更新
+APP_VERSION = "1.9.1"   # ← 每次发布前在此处更新
 
 BASE_DIR   = Path(__file__).parent
 STATIC_DIR = BASE_DIR / "static"
@@ -604,7 +604,7 @@ def format_alert_message(trigger: str, server: dict, detail: str,
 _RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 _MANAGED_FROM   = "alerts@info.catnetwork.co.jp"
 
-def _build_alert_html(rule_name: str, plain_msg: str, cluster_name: str) -> str:
+def _build_alert_html(rule_name: str, plain_msg: str, cluster_name: str, lang: str = "zh") -> str:
     """生成告警 HTML 邮件正文。"""
     lines = plain_msg.replace("*", "").replace("_", "").strip().split("\n")
     rows  = "".join(
@@ -642,7 +642,7 @@ async def dispatch_managed_email(msg: str, rule_name: str, chan: dict,
     if not to_list:
         logger.warning("managed_email: 未设置收件人")
         return
-    html_body  = _build_alert_html(rule_name, msg, cluster_name)
+    html_body  = _build_alert_html(rule_name, msg, cluster_name, lang)
     plain_body = msg.replace("*", "").replace("_", "")
     payload = {
         "from":    _MANAGED_FROM,

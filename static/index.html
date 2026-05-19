@@ -894,7 +894,7 @@ tr:hover td{background:var(--sf2)}
     <div id="alert-tab-rules" class="alert-tab-pane" style="display:none;padding:18px">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
         <div>
-          <div class="sec-title">已有规则</div>
+          <div class="sec-title" id="al-rules-existing-title">已有规则</div>
           <div id="alert-rules-list"></div>
         </div>
         <div>
@@ -934,7 +934,7 @@ tr:hover td{background:var(--sf2)}
     <!-- History Tab -->
     <div id="alert-tab-history" class="alert-tab-pane" style="display:none;padding:18px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <div class="sec-title" style="margin-bottom:0;flex:1">最近报警记录</div>
+        <div class="sec-title" id="al-hist-title" style="margin-bottom:0;flex:1">最近报警记录</div>
         <button class="btn btn-danger" onclick="clearAlertHistory()" style="font-size:.7rem" id="btn-hist-clear">清空记录</button>
       </div>
       <div id="alert-history-list"></div>
@@ -1010,6 +1010,7 @@ zh:{
   // Alerts
   'al.title':'警报管理','al.sub':'配置触发条件和通知渠道',
   'al.tab_ch':'通知渠道','al.tab_rules':'触发规则','al.tab_hist':'历史记录',
+  'al.rules_existing':'已有规则','al.hist_title':'最近报警记录',
   'al.test':'测试','al.save_ch':'保存渠道',
   'al.ch_managed_email':'托管邮件通知','al.managed_from':'由 alerts@info.catnetwork.co.jp 代发，无需自行配置邮件服务器',
   'al.ch_lang':'通知语言','al.lang_auto':'自动（跟随界面语言）','al.lang_zh':'中文','al.lang_en':'English','al.lang_ja':'日本語',
@@ -1168,6 +1169,7 @@ en:{
   'al.test_btn':'Send Test Notification',
   'al.title':'Alert Management','al.sub':'Configure triggers and notification channels',
   'al.tab_ch':'Channels','al.tab_rules':'Rules','al.tab_hist':'History',
+  'al.rules_existing':'Existing Rules','al.hist_title':'Recent Alerts',
   'al.test':'Test','al.save_ch':'Save',
   'al.email_host':'SMTP Host','al.email_port':'Port','al.email_user':'Username / Sender Email',
   'al.email_pass':'Password / App Password','al.email_to':'Recipients (comma-separated)',
@@ -1308,6 +1310,7 @@ ja:{
   'al.ch_lang':'通知言語','al.lang_auto':'自動（UI言語に従う）','al.lang_zh':'中国語','al.lang_en':'英語','al.lang_ja':'日本語',
   'al.test_btn':'テスト通知を送信',
   'al.tab_ch':'通知チャンネル','al.tab_rules':'トリガールール','al.tab_hist':'履歴',
+  'al.rules_existing':'既存のルール','al.hist_title':'最近のアラート',
   'al.test':'テスト','al.save_ch':'保存',
   'al.email_host':'SMTP サーバー','al.email_port':'ポート','al.email_user':'ユーザー名 / 送信元メール',
   'al.email_pass':'パスワード / アプリ専用パスワード','al.email_to':'宛先（カンマ区切り）',
@@ -1476,6 +1479,7 @@ function setLang(l){
   currentLang=l;localStorage.setItem('sm_lang',l);applyI18n();renderGrid();
   if($('ov-alerts').classList.contains('open')){
     applyAlertI18n();loadChannelsTab();loadRulesTab();
+    if($('alert-tab-history')&&$('alert-tab-history').style.display!=='none') loadHistoryTab();
   }
   if($('ov-sub').classList.contains('open')) openSubModal();
   updateSubBadge();
@@ -2793,6 +2797,7 @@ function applyAlertI18n(){
     'btn-ar-submit-lbl': _alertRuleEditId?'al.rule_btn_save':'al.rule_btn_add',
     'lbl-ar-cancel':'al.rule_btn_cancel',
     'ar-ch-managed-email':'al.ch_managed_email','ar-ch-email':'al.ch_email','ar-ch-sms':'al.ch_sms',
+    'al-rules-existing-title':'al.rules_existing','al-hist-title':'al.hist_title',
     'tr-opt-offline':'tr.server_offline','tr-opt-online':'tr.server_online',
     'tr-opt-hcrit':'tr.health_critical','tr-opt-hwarn':'tr.health_warning',
     'tr-opt-temp':'tr.temp_critical','tr-opt-fan':'tr.fan_failed',
