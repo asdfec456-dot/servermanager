@@ -53,7 +53,7 @@ logger = logging.getLogger("servermanager")
 # CATNETWORK's public server URL — used as the Stripe callback host.
 CATNETWORK_BASE_URL = "https://sm.catnetwork.co.jp"
 
-APP_VERSION = "1.9.9"   # ← 每次发布前在此处更新
+APP_VERSION = "1.9.10"   # ← 每次发布前在此处更新
 
 BASE_DIR   = Path(__file__).parent
 STATIC_DIR = BASE_DIR / "static"
@@ -2307,17 +2307,26 @@ async def test_alert_channel(channel: str, req: Request,
     if not chan.get("enabled"):
         raise HTTPException(400, f"渠道 {channel} 未启用")
 
-    test_msg = (
-        "🔔 *Server Manager — 测试通知*\n\n"
-        "报警渠道配置正常，此为测试消息。"
-    )
     auth = load_auth()
-    test_rule = {"id": "test", "name": "测试", "channels": [channel]}
-    fake_server = {"name": "测试服务器", "bmc_ip": "0.0.0.0", "health": "OK"}
+    # 依照渠道的语言设定决定测试消息语言
+    lang = _resolve_lang(chan)
+    _TEST_I18N = {
+        "zh": {"rule": "测试通知", "server": "测试服务器",
+               "detail": "告警渠道配置正常，此为测试消息。"},
+        "en": {"rule": "Test Notification", "server": "Test Server",
+               "detail": "Alert channel configured correctly. This is a test message."},
+        "ja": {"rule": "テスト通知", "server": "テストサーバー",
+               "detail": "アラートチャンネルが正しく設定されています。テストメッセージです。"},
+    }
+    T = _TEST_I18N.get(lang) or _TEST_I18N["zh"]
+    test_rule = {"id": "test", "name": T["rule"], "channels": [channel]}
+    fake_server = {"name": T["server"], "bmc_ip": "0.0.0.0", "health": "OK"}
+    # 同时提供三语 detail_i18n，让各渠道用各自语言显示
+    detail_i18n = {lg: _TEST_I18N[lg]["detail"] for lg in _TEST_I18N}
     try:
-        await send_alert("server_online", fake_server, "测试消息", test_rule, channels,
-                         auth.get("cluster_name", ""))
-        return {"ok": True, "msg": f"{channel} 测试消息已发送"}
+        await send_alert("server_online", fake_server, T["detail"], test_rule, channels,
+                         auth.get("cluster_name", ""), detail_i18n=detail_i18n)
+        return {"ok": True, "msg": f"{channel} test message sent ({lang})"}
     except Exception as e:
         raise HTTPException(500, str(e))
 
