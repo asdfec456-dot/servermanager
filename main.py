@@ -53,7 +53,7 @@ logger = logging.getLogger("servermanager")
 # CATNETWORK's public server URL — used as the Stripe callback host.
 CATNETWORK_BASE_URL = "https://sm.catnetwork.co.jp"
 
-APP_VERSION = "1.9.11"   # ← 每次发布前在此处更新
+APP_VERSION = "1.10.0"   # ← 每次发布前在此处更新
 
 BASE_DIR   = Path(__file__).parent
 STATIC_DIR = BASE_DIR / "static"
@@ -1190,6 +1190,7 @@ async def collect_redfish(bmc_ip: str, username: str, password: str, timeout: in
                 "model": sd.get("Model", ""), "manufacturer": sd.get("Manufacturer", ""),
                 "serial": sd.get("SerialNumber", ""), "bios_version": sd.get("BiosVersion", ""),
                 "hostname": sd.get("HostName", ""), "power_state": sd.get("PowerState", "Unknown"),
+                "last_reset_time": sd.get("LastResetTime", ""),  # 用于计算开机时长
                 "health": st.get("HealthRollup") or st.get("Health") or "Unknown",
                 "memory_summary": {"total_gib": ms.get("TotalSystemMemoryGiB"),
                                    "health": ms.get("Status", {}).get("Health", "Unknown")},

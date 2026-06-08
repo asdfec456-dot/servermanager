@@ -121,6 +121,13 @@ main{padding:16px;min-height:60vh}
 /* KVM 按钮 */
 .kvm-btn{display:inline-flex;align-items:center;gap:2px;padding:2px 7px;border-radius:4px;border:1px solid var(--bd);background:transparent;color:var(--tx3);font-size:.6rem;font-weight:600;cursor:pointer;transition:all .15s;letter-spacing:.03em;line-height:1.5}
 .kvm-btn:hover{border-color:var(--acc);color:var(--acc);background:rgba(56,189,248,.08)}
+/* 操作下拉菜单 */
+#action-menu{position:fixed;z-index:10000;min-width:130px;background:var(--sf);border:1px solid var(--bd);border-radius:7px;box-shadow:0 6px 24px rgba(0,0,0,.4);padding:4px;display:none}
+#action-menu.open{display:block}
+.am-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:5px;font-size:.78rem;color:var(--tx1);cursor:pointer;user-select:none;white-space:nowrap}
+.am-item:hover{background:var(--sf2)}
+.am-item.danger:hover{background:rgba(239,68,68,.12);color:var(--crit)}
+.am-sep{height:1px;background:var(--bd);margin:4px 0}
 /* 右侧温度计 */
 .card-thermo{position:absolute;right:0;top:0;bottom:0;width:5px;background:rgba(128,128,128,.08)}
 .card-thermo-fill{position:absolute;bottom:0;left:0;right:0;transition:height .6s ease;border-radius:0 0 2px 0}
@@ -999,6 +1006,8 @@ zh:{
   'sc.confirm_note':'注意：机器本身不会被删除，仅移除分组。',
   'd.gpu':'GPU / 加速卡','d.gpu_mfr':'厂商','d.gpu_slot':'插槽',
   'd.sysinfo':'系统信息','d.hostname':'主机名','d.mfr':'制造商','d.model':'型号','d.serial':'序列号',
+  'd.uptime':'系统运行时间',
+  'act.menu':'操作','act.kvm':'KVM 控制台','act.on':'开机','act.off':'关机','act.reset':'重启','act.confirm':'确认执行此电源操作？',
   'd.bios':'BIOS / 固件','d.power':'电源状态','d.mem':'总内存','d.draw':'当前功耗',
   'd.proc':'处理器','d.name':'名称','d.cores':'核心','d.freq':'频率',
   'd.temp':'温度传感器','d.sensor':'传感器','d.current':'当前值','d.warn':'警告阈值','d.crit':'严重阈值',
@@ -1155,6 +1164,8 @@ en:{
   'sc.err_name':'Please enter a name','sc.count_unit':'machines','sc.confirm_del':'Confirm delete subcluster',
   'sc.confirm_note':'Note: machines will not be deleted, only the grouping.',
   'd.sysinfo':'System Info','d.hostname':'Hostname','d.mfr':'Manufacturer','d.model':'Model','d.serial':'Serial',
+  'd.uptime':'Uptime',
+  'act.menu':'Actions','act.kvm':'KVM Console','act.on':'Power On','act.off':'Power Off','act.reset':'Restart','act.confirm':'Confirm this power action?',
   'd.bios':'BIOS / Firmware','d.power':'Power State','d.mem':'Total Memory','d.draw':'Power Draw',
   'd.proc':'Processors','d.name':'Name','d.cores':'Cores','d.freq':'Frequency',
   'd.temp':'Temperature Sensors','d.sensor':'Sensor','d.current':'Current','d.warn':'Warning','d.crit':'Critical',
@@ -1302,6 +1313,8 @@ ja:{
   'sc.err_name':'名前を入力してください','sc.count_unit':'台','sc.confirm_del':'サブクラスターを削除しますか',
   'sc.confirm_note':'注意：サーバー自体は削除されません。グループのみ削除されます。',
   'd.sysinfo':'システム情報','d.hostname':'ホスト名','d.mfr':'メーカー','d.model':'モデル','d.serial':'シリアル番号',
+  'd.uptime':'稼働時間',
+  'act.menu':'操作','act.kvm':'KVMコンソール','act.on':'起動','act.off':'シャットダウン','act.reset':'再起動','act.confirm':'この電源操作を実行しますか？',
   'd.bios':'BIOS / ファームウェア','d.power':'電源状態','d.mem':'総メモリ','d.draw':'消費電力',
   'd.proc':'プロセッサー','d.name':'名前','d.cores':'コア数','d.freq':'周波数',
   'd.temp':'温度センサー','d.sensor':'センサー','d.current':'現在値','d.warn':'警告閾値','d.crit':'重大閾値',
@@ -1538,6 +1551,21 @@ async function api(m,p,b){
 }
 function fmtT(ts){return ts?new Date(ts*1000).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'—';}
 function fmtW(w){return w!=null?`${Math.round(w)} W`:'—';}
+// 由 LastResetTime 计算开机时长，输出随界面语言
+function fmtUptime(lastReset){
+  if(!lastReset) return '';
+  const t0=Date.parse(lastReset); if(isNaN(t0)) return '';
+  let sec=Math.floor((Date.now()-t0)/1000); if(sec<0) return '';
+  const d=Math.floor(sec/86400); sec%=86400;
+  const h=Math.floor(sec/3600);  sec%=3600;
+  const m=Math.floor(sec/60);
+  const U={zh:{d:'天',h:'小时',m:'分'},en:{d:'d',h:'h',m:'m'},ja:{d:'日',h:'時間',m:'分'}}[currentLang]||{d:'d',h:'h',m:'m'};
+  const parts=[];
+  if(d>0) parts.push(d+U.d);
+  if(h>0) parts.push(h+U.h);
+  if(d===0&&m>0) parts.push(m+U.m);   // 不足一天才显示分钟
+  return parts.length?parts.join(currentLang==='en'?' ':''):'<1'+U.m;
+}
 function tCol(h){return h==='Critical'?'var(--crit)':h==='Warning'?'var(--warn)':'var(--ok)';}
 function toggleEye(id){const i=$(id);i.type=i.type==='password'?'text':'password';}
 function maxTemp(s){const ts=s.temperatures||[];return ts.length?Math.max(...ts.map(t=>t.reading_celsius)):null;}
@@ -1549,16 +1577,73 @@ function kvmUrl(bmc_ip, manufacturer, customUrl){
   if(customUrl) return customUrl;
   return `/kvm/${bmc_ip}`;
 }
-function openKvm(e,bmc_ip,manufacturer,customUrl){
-  e.stopPropagation();
-  e.preventDefault();
+function openKvm(bmc_ip,customUrl){
   const url = customUrl || `/kvm/${bmc_ip}?token=${encodeURIComponent(token)}`;
   window.open(url,'_blank','noopener,width=1280,height=800');
 }
-// 只有拥有 KVM 权限的用户才渲染按钮
+// 操作下拉触发按钮：含 KVM + 电源（开机/关机/重启）
+// 仅当用户有 KVM 权限 或 是管理员时才显示
 function kvmBtn(ip,mfr,url){
-  if(!currentUser?.kvm_enabled) return '';
-  return `<button class="kvm-btn" data-ip="${ip}" data-mfr="${esc(mfr||'')}" data-url="${esc(url||'')}" onclick="openKvm(event,this.dataset.ip,this.dataset.mfr,this.dataset.url)" title="${esc(kvmUrl(ip,mfr||'',url||''))}">▶ KVM</button>`;
+  const canKvm=!!currentUser?.kvm_enabled;
+  const canPower=_isAdmin();
+  if(!canKvm && !canPower) return '';
+  return `<button class="kvm-btn" data-ip="${ip}" data-url="${esc(url||'')}" onclick="openActionMenu(event,this.dataset.ip,this.dataset.url)">⚙ ${t('act.menu')} ▾</button>`;
+}
+// 打开操作菜单（定位到按钮下方）
+function openActionMenu(e,ip,url){
+  e.stopPropagation();
+  e.preventDefault();
+  const menu=$('action-menu');
+  const canKvm=!!currentUser?.kvm_enabled;
+  const canPower=_isAdmin();
+  const items=[];
+  if(canKvm){
+    items.push(`<div class="am-item" data-act="kvm">▶ ${t('act.kvm')}</div>`);
+  }
+  if(canKvm && canPower) items.push(`<div class="am-sep"></div>`);
+  if(canPower){
+    items.push(`<div class="am-item" data-act="on">🟢 ${t('act.on')}</div>`);
+    items.push(`<div class="am-item danger" data-act="soft">🟡 ${t('act.off')}</div>`);
+    items.push(`<div class="am-item danger" data-act="reset">🔄 ${t('act.reset')}</div>`);
+  }
+  menu.innerHTML=items.join('');
+  // 绑定点击
+  menu.querySelectorAll('.am-item').forEach(it=>{
+    it.onclick=()=>{
+      const act=it.dataset.act;
+      closeActionMenu();
+      if(act==='kvm') openKvm(ip,url);
+      else doPowerAction(ip,act);
+    };
+  });
+  // 定位
+  const r=e.currentTarget.getBoundingClientRect();
+  menu.style.visibility='hidden';menu.classList.add('open');
+  const mw=menu.offsetWidth,mh=menu.offsetHeight;
+  let left=r.left, top=r.bottom+4;
+  if(left+mw>window.innerWidth-8) left=window.innerWidth-mw-8;
+  if(top+mh>window.innerHeight-8) top=r.top-mh-4;
+  menu.style.left=left+'px';menu.style.top=top+'px';
+  menu.style.visibility='';
+}
+function closeActionMenu(){ $('action-menu')?.classList.remove('open'); }
+// 点击别处关闭
+document.addEventListener('click',e=>{
+  const m=$('action-menu');
+  if(m&&m.classList.contains('open')&&!m.contains(e.target)&&!e.target.closest('.kvm-btn')) closeActionMenu();
+});
+// 电源操作（带确认）
+async function doPowerAction(ip,action){
+  const key=ip.replace(/\./g,'-');
+  const labels={on:t('act.on'),soft:t('act.off'),reset:t('act.reset')};
+  if(action==='soft'||action==='reset'){
+    if(!confirm(`${labels[action]} — ${ip}\n${t('act.confirm')}`)) return;
+  }
+  showToast(`${labels[action]}: ${ip} ...`,'ok');
+  const r=await api('POST',`/api/servers/${key}/power`,{action});
+  if(!r){showToast(`✗ ${ip}`,'crit');return;}
+  const d=await r.json();
+  showToast(d.ok?`✓ ${labels[action]} ${ip}`:`✗ ${d.detail||d.error||ip}`, d.ok?'ok':'crit');
 }
 function hbadge(s){
   if(s.status==='offline')     return['hb-unk',  t('h.offline')];
@@ -2311,6 +2396,7 @@ function buildDetail(s){
 <div><div class="ik">${t('d.serial')}</div><div class="iv">${s.serial||'—'}</div></div>
 <div><div class="ik">${t('d.bios')}</div><div class="iv">${s.bios_version||'—'}</div></div>
 <div><div class="ik">${t('d.power')}</div><div class="iv">${s.power_state||'—'}</div></div>
+${fmtUptime(s.last_reset_time)?`<div><div class="ik">${t('d.uptime')}</div><div class="iv">${fmtUptime(s.last_reset_time)}</div></div>`:''}
 ${ms.total_gib?`<div><div class="ik">${t('d.mem')}</div><div class="iv">${ms.total_gib} GiB (${ms.health||'—'})</div></div>`:''}
 <div><div class="ik">${t('d.draw')}</div><div class="iv">${fmtW(s.power_consumed_watts)}</div></div>
 </div>`));
@@ -2360,12 +2446,6 @@ ${ms.total_gib?`<div><div class="ik">${t('d.mem')}</div><div class="iv">${ms.tot
     parts.push(secH(t('d.psus'),`<table><thead><tr><th>${t('d.name')}</th><th>${t('d.model')}</th><th>${t('d.input_v')}</th><th>${t('d.output_w')}</th><th>${t('t.health')}</th></tr></thead><tbody>${rows}</tbody></table>`,worstHealth(items)));
   }
 
-  // 电源控制（管理员）
-  if((_isAdmin())){
-    parts.push(`<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--bd);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-<span id="pwr-result-${key}" style="font-size:.72rem;color:var(--ok)"></span>
-</div>`);
-  }
 
   // BMC 密码修改区块（仅管理员 + 在线服务器）
   if((_isAdmin()) && s.status==='online'){
@@ -2693,18 +2773,6 @@ async function doSslRestart(){
   await api('POST','/api/system/restart',{});
   // 等待服务重启后刷新页面
   setTimeout(()=>location.reload(), 4000);
-}
-
-/* ── 电源控制 ──────────────────────────────────────────────── */
-async function doPower(key, action){
-  const res=$(`pwr-result-${key}`);
-  res.style.color='var(--tx2)'; res.textContent='...';
-  const r=await api('POST',`/api/servers/${key}/power`,{action});
-  if(!r){res.style.color='var(--crit)';res.textContent='✗';return;}
-  const d=await r.json();
-  res.style.color=d.ok?'var(--ok)':'var(--crit)';
-  res.textContent=d.ok?`✓ ${d.method||''}`:('✗ '+(d.error||''));
-  setTimeout(()=>{res.textContent='';},4000);
 }
 
 /* ── Overlays ──────────────────────────────────────────────── */
@@ -3297,6 +3365,8 @@ function closeMobMenu(){
   </div>
 </div>
 
+<!-- 服务器操作下拉菜单（KVM / 电源）-->
+<div id="action-menu"></div>
 
 </body>
 </html>
