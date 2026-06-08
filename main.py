@@ -74,6 +74,7 @@ ALERT_RULES_FILE   = DATA_DIR / "alert_rules.json"
 ALERT_CHANNELS_FILE= DATA_DIR / "alert_channels.json"
 ALERT_STATE_FILE   = DATA_DIR / "alert_state.json"
 ALERT_HISTORY_FILE = DATA_DIR / "alert_history.json"
+POWER_ON_FILE      = DATA_DIR / ".power_on.json"   # ip → 电源 On 起始时间戳（持久化运行时间）
 
 
 DEFAULT_SETTINGS: dict = {
@@ -1458,6 +1459,23 @@ async def collect_server(bmc_ip: str, settings: dict) -> dict:
 
 _cache: Dict[str, dict] = {}
 _first_seen:    Dict[str, float] = {}   # ip → 首次发现时间戳
+
+def _load_power_on() -> Dict[str, float]:
+    if POWER_ON_FILE.exists():
+        try:
+            return {k: float(v) for k, v in json.loads(POWER_ON_FILE.read_text()).items()}
+        except Exception:
+            pass
+    return {}
+
+_power_on_since: Dict[str, float] = _load_power_on()  # ip → 观测到电源 On 的起始时间戳
+
+def _save_power_on() -> None:
+    try:
+        DATA_DIR.mkdir(exist_ok=True)
+        POWER_ON_FILE.write_text(json.dumps(_power_on_since))
+    except Exception:
+        pass
 _ping_alive:    Dict[str, bool]  = {}   # ip → 最新 ping 结果
 _flap_tracker:  Dict[str, list]  = {}   # ip → [状态切换时间戳]
 _bmc_error_type: Dict[str, str]  = {}   # ip → "auth" | "connection"（最近一次采集的失败原因）
@@ -1486,7 +1504,18 @@ async def refresh_cache() -> None:
             ip = r["bmc_ip"]
             if ip not in _first_seen:
                 _first_seen[ip] = time.time()
+            # 追踪开机时长：电源 On 时若无记录则记下当前时间；非 On 则清除
+            pwr = r.get("power_state")
+            if pwr == "On":
+                _power_on_since.setdefault(ip, time.time())
+            else:
+                _power_on_since.pop(ip, None)
+            # BMC 若提供 LastResetTime 则优先用真实开机时间，否则用观测起始时间
+            if not r.get("last_reset_time") and ip in _power_on_since:
+                r["last_reset_time"] = datetime.fromtimestamp(
+                    _power_on_since[ip]).astimezone().isoformat()
             _cache[ip] = r
+        _save_power_on()
         _last_full_refresh = time.time()
         online = sum(1 for r in results if r["status"] == "online")
         logger.info("完成 %.1fs | 在线 %d/%d", time.time() - t0, online, len(ips))
