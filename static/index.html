@@ -2367,82 +2367,6 @@ ${ms.total_gib?`<div><div class="ik">${t('d.mem')}</div><div class="iv">${ms.tot
 </div>`);
   }
 
-  // 系统安装（管理员）
-  if((_isAdmin())){
-    parts.push(`<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--bd)">
-<details id="inst-details-${key}">
-<summary style="font-size:.88rem;font-weight:700;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;padding:4px 0">
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-  ${t('inst.title')}
-</summary>
-<div style="margin-top:14px">
-
-<!-- 选择 OS 配置 -->
-<div style="margin-bottom:12px">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
-    <span style="font-size:.72rem;color:var(--tx2)">${t('inst.select_profile')}</span>
-  </div>
-  <select class="inp" id="inst-profile-${key}" onchange="onInstProfileChange('${key}')">
-    <option value="">-- ${t('inst.select_profile')} --</option>
-    ${profOpts}
-  </select>
-  <div id="inst-profile-info-${key}" style="margin-top:6px;font-size:.72rem;color:var(--tx3);font-family:monospace"></div>
-</div>
-
-<!-- 网络配置 -->
-<div style="margin-bottom:12px">
-<div style="font-size:.72rem;color:var(--tx2);margin-bottom:6px">${t('inst.net')}</div>
-<div style="display:flex;gap:10px;margin-bottom:8px">
-  <label style="display:flex;align-items:center;gap:5px;font-size:.78rem;cursor:pointer">
-    <input type="radio" name="inst-ipmode-${key}" value="dhcp" checked onchange="toggleInstIp('${key}',false)"> ${t('inst.dhcp')}
-  </label>
-  <label style="display:flex;align-items:center;gap:5px;font-size:.78rem;cursor:pointer">
-    <input type="radio" name="inst-ipmode-${key}" value="static" onchange="toggleInstIp('${key}',true)"> ${t('inst.static')}
-  </label>
-</div>
-<div id="inst-static-${key}" style="display:none;display:grid;grid-template-columns:1fr 1fr;gap:7px">
-  <div><label style="font-size:.68rem;color:var(--tx2)">${t('inst.ip')}</label><input class="inp" id="inst-ip-${key}" style="margin-top:3px;font-size:.8rem" placeholder="192.168.1.10"></div>
-  <div><label style="font-size:.68rem;color:var(--tx2)">${t('inst.mask')}</label><input class="inp" id="inst-mask-${key}" style="margin-top:3px;font-size:.8rem" placeholder="255.255.255.0"></div>
-  <div><label style="font-size:.68rem;color:var(--tx2)">${t('inst.gw')}</label><input class="inp" id="inst-gw-${key}" style="margin-top:3px;font-size:.8rem" placeholder="192.168.1.1"></div>
-  <div><label style="font-size:.68rem;color:var(--tx2)">${t('inst.dns')}</label><input class="inp" id="inst-dns-${key}" style="margin-top:3px;font-size:.8rem" placeholder="8.8.8.8"></div>
-</div>
-</div>
-
-<!-- 主机名 + 账户 -->
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px">
-  <div><label style="font-size:.68rem;color:var(--tx2)">${t('inst.hostname')}</label><input class="inp" id="inst-hostname-${key}" style="margin-top:3px;font-size:.8rem" placeholder="server-01"></div>
-  <div><label style="font-size:.68rem;color:var(--tx2)">${t('inst.user')}</label><input class="inp" id="inst-user-${key}" style="margin-top:3px;font-size:.8rem" placeholder="admin"></div>
-  <div style="grid-column:1/-1"><label style="font-size:.68rem;color:var(--tx2)">${t('inst.pass')}</label>
-    <div class="inp-wrap" style="margin-top:3px">
-      <input class="inp" id="inst-pass-${key}" type="password" style="font-size:.8rem" placeholder="••••••">
-      <button class="eye-btn" type="button" onclick="toggleEye('inst-pass-${key}')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
-    </div>
-  </div>
-</div>
-
-<!-- 安装方式：虚拟光驱 or 手动 -->
-<div style="margin-bottom:12px;display:flex;flex-direction:column;gap:7px">
-  <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;cursor:pointer">
-    <input type="radio" name="inst-method-${key}" value="manual" checked onchange="toggleInstMethod('${key}','manual')">
-    ${t('inst.method_manual')}
-  </label>
-  <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;cursor:pointer">
-    <input type="radio" name="inst-method-${key}" value="virtual-media" onchange="toggleInstMethod('${key}','virtual-media')">
-    ${t('inst.method_vm')}
-  </label>
-  <div id="inst-vm-row-${key}" style="display:none;padding-left:20px;font-size:.72rem;color:var(--tx3)" id="inst-iso-hint-${key}"></div>
-</div>
-
-<!-- 操作按钮 -->
-<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-</div>
-<div id="inst-ks-url-${key}" style="margin-top:8px;font-size:.7rem;color:var(--tx3)"></div>
-<div id="inst-result-${key}" style="margin-top:6px;font-size:.78rem;min-height:16px"></div>
-</div>
-</details>
-</div>`);
-  }
-
   // BMC 密码修改区块（仅管理员 + 在线服务器）
   if((_isAdmin()) && s.status==='online'){
     parts.push(`<div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--bd)">
@@ -2771,7 +2695,7 @@ async function doSslRestart(){
   setTimeout(()=>location.reload(), 4000);
 }
 
-/* ── OS 安装配置（全局） ────────────────────────────────────── */
+/* ── 电源控制 ──────────────────────────────────────────────── */
 async function doPower(key, action){
   const res=$(`pwr-result-${key}`);
   res.style.color='var(--tx2)'; res.textContent='...';
